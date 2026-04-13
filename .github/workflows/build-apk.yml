@@ -13,6 +13,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.16.0
+          
       - name: Create Flutter project
         run: |
           rm -rf app_temp
@@ -81,15 +87,10 @@ jobs:
           
       - name: Copy Dart source files
         run: |
-          mkdir -p android/app/src/main/kotlin/com/example/audio_player
-          cp -r lib android/
+          cp -r lib/* android/lib/ 2>/dev/null || mkdir -p android/lib && cp -r lib/* android/lib/
           rm -rf android/lib
-          
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.16.0
+          mkdir -p android/lib
+          cp -r lib/* android/lib/
           
       - name: Install dependencies
         run: flutter pub get
