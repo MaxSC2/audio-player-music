@@ -13,6 +13,78 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
+      - name: Create Flutter project
+        run: |
+          rm -rf app_temp
+          flutter create --org com.example app_temp
+          cp -r app_temp/* .
+          rm -rf app_temp
+          
+      - name: Update pubspec
+        run: |
+          cat > pubspec.yaml << 'EOF'
+          name: audio_player
+          description: Local music player MVP
+          publish_to: 'none'
+          version: 1.0.0+1
+
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+
+          dependencies:
+            flutter:
+              sdk: flutter
+            just_audio: ^0.9.36
+            on_audio_query: ^2.9.0
+            permission_handler: ^11.1.0
+            provider: ^6.1.1
+
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            flutter_lints: ^3.0.0
+
+          flutter:
+            uses-material-design: true
+          EOF
+          
+      - name: Update AndroidManifest
+        run: |
+          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+              
+              <application
+                  android:label="Audio Player"
+                  android:name="\${applicationName}"
+                  android:icon="@mipmap/ic_launcher">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2"/>
+              </application>
+          </manifest>
+          EOF
+          
+      - name: Copy Dart source files
+        run: |
+          mkdir -p android/app/src/main/kotlin/com/example/audio_player
+          cp -r lib android/
+          rm -rf android/lib
+          
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
