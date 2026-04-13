@@ -23,7 +23,8 @@ jobs:
         run: |
           rm -rf app_temp
           flutter create --org com.example app_temp
-          cp -r app_temp/* .
+          rm -rf app_temp/lib
+          mv app_temp/* .
           rm -rf app_temp
           
       - name: Update pubspec
@@ -84,11 +85,6 @@ jobs:
               </application>
           </manifest>
           EOFMANIFEST
-          
-      - name: Copy Dart source files
-        run: |
-          mkdir -p android/lib
-          cp -r lib/* android/lib/
           
       - name: Install dependencies
         run: flutter pub get
