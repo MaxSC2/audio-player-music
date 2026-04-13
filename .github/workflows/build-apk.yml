@@ -56,14 +56,14 @@ jobs:
           
       - name: Update AndroidManifest
         run: |
-          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          cat > android/app/src/main/AndroidManifest.xml << 'EOFMANIFEST'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
               
               <application
                   android:label="Audio Player"
-                  android:name="\${applicationName}"
+                  android:name="${applicationName}"
                   android:icon="@mipmap/ic_launcher">
                   <activity
                       android:name=".MainActivity"
@@ -83,12 +83,10 @@ jobs:
                       android:value="2"/>
               </application>
           </manifest>
-          EOF
+          EOFMANIFEST
           
       - name: Copy Dart source files
         run: |
-          cp -r lib/* android/lib/ 2>/dev/null || mkdir -p android/lib && cp -r lib/* android/lib/
-          rm -rf android/lib
           mkdir -p android/lib
           cp -r lib/* android/lib/
           
