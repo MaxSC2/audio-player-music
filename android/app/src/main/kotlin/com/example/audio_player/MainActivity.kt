@@ -1,11 +1,9 @@
 package com.example.audio_player
 
-import io.flutter.embedding.android.FlutterFragmentActivity
-import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.android.FlutterActivity
 
-class MainActivity: FlutterFragmentActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+class MainActivity: FlutterActivity() {
+    override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        io.flutter.plugins.GeneratedPluginRegistrant.registerWith(flutterEngine)
     }
 }
