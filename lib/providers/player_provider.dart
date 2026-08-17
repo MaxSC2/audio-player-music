@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_track.dart';
+import '../models/custom_playlist.dart';
 
 enum RepeatMode { off, all, one }
 enum SortOrder { title, artist, dateAdded, duration }
@@ -15,6 +17,10 @@ class PlayerProvider extends ChangeNotifier {
 
   List<AudioTrack> _allTracks = [];
   List<int> _favoriteIds = [];
+  List<CustomPlaylist> _playlists = [];
+
+  double _defaultSpeed = 1.0;
+  bool _hideUnknownArtist = false;
 
   List<AudioTrack> _playlist = [];
   int _currentIndex = -1;
@@ -47,6 +53,9 @@ class PlayerProvider extends ChangeNotifier {
   double get speed => _speed;
   int get sleepTimerMinutes => _sleepTimerMinutes;
   String get equalizerPreset => _equalizerPreset;
+  List<CustomPlaylist> get playlists => _playlists;
+  double get defaultSpeed => _defaultSpeed;
+  bool get hideUnknownArtist => _hideUnknownArtist;
 
   bool isFavorite(int id) => _favoriteIds.any((f) => f == id);
 
@@ -59,6 +68,8 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     _loadFavorites();
+    _loadPlaylists();
+    _loadSettings();
 
     _audioPlayer.positionStream.listen((pos) {
       _position = pos;
@@ -91,6 +102,139 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     _audioPlayer.setSpeed(_speed);
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+
+    _defaultSpeed = prefs.getDouble('default_speed') ?? 1.0;
+    _hideUnknownArtist = prefs.getBool('hide_unknown') ?? false;
+    _speed = _defaultSpeed;
+
+    final savedSort = prefs.getString('sort_order');
+    if (savedSort != null) {
+      _sortOrder = SortOrder.values.firstWhere(
+        (s) => s.name == savedSort,
+        orElse: () => SortOrder.title,
+      );
+    }
+
+    final savedEq = prefs.getString('eq_preset');
+    if (savedEq != null) {
+      _equalizerPreset = savedEq;
+    }
+
+    await _audioPlayer.setSpeed(_speed);
+    notifyListeners();
+  }
+
+  Future<void> _loadPlaylists() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    final raw = prefs.getString('playlists');
+    if (raw == null) return;
+    try {
+      final list = (jsonDecode(raw) as List)
+          .map((e) => CustomPlaylist.fromJson(e as Map<String, dynamic>))
+          .toList();
+      _playlists = list;
+      notifyListeners();
+    } catch (_) {
+      _playlists = [];
+    }
+  }
+
+  Future<void> _savePlaylists() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    await prefs.setString(
+      'playlists',
+      jsonEncode(_playlists.map((p) => p.toJson()).toList()),
+    );
+  }
+
+  Future<void> createPlaylist(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    _playlists.add(CustomPlaylist(
+      id: 'pl_${DateTime.now().millisecondsSinceEpoch}',
+      name: trimmed,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    await _savePlaylists();
+    notifyListeners();
+  }
+
+  Future<void> deletePlaylist(String id) async {
+    _playlists.removeWhere((p) => p.id == id);
+    await _savePlaylists();
+    notifyListeners();
+  }
+
+  Future<void> renamePlaylist(String id, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) return;
+    final index = _playlists.indexWhere((p) => p.id == id);
+    if (index < 0) return;
+    _playlists[index] = _playlists[index].copyWith(name: trimmed);
+    await _savePlaylists();
+    notifyListeners();
+  }
+
+  Future<void> addToPlaylist(String playlistId, AudioTrack track) async {
+    final index = _playlists.indexWhere((p) => p.id == playlistId);
+    if (index < 0) return;
+    if (_playlists[index].trackIds.contains(track.id)) return;
+    _playlists[index] = _playlists[index].copyWith(
+      trackIds: [..._playlists[index].trackIds, track.id],
+    );
+    await _savePlaylists();
+    notifyListeners();
+  }
+
+  Future<void> removeFromPlaylist(String playlistId, int trackId) async {
+    final index = _playlists.indexWhere((p) => p.id == playlistId);
+    if (index < 0) return;
+    _playlists[index] = _playlists[index].copyWith(
+      trackIds: _playlists[index].trackIds.where((t) => t != trackId).toList(),
+    );
+    await _savePlaylists();
+    notifyListeners();
+  }
+
+  List<AudioTrack> tracksOfPlaylist(CustomPlaylist playlist) {
+    final tracks = <AudioTrack>[];
+    for (final id in playlist.trackIds) {
+      for (final t in _allTracks) {
+        if (t.id == id) {
+          tracks.add(t);
+          break;
+        }
+      }
+    }
+    return tracks;
+  }
+
+  Future<void> setDefaultSpeed(double speed) async {
+    _defaultSpeed = speed;
+    _speed = speed;
+    await _prefs?.setDouble('default_speed', speed);
+    await _audioPlayer.setSpeed(speed);
+    notifyListeners();
+  }
+
+  Future<void> setHideUnknownArtist(bool value) async {
+    _hideUnknownArtist = value;
+    await _prefs?.setBool('hide_unknown', value);
+    notifyListeners();
+  }
+
+  List<AudioTrack> get visibleTracks {
+    if (!_hideUnknownArtist) return _allTracks;
+    return _allTracks
+        .where((t) => t.artist.toLowerCase() != 'unknown artist')
+        .toList();
   }
 
   Future<void> _loadFavorites() async {
@@ -130,7 +274,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<AudioTrack> get favoriteTracks {
-    final fav = _allTracks.where((t) => isFavorite(t.id)).toList();
+    final fav = visibleTracks.where((t) => isFavorite(t.id)).toList();
     return sortTracks(fav, _sortOrder);
   }
 
@@ -139,6 +283,7 @@ class PlayerProvider extends ChangeNotifier {
   set sortOrder(SortOrder value) {
     _sortOrder = value;
     _allTracks = sortTracks(_allTracks, value);
+    _prefs?.setString('sort_order', value.name);
     notifyListeners();
   }
 
@@ -159,9 +304,10 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<AudioTrack> searchTracks(String query) {
-    if (query.isEmpty) return _allTracks;
+    final base = visibleTracks;
+    if (query.isEmpty) return base;
     final q = query.toLowerCase();
-    return _allTracks.where((t) {
+    return base.where((t) {
       return t.title.toLowerCase().contains(q) ||
           t.artist.toLowerCase().contains(q) ||
           (t.album ?? '').toLowerCase().contains(q);
@@ -169,10 +315,10 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<String> get artists =>
-      _allTracks.map((t) => t.artist).toSet().where((a) => a.isNotEmpty).toList()..sort();
+      visibleTracks.map((t) => t.artist).toSet().where((a) => a.isNotEmpty).toList()..sort();
 
   List<String> get albums =>
-      _allTracks.where((t) => t.album != null && t.album!.isNotEmpty).map((t) => t.album!).toSet().toList()..sort();
+      visibleTracks.where((t) => t.album != null && t.album!.isNotEmpty).map((t) => t.album!).toSet().toList()..sort();
 
   Future<void> requestPermission() async {
     final hasPermission = await _audioQuery.checkAndRequest();
@@ -382,6 +528,10 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _rebuildPlaylist() async {
+    if (_playlist.isEmpty) {
+      await _audioPlayer.stop();
+      return;
+    }
     final uris = _playlist.map((t) => t.uri).toList();
     await _audioPlayer.setAudioSource(ConcatenatingAudioSource(
       children: uris.map((uri) => AudioSource.uri(Uri.parse(uri))).toList(),
@@ -395,6 +545,7 @@ class PlayerProvider extends ChangeNotifier {
 
   void setEqualizerPreset(String name) {
     _equalizerPreset = name;
+    _prefs?.setString('eq_preset', name);
     notifyListeners();
   }
 

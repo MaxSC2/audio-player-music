@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/custom_playlist.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import '../widgets/player_bar.dart';
 import '../widgets/track_tile.dart';
 import 'player_screen.dart';
+import 'playlist_detail_screen.dart';
+import 'settings_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -23,7 +26,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _requestPermission();
   }
 
@@ -52,6 +55,16 @@ class _LibraryScreenState extends State<LibraryScreen>
       appBar: AppBar(
         title: const Text('NeonWave'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_rounded,
+                color: AppTheme.textSecondary),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+            tooltip: 'Настройки',
+          ),
           if (player.allTracks.isNotEmpty)
             PopupMenuButton<String>(
               icon: const Icon(Icons.sort_rounded,
@@ -94,8 +107,9 @@ class _LibraryScreenState extends State<LibraryScreen>
           labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           tabs: const [
             Tab(text: 'Треки'),
-            Tab(text: 'Исполнители'),
+            Tab(text: 'Плейлисты'),
             Tab(text: 'Альбомы'),
+            Tab(text: 'Исполнители'),
             Tab(text: 'Избранное'),
           ],
         ),
@@ -152,8 +166,9 @@ class _LibraryScreenState extends State<LibraryScreen>
                         controller: _tabController,
                         children: [
                           _buildTrackList(player),
-                          _buildArtistList(player),
+                          _buildPlaylistList(player),
                           _buildAlbumList(player),
+                          _buildArtistList(player),
                           _buildFavoriteList(player),
                         ],
                       ),
@@ -293,6 +308,184 @@ class _LibraryScreenState extends State<LibraryScreen>
         );
       },
     );
+  }
+
+  Widget _buildPlaylistList(PlayerProvider player) {
+    final query = _searchQuery.toLowerCase();
+    final playlists = player.playlists
+        .where((p) => p.name.toLowerCase().contains(query))
+        .toList();
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      itemCount: playlists.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return _buildCreatePlaylistTile();
+        }
+        final playlist = playlists[index - 1];
+        final trackCount = playlist.trackIds.length;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.cardBorder),
+          ),
+          child: ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppTheme.cyanGreenGradient,
+              ),
+              child: const Icon(Icons.queue_music_rounded,
+                  color: Colors.white, size: 24),
+            ),
+            title: Text(
+              playlist.name,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              '$trackCount ${_pluralTracks(trackCount)}',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.play_circle_fill_rounded,
+                  color: AppTheme.accent),
+              onPressed: () {
+                final tracks = player.tracksOfPlaylist(playlist);
+                if (tracks.isNotEmpty) {
+                  player.playFromPlaylist(tracks, 0);
+                }
+              },
+              tooltip: 'Слушать',
+            ),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PlaylistDetailScreen(playlistId: playlist.id),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCreatePlaylistTile() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accent.withOpacity(0.4)),
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: AppTheme.primaryGradient,
+          ),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
+        ),
+        title: const Text(
+          'Создать плейлист',
+          style: TextStyle(
+            color: AppTheme.accentLight,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        subtitle: const Text(
+          'Соберите свою подборку',
+          style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+        ),
+        onTap: () => _createPlaylistDialog(),
+      ),
+    );
+  }
+
+  Future<void> _createPlaylistDialog() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppTheme.cardBorder),
+        ),
+        title: const Text(
+          'Новый плейлист',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: AppTheme.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Название плейлиста',
+            hintStyle: const TextStyle(color: AppTheme.textMuted),
+            filled: true,
+            fillColor: AppTheme.surfaceLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена',
+                style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Создать',
+                style: TextStyle(
+                    color: AppTheme.accentLight,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (name != null && name.isNotEmpty && context.mounted) {
+      context.read<PlayerProvider>().createPlaylist(name);
+    }
+  }
+
+  String _pluralTracks(int count) {
+    final mod10 = count % 10;
+    final mod100 = count % 100;
+    if (mod10 == 1 && mod100 != 11) return 'трек';
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return 'трека';
+    }
+    return 'треков';
   }
 
   Widget _buildArtistList(PlayerProvider player) {

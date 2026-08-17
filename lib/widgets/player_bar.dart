@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'animated_waveform.dart';
+import 'cached_artwork.dart';
 
 class MiniPlayerBar extends StatelessWidget {
   final VoidCallback onExpand;
@@ -61,31 +61,11 @@ class MiniPlayerBar extends StatelessWidget {
                           gradient: AppTheme.pinkPurpleGradient,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: QueryArtworkWidget(
-                            id: track.id,
-                            type: ArtworkType.AUDIO,
-                            artworkBorder: BorderRadius.circular(12),
-                            nullArtworkWidget: Container(
-                              decoration: const BoxDecoration(
-                                gradient: AppTheme.pinkPurpleGradient,
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.music_note_rounded,
-                                    color: Colors.white, size: 22),
-                              ),
-                            ),
-                            errorBuilder: (ctx, err, stack) => Container(
-                              decoration: const BoxDecoration(
-                                gradient: AppTheme.pinkPurpleGradient,
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.music_note_rounded,
-                                    color: Colors.white, size: 22),
-                              ),
-                            ),
-                          ),
+                        child: CachedArtwork(
+                          trackId: track.id,
+                          width: 44,
+                          height: 44,
+                          radius: 12,
                         ),
                       ),
                       const SizedBox(width: 12),

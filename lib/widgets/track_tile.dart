@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../models/audio_track.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'animated_waveform.dart';
+import 'cached_artwork.dart';
+import 'playlist_picker_sheet.dart';
 import 'track_info_dialog.dart';
 
 class TrackTile extends StatelessWidget {
@@ -70,16 +71,11 @@ class TrackTile extends StatelessWidget {
                               ]
                             : null,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: QueryArtworkWidget(
-                          id: track.id,
-                          type: ArtworkType.AUDIO,
-                          artworkBorder: BorderRadius.circular(12),
-                          nullArtworkWidget: _buildFallbackArtwork(),
-                          errorBuilder: (ctx, err, stack) =>
-                              _buildFallbackArtwork(),
-                        ),
+                      child: CachedArtwork(
+                        trackId: track.id,
+                        width: 50,
+                        height: 50,
+                        radius: 12,
                       ),
                     ),
                     if (isCurrent)
@@ -188,6 +184,17 @@ class TrackTile extends StatelessWidget {
                       );
                     } else if (value == 'favorite') {
                       player.toggleFavorite(track);
+                    } else if (value == 'playlist') {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: AppTheme.surface,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(24)),
+                        ),
+                        builder: (_) => PlaylistPickerSheet(track: track),
+                      );
                     } else if (value == 'info') {
                       showDialog(
                         context: context,
@@ -226,6 +233,17 @@ class TrackTile extends StatelessWidget {
                       ),
                     ),
                     const PopupMenuItem(
+                      value: 'playlist',
+                      child: Row(
+                        children: [
+                          Icon(Icons.playlist_add_rounded,
+                              color: AppTheme.accentGreen, size: 18),
+                          SizedBox(width: 10),
+                          Text('Добавить в плейлист'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
                       value: 'info',
                       child: Row(
                         children: [
@@ -241,21 +259,6 @@ class TrackTile extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFallbackArtwork() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: AppTheme.pinkPurpleGradient,
-      ),
-      child: const Center(
-        child: Icon(
-          Icons.music_note_rounded,
-          color: Colors.white,
-          size: 24,
         ),
       ),
     );

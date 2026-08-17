@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
 import '../ui/theme.dart';
+import 'cached_artwork.dart';
 
 class SpinningVinyl extends StatefulWidget {
   final int? trackId;
@@ -23,33 +23,45 @@ class SpinningVinyl extends StatefulWidget {
 
 class _SpinningVinylState extends State<SpinningVinyl>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late AnimationController _spinController;
+  late AnimationController _glowController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _spinController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 14),
+      duration: const Duration(seconds: 10),
     );
-    if (widget.isPlaying) {
-      _controller.repeat();
-    }
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _syncAnimations();
   }
 
   @override
   void didUpdateWidget(covariant SpinningVinyl oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (!widget.isPlaying && _controller.isAnimating) {
-      _controller.stop();
+    _syncAnimations();
+  }
+
+  void _syncAnimations() {
+    if (widget.isPlaying) {
+      if (!_spinController.isAnimating) _spinController.repeat();
+      if (!_glowController.isAnimating) {
+        _glowController.repeat(reverse: true);
+      }
+    } else {
+      if (_spinController.isAnimating) _spinController.stop();
+      if (_glowController.isAnimating) _glowController.stop();
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _spinController.dispose();
+    _glowController.dispose();
     super.dispose();
   }
 
@@ -57,96 +69,112 @@ class _SpinningVinylState extends State<SpinningVinyl>
   Widget build(BuildContext context) {
     return Center(
       child: AnimatedBuilder(
-        animation: _controller,
+        animation: Listenable.merge([_spinController, _glowController]),
         builder: (context, child) {
+          final glow = _glowController.value;
+          final artworkSize = widget.size * 0.55;
+
           return Transform.rotate(
-            angle: _controller.value * 2 * pi,
-            child: child,
+            angle: _spinController.value * 2 * pi,
+            child: Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF0F1017),
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.isPlaying
+                        ? AppTheme.accent
+                            .withOpacity(0.25 + glow * 0.3)
+                        : Colors.black.withOpacity(0.4),
+                    blurRadius: widget.isPlaying ? 20 + glow * 18 : 16,
+                    spreadRadius: widget.isPlaying ? 3 + glow * 4 : 1,
+                  ),
+                  BoxShadow(
+                    color: widget.isPlaying
+                        ? AppTheme.accentCyan.withOpacity(0.12 + glow * 0.2)
+                        : Colors.transparent,
+                    blurRadius: 30 + glow * 20,
+                    spreadRadius: 2 + glow * 2,
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Vinyl Grooves
+                  if (widget.showVinylGrooves)
+                    CustomPaint(
+                      size: Size(widget.size, widget.size),
+                      painter: VinylGroovesPainter(),
+                    ),
+
+                  // Center Album Art (non-rotating)
+                  Container(
+                    width: artworkSize,
+                    height: artworkSize,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: AppTheme.primaryGradient,
+                    ),
+                    child: widget.trackId != null
+                        ? CachedArtwork(
+                            trackId: widget.trackId!,
+                            width: artworkSize,
+                            height: artworkSize,
+                            radius: artworkSize / 2,
+                          )
+                        : _buildFallbackArtwork(artworkSize),
+                  ),
+
+                  // Gloss / shine overlay
+                  Container(
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.35, -0.45),
+                        radius: 0.9,
+                        colors: [
+                          Colors.white.withOpacity(widget.isPlaying ? 0.09 : 0.04),
+                          Colors.transparent,
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Center Vinyl Spindle Hole
+                  Container(
+                    width: widget.size * 0.1,
+                    height: widget.size * 0.1,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.background,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black54,
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
-        child: Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF0F1017),
-            boxShadow: [
-              BoxShadow(
-                color: widget.isPlaying
-                    ? AppTheme.accent.withOpacity(0.35)
-                    : Colors.black.withOpacity(0.4),
-                blurRadius: widget.isPlaying ? 28 : 16,
-                spreadRadius: widget.isPlaying ? 4 : 1,
-              ),
-              BoxShadow(
-                color: widget.isPlaying
-                    ? AppTheme.accentCyan.withOpacity(0.2)
-                    : Colors.transparent,
-                blurRadius: 36,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Vinyl Grooves
-              if (widget.showVinylGrooves)
-                CustomPaint(
-                  size: Size(widget.size, widget.size),
-                  painter: VinylGroovesPainter(),
-                ),
-
-              // Center Album Art
-              ClipRRect(
-                borderRadius: BorderRadius.circular(widget.size * 0.45),
-                child: Container(
-                  width: widget.size * 0.55,
-                  height: widget.size * 0.55,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppTheme.primaryGradient,
-                  ),
-                  child: widget.trackId != null
-                      ? QueryArtworkWidget(
-                          id: widget.trackId!,
-                          type: ArtworkType.AUDIO,
-                          artworkBorder: BorderRadius.circular(widget.size),
-                          nullArtworkWidget: _buildFallbackArtwork(),
-                          errorBuilder: (ctx, err, stack) =>
-                              _buildFallbackArtwork(),
-                        )
-                      : _buildFallbackArtwork(),
-                ),
-              ),
-
-              // Center Vinyl Spindle Hole
-              Container(
-                width: widget.size * 0.12,
-                height: widget.size * 0.12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.background,
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 2,
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black54,
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildFallbackArtwork() {
+  Widget _buildFallbackArtwork(double artworkSize) {
     return Container(
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
@@ -155,7 +183,7 @@ class _SpinningVinylState extends State<SpinningVinyl>
       child: Center(
         child: Icon(
           Icons.music_note_rounded,
-          size: widget.size * 0.25,
+          size: artworkSize * 0.5,
           color: Colors.white,
         ),
       ),
