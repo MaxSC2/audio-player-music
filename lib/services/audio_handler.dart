@@ -49,10 +49,31 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       ? 'drawable/ic_action_favorite'
       : 'drawable/ic_action_favorite_off';
 
+  AudioServiceRepeatMode get _repeatServiceMode {
+    switch (_repeat) {
+      case 1:
+        return AudioServiceRepeatMode.all;
+      case 2:
+        return AudioServiceRepeatMode.one;
+      default:
+        return AudioServiceRepeatMode.none;
+    }
+  }
+
+  static const Set<MediaAction> _systemActions = {
+    MediaAction.seek,
+    MediaAction.setShuffleMode,
+    MediaAction.setRepeatMode,
+  };
+
   void setShuffleState(bool on) {
     _shuffleOn = on;
     playbackState.add(_state.copyWith(
       controls: _buildControls(_state.playing),
+      systemActions: _systemActions,
+      repeatMode: _repeatServiceMode,
+      shuffleMode:
+          on ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     ));
   }
 
@@ -67,6 +88,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     _repeat = mode;
     playbackState.add(_state.copyWith(
       controls: _buildControls(_state.playing),
+      systemActions: _systemActions,
+      repeatMode: _repeatServiceMode,
+      shuffleMode:
+          _shuffleOn ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     ));
   }
 
@@ -101,6 +126,16 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       case 'repeat':
         onToggleRepeat();
     }
+  }
+
+  @override
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
+    onToggleShuffle();
+  }
+
+  @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
+    onToggleRepeat();
   }
 
   MediaItem _toMediaItem(AudioTrack track) {
@@ -186,12 +221,16 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       playbackState.add(_state.copyWith(
         playing: playing,
         controls: _buildControls(playing),
-        systemActions: const {MediaAction.seek},
+        systemActions: _systemActions,
         androidCompactActionIndices: const [0, 3, 5],
         processingState: _mapProcessing(player.processingState),
         updatePosition: player.position,
         bufferedPosition: player.bufferedPosition,
         speed: player.speed,
+        repeatMode: _repeatServiceMode,
+        shuffleMode: _shuffleOn
+            ? AudioServiceShuffleMode.all
+            : AudioServiceShuffleMode.none,
         queueIndex: player.currentIndex,
       ));
     });
