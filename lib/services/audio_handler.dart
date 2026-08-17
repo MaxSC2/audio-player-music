@@ -11,8 +11,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final AudioPlayer player;
   final VoidCallback onToggleRepeat;
   final VoidCallback onToggleShuffle;
+  final VoidCallback onToggleFavorite;
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
+  bool _favoriteOn = false;
   int _repeat = 0;
   final OnAudioQuery _audioQuery = OnAudioQuery();
   final Map<int, String> _artPaths = {};
@@ -21,6 +23,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     this.player, {
     required this.onToggleRepeat,
     required this.onToggleShuffle,
+    required this.onToggleFavorite,
   }) {
     _listen();
   }
@@ -42,8 +45,19 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  String get _favoriteIcon => _favoriteOn
+      ? 'drawable/ic_action_favorite'
+      : 'drawable/ic_action_favorite_off';
+
   void setShuffleState(bool on) {
     _shuffleOn = on;
+    playbackState.add(_state.copyWith(
+      controls: _buildControls(_state.playing),
+    ));
+  }
+
+  void setFavoriteState(bool on) {
+    _favoriteOn = on;
     playbackState.add(_state.copyWith(
       controls: _buildControls(_state.playing),
     ));
@@ -62,6 +76,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
           label: 'Перемешать',
           name: 'shuffle',
         ),
+        MediaControl.custom(
+          androidIcon: _favoriteIcon,
+          label: 'В избранное',
+          name: 'favorite',
+        ),
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
         MediaControl.skipToNext,
@@ -77,6 +96,8 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     switch (name) {
       case 'shuffle':
         onToggleShuffle();
+      case 'favorite':
+        onToggleFavorite();
       case 'repeat':
         onToggleRepeat();
     }
@@ -166,7 +187,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         playing: playing,
         controls: _buildControls(playing),
         systemActions: const {MediaAction.seek},
-        androidCompactActionIndices: const [1, 2, 3],
+        androidCompactActionIndices: const [0, 3, 5],
         processingState: _mapProcessing(player.processingState),
         updatePosition: player.position,
         bufferedPosition: player.bufferedPosition,

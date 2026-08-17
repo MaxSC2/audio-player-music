@@ -76,6 +76,10 @@ class PlayerProvider extends ChangeNotifier {
 
   void attachAudioHandler(PlayerAudioHandler handler) {
     _audioHandler = handler;
+    handler.setShuffleState(_shuffleMode);
+    handler.setRepeatState(_repeatMode.index);
+    final track = currentTrack;
+    if (track != null) handler.setFavoriteState(isFavorite(track.id));
     notifyListeners();
   }
 
@@ -342,7 +346,14 @@ class PlayerProvider extends ChangeNotifier {
     }
     _saveFavorites();
     _refreshTrackFavoriteFlags();
+    _audioHandler?.setFavoriteState(isFavorite(track.id));
     notifyListeners();
+  }
+
+  void toggleFavoriteCurrent() {
+    final track = currentTrack;
+    if (track == null) return;
+    toggleFavorite(track);
   }
 
   void _refreshTrackFavoriteFlags() {
