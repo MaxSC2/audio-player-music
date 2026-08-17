@@ -349,6 +349,9 @@ class PlayerProvider extends ChangeNotifier {
     _allTracks = _allTracks
         .map((t) => t.copyWith(isFavorite: isFavorite(t.id)))
         .toList();
+    _playlist = _playlist
+        .map((t) => t.copyWith(isFavorite: isFavorite(t.id)))
+        .toList();
   }
 
   List<AudioTrack> get favoriteTracks {

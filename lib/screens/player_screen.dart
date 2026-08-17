@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import '../widgets/animated_waveform.dart';
+import '../widgets/artwork_backdrop.dart';
 import '../widgets/equalizer_dialog.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/queue_sheet.dart';
@@ -61,6 +62,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
               ),
             ),
+          ),
+
+          // Animated Artwork Backdrop
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.3,
+              child: AnimatedArtworkBackdrop(trackId: track.id),
+            ),
+          ),
+          Positioned.fill(
+            child: Container(color: AppTheme.background.withOpacity(0.4)),
           ),
 
           SafeArea(
@@ -271,13 +283,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Favorite
-                      _FeatureButton(
-                        icon: track.isFavorite
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: track.isFavorite
-                            ? AppTheme.accentPink
-                            : AppTheme.textSecondary,
+                      _AnimatedFavoriteButton(
+                        isFavorite: track.isFavorite,
                         onTap: () => player.toggleFavorite(track),
                       ),
 
@@ -469,6 +476,38 @@ class _FeatureButton extends StatelessWidget {
           border: Border.all(color: AppTheme.cardBorder),
         ),
         child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
+}
+
+class _AnimatedFavoriteButton extends StatelessWidget {
+  final bool isFavorite;
+  final VoidCallback onTap;
+
+  const _AnimatedFavoriteButton({
+    required this.isFavorite,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(isFavorite),
+      tween: Tween(begin: 0.5, end: 1.0),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: _FeatureButton(
+        icon: isFavorite
+            ? Icons.favorite_rounded
+            : Icons.favorite_border_rounded,
+        color: isFavorite
+            ? AppTheme.accentPink
+            : AppTheme.textSecondary,
+        onTap: onTap,
       ),
     );
   }

@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:on_audio_query/on_audio_query.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/audio_track.dart';
 
 class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
@@ -10,6 +14,8 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
   int _repeat = 0;
+  final OnAudioQuery _audioQuery = OnAudioQuery();
+  final Map<int, String> _artPaths = {};
 
   PlayerAudioHandler(
     this.player, {
@@ -77,13 +83,43 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   MediaItem _toMediaItem(AudioTrack track) {
+    final artPath = _artPaths[track.id];
     return MediaItem(
       id: track.id.toString(),
       title: track.title,
       artist: track.artist,
       album: track.album,
       duration: Duration(milliseconds: track.duration),
+      artUri: artPath != null ? Uri.file(artPath) : null,
     );
+  }
+
+  Future<void> _attachArt(AudioTrack track) async {
+    if (_artPaths.containsKey(track.id)) return;
+    try {
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/neonwave_art_${track.id}.png');
+      if (await file.exists()) {
+        _artPaths[track.id] = file.path;
+      } else {
+        final bytes = await _audioQuery.queryArtwork(
+          track.id,
+          ArtworkType.AUDIO,
+          format: ArtworkFormat.PNG,
+          size: 512,
+        );
+        if (bytes == null) return;
+        await file.writeAsBytes(bytes, flush: true);
+        _artPaths[track.id] = file.path;
+      }
+      final idx = player.currentIndex;
+      if (idx != null &&
+          idx >= 0 &&
+          idx < _queueTracks.length &&
+          _queueTracks[idx].id == track.id) {
+        mediaItem.add(_toMediaItem(track));
+      }
+    } catch (_) {}
   }
 
   @override
@@ -141,7 +177,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
     player.currentIndexStream.listen((index) {
       if (index != null && index >= 0 && index < _queueTracks.length) {
-        mediaItem.add(_toMediaItem(_queueTracks[index]));
+        final track = _queueTracks[index];
+        mediaItem.add(_toMediaItem(track));
+        unawaited(_attachArt(track));
       }
       playbackState.add(_state.copyWith(queueIndex: index));
     });
