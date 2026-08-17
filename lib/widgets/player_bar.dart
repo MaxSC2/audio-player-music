@@ -22,6 +22,7 @@ class MiniPlayerBar extends StatelessWidget {
     final progress = player.duration.inMilliseconds > 0
         ? (player.position.inMilliseconds / player.duration.inMilliseconds)
             .clamp(0.0, 1.0)
+            .toDouble()
         : 0.0;
 
     return Padding(

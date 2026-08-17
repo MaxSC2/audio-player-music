@@ -14,7 +14,7 @@ class PlayerProvider extends ChangeNotifier {
   SharedPreferences? _prefs;
 
   List<AudioTrack> _allTracks = [];
-  List<AudioTrack> _favoriteIds = [];
+  List<int> _favoriteIds = [];
 
   List<AudioTrack> _playlist = [];
   int _currentIndex = -1;
@@ -175,8 +175,8 @@ class PlayerProvider extends ChangeNotifier {
       _allTracks.where((t) => t.album != null && t.album!.isNotEmpty).map((t) => t.album!).toSet().toList()..sort();
 
   Future<void> requestPermission() async {
-    final hasPermission = await _audioQuery.checkAndRequestPermissions();
-    if (!hasPermission) return;
+    final permission = await _audioQuery.requestPermissions();
+    if (permission != PermissionState.granted) return;
     await loadTracks();
   }
 
@@ -195,7 +195,7 @@ class PlayerProvider extends ChangeNotifier {
               title: song.title,
               artist: song.artist ?? 'Unknown Artist',
               album: song.album,
-              uri: song.uri,
+              uri: song.uri ?? '',
               duration: song.duration ?? 0,
               size: song.size,
               dateAdded: song.dateAdded,

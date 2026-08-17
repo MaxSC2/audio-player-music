@@ -133,7 +133,7 @@ class _SpinningVinylState extends State<SpinningVinyl>
                   ),
                   boxShadow: const [
                     BoxShadow(
-                      color: Colors.black50,
+                      color: Colors.black54,
                       blurRadius: 4,
                     ),
                   ],

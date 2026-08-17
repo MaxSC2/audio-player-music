@@ -39,6 +39,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final progress = player.duration.inMilliseconds > 0
         ? (player.position.inMilliseconds / player.duration.inMilliseconds)
             .clamp(0.0, 1.0)
+            .toDouble()
         : 0.0;
 
     return Scaffold(

@@ -374,7 +374,6 @@ class _LibraryScreenState extends State<LibraryScreen>
         final tracks = player.allTracks
             .where((t) => t.album == album)
             .toList();
-        final albumArtId = tracks.first.id;
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
