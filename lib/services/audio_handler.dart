@@ -1,16 +1,80 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter/foundation.dart';
 import '../models/audio_track.dart';
 
 class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final AudioPlayer player;
+  final VoidCallback onToggleRepeat;
+  final VoidCallback onToggleShuffle;
   List<AudioTrack> _queueTracks = [];
+  bool _shuffleOn = false;
+  RepeatMode _repeat = RepeatMode.off;
 
-  PlayerAudioHandler(this.player) {
+  PlayerAudioHandler(
+    this.player, {
+    required this.onToggleRepeat,
+    required this.onToggleShuffle,
+  }) {
     _listen();
   }
 
   PlaybackState get _state => playbackState.value;
+
+  String get _shuffleIcon => _shuffleOn
+      ? 'drawable/ic_action_shuffle'
+      : 'drawable/ic_action_shuffle_off';
+
+  String get _repeatIcon {
+    switch (_repeat) {
+      case RepeatMode.all:
+        return 'drawable/ic_action_repeat';
+      case RepeatMode.one:
+        return 'drawable/ic_action_repeat_one';
+      case RepeatMode.off:
+        return 'drawable/ic_action_repeat_off';
+    }
+  }
+
+  void setShuffleState(bool on) {
+    _shuffleOn = on;
+    playbackState.add(_state.copyWith(
+      controls: _buildControls(_state.playing),
+    ));
+  }
+
+  void setRepeatState(RepeatMode mode) {
+    _repeat = mode;
+    playbackState.add(_state.copyWith(
+      controls: _buildControls(_state.playing),
+    ));
+  }
+
+  List<MediaControl> _buildControls(bool playing) => [
+        MediaControl.custom(
+          androidIcon: _shuffleIcon,
+          label: 'Перемешать',
+          name: 'shuffle',
+        ),
+        MediaControl.skipToPrevious,
+        if (playing) MediaControl.pause else MediaControl.play,
+        MediaControl.skipToNext,
+        MediaControl.custom(
+          androidIcon: _repeatIcon,
+          label: 'Повтор',
+          name: 'repeat',
+        ),
+      ];
+
+  @override
+  Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
+    switch (name) {
+      case 'shuffle':
+        onToggleShuffle();
+      case 'repeat':
+        onToggleRepeat();
+    }
+  }
 
   MediaItem _toMediaItem(AudioTrack track) {
     return MediaItem(
@@ -64,13 +128,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     player.playingStream.listen((playing) {
       playbackState.add(_state.copyWith(
         playing: playing,
-        controls: [
-          MediaControl.skipToPrevious,
-          if (playing) MediaControl.pause else MediaControl.play,
-          MediaControl.skipToNext,
-        ],
+        controls: _buildControls(playing),
         systemActions: const {MediaAction.seek},
-        androidCompactActionIndices: const [0, 1, 2],
+        androidCompactActionIndices: const [1, 2, 3],
         processingState: _mapProcessing(player.processingState),
         updatePosition: player.position,
         bufferedPosition: player.bufferedPosition,

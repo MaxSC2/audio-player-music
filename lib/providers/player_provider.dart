@@ -539,11 +539,13 @@ class PlayerProvider extends ChangeNotifier {
       case RepeatMode.one:
         _repeatMode = RepeatMode.off;
     }
+    _audioHandler?.setRepeatState(_repeatMode);
     notifyListeners();
   }
 
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
+    _audioHandler?.setShuffleState(_shuffleMode);
     notifyListeners();
   }
 

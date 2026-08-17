@@ -11,7 +11,11 @@ Future<void> main() async {
   final playerProvider = PlayerProvider();
 
   final handlerFuture = AudioService.init(
-    builder: () => PlayerAudioHandler(playerProvider.player),
+    builder: () => PlayerAudioHandler(
+      playerProvider.player,
+      onToggleRepeat: playerProvider.toggleRepeat,
+      onToggleShuffle: playerProvider.toggleShuffle,
+    ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.audio_player.channel.audio',
       androidNotificationChannelName: 'NeonWave',
