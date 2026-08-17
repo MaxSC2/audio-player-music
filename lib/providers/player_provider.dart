@@ -539,7 +539,7 @@ class PlayerProvider extends ChangeNotifier {
       case RepeatMode.one:
         _repeatMode = RepeatMode.off;
     }
-    _audioHandler?.setRepeatState(_repeatMode);
+    _audioHandler?.setRepeatState(_repeatMode.index);
     notifyListeners();
   }
 

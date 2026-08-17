@@ -9,7 +9,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final VoidCallback onToggleShuffle;
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
-  RepeatMode _repeat = RepeatMode.off;
+  int _repeat = 0;
 
   PlayerAudioHandler(
     this.player, {
@@ -27,11 +27,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   String get _repeatIcon {
     switch (_repeat) {
-      case RepeatMode.all:
+      case 1:
         return 'drawable/ic_action_repeat';
-      case RepeatMode.one:
+      case 2:
         return 'drawable/ic_action_repeat_one';
-      case RepeatMode.off:
+      default:
         return 'drawable/ic_action_repeat_off';
     }
   }
@@ -43,7 +43,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     ));
   }
 
-  void setRepeatState(RepeatMode mode) {
+  void setRepeatState(int mode) {
     _repeat = mode;
     playbackState.add(_state.copyWith(
       controls: _buildControls(_state.playing),
