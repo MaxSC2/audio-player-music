@@ -24,12 +24,15 @@ jobs:
           rm -rf app_temp lib_backup
           cp -r lib lib_backup
           cp pubspec.yaml pubspec_backup.yaml
+          mkdir -p mainactivity_backup
+          cp -r android/app/src/main/kotlin mainactivity_backup/
           flutter create --org com.example --project-name audio_player app_temp
           cp -r app_temp/. .
           rm -rf lib
           cp -r lib_backup lib
           cp pubspec_backup.yaml pubspec.yaml
-          rm -rf app_temp lib_backup pubspec_backup.yaml
+          cp -r mainactivity_backup/kotlin android/app/src/main/
+          rm -rf app_temp lib_backup pubspec_backup.yaml mainactivity_backup
 
       - name: Setup signing
         run: |

@@ -1,9 +1,5 @@
 package com.example.audio_player
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity: FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-    }
-}
+class MainActivity: AudioServiceActivity()
