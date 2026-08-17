@@ -32,7 +32,9 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               subtitle: Text(
-                player.mediaServiceReady ? 'Активен' : 'Недоступен',
+                player.mediaServiceReady
+                    ? 'Активен'
+                    : (player.mediaServiceError ?? 'Недоступен'),
                 style: TextStyle(
                   color: player.mediaServiceReady
                       ? AppTheme.accentCyan

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,13 +30,16 @@ Future<void> main() async {
     if (handler is PlayerAudioHandler) {
       playerProvider.attachAudioHandler(handler);
     }
-  }).ignore();
+  }, onError: (Object e) {
+    playerProvider.setMediaServiceError('Ошибка: $e');
+  });
 
   try {
     await handlerFuture.timeout(const Duration(seconds: 10));
-  } catch (_) {
-    // AudioService could not be initialized on this device; run without
-    // the media notification rather than blocking the UI.
+  } on TimeoutException {
+    playerProvider.setMediaServiceError('Таймаут инициализации (10 сек)');
+  } catch (e) {
+    playerProvider.setMediaServiceError('Ошибка: $e');
   }
 
   runApp(

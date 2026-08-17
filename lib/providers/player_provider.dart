@@ -43,6 +43,7 @@ class PlayerProvider extends ChangeNotifier {
   bool _resumePlayback = false;
   DateTime _lastPersist = DateTime.fromMillisecondsSinceEpoch(0);
   PlayerAudioHandler? _audioHandler;
+  String? _mediaServiceError;
 
   AudioPlayer get player => _audioPlayer;
 
@@ -66,6 +67,12 @@ class PlayerProvider extends ChangeNotifier {
   bool get hideUnknownArtist => _hideUnknownArtist;
   bool get resumePlayback => _resumePlayback;
   bool get mediaServiceReady => _audioHandler != null;
+  String? get mediaServiceError => _mediaServiceError;
+
+  void setMediaServiceError(String message) {
+    _mediaServiceError = message;
+    notifyListeners();
+  }
 
   void attachAudioHandler(PlayerAudioHandler handler) {
     _audioHandler = handler;
