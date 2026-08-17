@@ -1,5 +1,5 @@
 name: audio_player
-description: Local music player MVP
+description: NeonWave - Modern Local Music Player
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -13,6 +13,7 @@ dependencies:
   on_audio_query: ^2.9.0
   permission_handler: ^11.1.0
   provider: ^6.1.1
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

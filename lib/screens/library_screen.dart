@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
-import '../models/audio_track.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
-import '../widgets/track_tile.dart';
 import '../widgets/player_bar.dart';
+import '../widgets/track_tile.dart';
+import 'player_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -15,270 +13,501 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
-  final OnAudioQuery _audioQuery = OnAudioQuery();
-  List<AudioTrack> _tracks = [];
-  bool _isLoading = true;
-  bool _hasPermission = false;
+class _LibraryScreenState extends State<LibraryScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _permissionDenied = false;
 
   @override
   void initState() {
     super.initState();
-    _requestPermissionAndLoad();
+    _tabController = TabController(length: 4, vsync: this);
+    _requestPermission();
   }
 
-  Future<void> _requestPermissionAndLoad() async {
-    final status = await Permission.audio.request();
-    
-    if (status.isGranted) {
-      setState(() {
-        _hasPermission = true;
-      });
-      await _loadTracks();
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadTracks() async {
+  Future<void> _requestPermission() async {
+    final player = context.read<PlayerProvider>();
+    await player.requestPermission();
+    if (!mounted) return;
     setState(() {
-      _isLoading = true;
+      _permissionDenied = player.allTracks.isEmpty;
     });
-
-    try {
-      final songs = await _audioQuery.querySongs(
-        sortType: SongSortType.TITLE,
-        orderType: OrderType.ASC_OR_SMALLER,
-        uriType: UriType.EXTERNAL,
-        ignoreCase: true,
-      );
-
-      final tracks = songs
-          .where((song) => song.duration != null && song.duration! > 5000)
-          .map((song) => AudioTrack(
-                id: song.id,
-                title: song.title,
-                artist: song.artist ?? 'Неизвестный',
-                album: song.album,
-                uri: song.uri ?? '',
-                duration: song.duration ?? 0,
-              ))
-          .toList();
-
-      setState(() {
-        _tracks = tracks;
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading tracks: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
   }
 
-  void _showFullPlayer() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      transitionAnimationController: AnimationController(
-        duration: const Duration(milliseconds: 300),
-        vsync: Navigator.of(context),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => const FullPlayer(),
-      ),
-    );
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
 
-    if (player.error != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(player.error!),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () => player.clearError(),
-            ),
-          ),
-        );
-        player.clearError();
-      });
-    }
-
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Библиотека'),
+        title: const Text('NeonWave'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {},
-          ),
+          if (player.allTracks.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.sort_rounded,
+                  color: AppTheme.textSecondary),
+              color: AppTheme.surfaceLight,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: AppTheme.cardBorder),
+              ),
+              onSelected: (value) {
+                switch (value) {
+                  case 'title':
+                    player.sortOrder = SortOrder.title;
+                  case 'artist':
+                    player.sortOrder = SortOrder.artist;
+                  case 'date':
+                    player.sortOrder = SortOrder.dateAdded;
+                  case 'duration':
+                    player.sortOrder = SortOrder.duration;
+                }
+              },
+              itemBuilder: (context) => [
+                _buildSortItem(SortOrder.title, player.sortOrder, 'По названию'),
+                _buildSortItem(
+                    SortOrder.artist, player.sortOrder, 'По исполнителю'),
+                _buildSortItem(
+                    SortOrder.dateAdded, player.sortOrder, 'По дате добавления'),
+                _buildSortItem(
+                    SortOrder.duration, player.sortOrder, 'По длительности'),
+              ],
+            ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppTheme.accent,
+          indicatorSize: TabBarIndicatorSize.label,
+          indicatorWeight: 3,
+          labelColor: AppTheme.textPrimary,
+          unselectedLabelColor: AppTheme.textMuted,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+          tabs: const [
+            Tab(text: 'Треки'),
+            Tab(text: 'Исполнители'),
+            Tab(text: 'Альбомы'),
+            Tab(text: 'Избранное'),
+          ],
+        ),
       ),
       body: Column(
         children: [
-          Expanded(
-            child: _buildContent(player),
+          // Search Field
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.trim();
+                });
+              },
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Поиск треков, исполнителей...',
+                hintStyle: const TextStyle(color: AppTheme.textMuted),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    color: AppTheme.textMuted),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded,
+                            color: AppTheme.textMuted),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppTheme.surfaceLight,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
           ),
-          PlayerBar(onTap: _showFullPlayer),
+
+          // Content
+          Expanded(
+            child: _permissionDenied && player.allTracks.isEmpty
+                ? _buildPermissionDenied()
+                : player.allTracks.isEmpty
+                    ? _buildLoading()
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildTrackList(player),
+                          _buildArtistList(player),
+                          _buildAlbumList(player),
+                          _buildFavoriteList(player),
+                        ],
+                      ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MiniPlayerBar(
+            onExpand: () {
+              Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const PlayerScreen(),
+                  transitionsBuilder: (_, anim, __, child) {
+                    return FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.4),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
+                        ),
+                        child: child,
+                      ),
+                    );
+                  },
+                  transitionDuration: const Duration(milliseconds: 350),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildContent(PlayerProvider player) {
-    if (!_hasPermission) {
-      return _buildPermissionRequest();
-    }
+  Widget _buildLoading() {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(color: AppTheme.accent),
+          SizedBox(height: 16),
+          Text(
+            'Сканируем музыку...',
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
 
-    if (_isLoading) {
-      return const Center(
+  Widget _buildPermissionDenied() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: AppTheme.accent),
-            SizedBox(height: 16),
-            Text(
-              'Загрузка треков...',
-              style: TextStyle(color: AppTheme.textSecondary),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.music_off_rounded,
+                color: AppTheme.textSecondary,
+                size: 48,
+              ),
             ),
-          ],
-        ),
-      );
-    }
-
-    if (_tracks.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.music_off,
-              size: 64,
-              color: AppTheme.textSecondary,
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             const Text(
-              'Треки не найдены',
+              'Нет доступа к музыке',
               style: TextStyle(
-                fontSize: 18,
                 color: AppTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Добавьте музыку в память устройства',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+              'Разрешите доступ к аудиофайлам, чтобы видеть вашу музыкальную библиотеку.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadTracks,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Обновить'),
+              onPressed: _requestPermission,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Запросить доступ'),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    if (player.playlist.isEmpty) {
-      player.setPlaylist(_tracks);
+  Widget _buildTrackList(PlayerProvider player) {
+    final query = _searchQuery;
+    final tracks = player.searchTracks(query);
+    final playlist = tracks;
+
+    if (tracks.isEmpty) {
+      return _buildEmptyState('Ничего не найдено', Icons.search_off_rounded);
     }
 
     return ListView.builder(
-      itemCount: _tracks.length,
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      itemCount: tracks.length,
       itemBuilder: (context, index) {
-        final track = _tracks[index];
-        final isPlaying = player.currentTrack?.id == track.id;
+        final track = tracks[index];
+        final isCurrent = player.currentTrack?.id == track.id;
 
         return TrackTile(
           track: track,
-          isPlaying: isPlaying,
-          onTap: () => player.playTrack(track),
+          isPlaying: isCurrent && player.isPlaying,
+          isCurrent: isCurrent,
+          onTap: () {
+            if (playlist.length > 1) {
+              player.playFromPlaylist(playlist, index);
+            } else {
+              player.playTrack(track);
+            }
+          },
         );
       },
     );
   }
 
-  Widget _buildPermissionRequest() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.folder_open,
-              size: 80,
-              color: AppTheme.textSecondary,
+  Widget _buildArtistList(PlayerProvider player) {
+    final query = _searchQuery.toLowerCase();
+    final artists = player.artists.where((a) => a.toLowerCase().contains(query)).toList();
+
+    if (artists.isEmpty) {
+      return _buildEmptyState('Исполнители не найдены', Icons.person_off_rounded);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      itemCount: artists.length,
+      itemBuilder: (context, index) {
+        final artist = artists[index];
+        final tracks = player.allTracks
+            .where((t) => t.artist == artist)
+            .toList();
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.cardBorder),
+          ),
+          child: ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Доступ к музыке',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppTheme.primaryGradient,
+              ),
+              child: const Icon(Icons.person_rounded,
+                  color: Colors.white, size: 26),
+            ),
+            title: Text(
+              artist,
+              style: const TextStyle(
                 color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Для сканирования музыкальных файлов необходимо разрешение на доступ к аудио',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
+            subtitle: Text(
+              '${tracks.length} треков',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+            onTap: () {
+              player.playFromPlaylist(tracks, 0);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlbumList(PlayerProvider player) {
+    final query = _searchQuery.toLowerCase();
+    final albums = player.albums
+        .where((a) => a.toLowerCase().contains(query))
+        .toList();
+
+    if (albums.isEmpty) {
+      return _buildEmptyState('Альбомы не найдены', Icons.album_outlined);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      itemCount: albums.length,
+      itemBuilder: (context, index) {
+        final album = albums[index];
+        final tracks = player.allTracks
+            .where((t) => t.album == album)
+            .toList();
+        final albumArtId = tracks.first.id;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.cardBorder),
+          ),
+          child: ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                gradient: AppTheme.pinkPurpleGradient,
+                borderRadius: BorderRadius.all(Radius.circular(10)),
               ),
-              textAlign: TextAlign.center,
+              child: const Icon(Icons.album_rounded,
+                  color: Colors.white, size: 26),
             ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: _requestPermissionAndLoad,
-              icon: const Icon(Icons.check),
-              label: const Text('Предоставить доступ'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
+            title: Text(
+              album,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => openAppSettings(),
-              child: const Text(
-                'Настройки приложения',
-                style: TextStyle(color: AppTheme.accent),
+            subtitle: Text(
+              '${tracks.length} треков',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+            onTap: () {
+              player.playFromPlaylist(tracks, 0);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFavoriteList(PlayerProvider player) {
+    final query = _searchQuery;
+    final favs = player.favoriteTracks
+        .where((t) =>
+            t.title.toLowerCase().contains(query) ||
+            t.artist.toLowerCase().contains(query))
+        .toList();
+
+    if (favs.isEmpty) {
+      return _buildEmptyState(
+        'Нет избранных треков',
+        Icons.favorite_border_rounded,
+        subtitle: 'Нажимайте на сердечко у треков, чтобы добавить их сюда.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      itemCount: favs.length,
+      itemBuilder: (context, index) {
+        final track = favs[index];
+        final isCurrent = player.currentTrack?.id == track.id;
+
+        return TrackTile(
+          track: track,
+          isPlaying: isCurrent && player.isPlaying,
+          isCurrent: isCurrent,
+          onTap: () {
+            if (favs.length > 1) {
+              player.playFromPlaylist(favs, index);
+            } else {
+              player.playTrack(track);
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(String text, IconData icon,
+      {String? subtitle}) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppTheme.textMuted, size: 56),
+          const SizedBox(height: 16),
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: AppTheme.textMuted, fontSize: 13),
               ),
             ),
           ],
-        ),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildSortItem(
+      SortOrder order, SortOrder current, String label) {
+    return PopupMenuItem(
+      value: order.name,
+      child: Row(
+        children: [
+          Icon(
+            current == order
+                ? Icons.check_circle_rounded
+                : Icons.circle_outlined,
+            color: current == order ? AppTheme.accent : AppTheme.textMuted,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Text(label),
+        ],
       ),
     );
   }
