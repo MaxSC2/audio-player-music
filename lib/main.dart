@@ -10,7 +10,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final playerProvider = PlayerProvider();
 
-  final audioHandler = await AudioService.init(
+  final handlerFuture = AudioService.init(
     builder: () => PlayerAudioHandler(playerProvider.player),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.audio_player.channel.audio',
@@ -20,7 +20,18 @@ Future<void> main() async {
     ),
   );
 
-  playerProvider.attachAudioHandler(audioHandler as PlayerAudioHandler);
+  handlerFuture.then((handler) {
+    if (handler is PlayerAudioHandler) {
+      playerProvider.attachAudioHandler(handler);
+    }
+  }).ignore();
+
+  try {
+    await handlerFuture.timeout(const Duration(seconds: 10));
+  } catch (_) {
+    // AudioService could not be initialized on this device; run without
+    // the media notification rather than blocking the UI.
+  }
 
   runApp(
     ChangeNotifierProvider(
