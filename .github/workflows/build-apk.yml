@@ -31,12 +31,26 @@ jobs:
           cp pubspec_backup.yaml pubspec.yaml
           rm -rf app_temp lib_backup pubspec_backup.yaml
 
+      - name: Setup signing
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_B64 }}" | base64 -d > android/app/release.keystore
+          cat > android/app/key.properties << 'EOF'
+          storePassword=${{ secrets.SIGNING_STORE_PASSWORD }}
+          keyPassword=${{ secrets.SIGNING_KEY_PASSWORD }}
+          keyAlias=${{ secrets.SIGNING_KEY_ALIAS }}
+          storeFile=release.keystore
+          EOF
+          cp android/app/build.gradle.tmpl android/app/build.gradle
+
       - name: Update AndroidManifest
         run: |
           cat > android/app/src/main/AndroidManifest.xml << 'EOFMANIFEST'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+              <uses-permission android:name="android.permission.WAKE_LOCK"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
 
               <application
                   android:label="NeonWave"
@@ -58,6 +72,21 @@ jobs:
                   <meta-data
                       android:name="flutterEmbedding"
                       android:value="2"/>
+                  <service
+                      android:name="com.ryanheise.audioservice.AudioService"
+                      android:foregroundServiceType="mediaPlayback"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.media.browse.MediaBrowserService"/>
+                      </intent-filter>
+                  </service>
+                  <receiver
+                      android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MEDIA_BUTTON"/>
+                      </intent-filter>
+                  </receiver>
               </application>
           </manifest>
           EOFMANIFEST
@@ -67,6 +96,8 @@ jobs:
 
       - name: Build APK
         run: flutter build apk --release
+        env:
+          VERSION_CODE: ${{ github.run_number }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

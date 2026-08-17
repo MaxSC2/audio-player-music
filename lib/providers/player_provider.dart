@@ -6,6 +6,7 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
+import '../services/audio_handler.dart';
 
 enum RepeatMode { off, all, one }
 enum SortOrder { title, artist, dateAdded, duration }
@@ -38,6 +39,12 @@ class PlayerProvider extends ChangeNotifier {
 
   String _equalizerPreset = 'Flat (Стандарт)';
 
+  bool _resumePlayback = false;
+  DateTime _lastPersist = DateTime.fromMillisecondsSinceEpoch(0);
+  PlayerAudioHandler? _audioHandler;
+
+  AudioPlayer get player => _audioPlayer;
+
   List<AudioTrack> get allTracks => _allTracks;
   List<AudioTrack> get playlist => _playlist;
   int get currentIndex => _currentIndex;
@@ -56,6 +63,11 @@ class PlayerProvider extends ChangeNotifier {
   List<CustomPlaylist> get playlists => _playlists;
   double get defaultSpeed => _defaultSpeed;
   bool get hideUnknownArtist => _hideUnknownArtist;
+  bool get resumePlayback => _resumePlayback;
+
+  void attachAudioHandler(PlayerAudioHandler handler) {
+    _audioHandler = handler;
+  }
 
   bool isFavorite(int id) => _favoriteIds.any((f) => f == id);
 
@@ -73,6 +85,7 @@ class PlayerProvider extends ChangeNotifier {
 
     _audioPlayer.positionStream.listen((pos) {
       _position = pos;
+      _maybePersistPosition();
       notifyListeners();
     });
 
@@ -110,6 +123,7 @@ class PlayerProvider extends ChangeNotifier {
 
     _defaultSpeed = prefs.getDouble('default_speed') ?? 1.0;
     _hideUnknownArtist = prefs.getBool('hide_unknown') ?? false;
+    _resumePlayback = prefs.getBool('resume_playback') ?? false;
     _speed = _defaultSpeed;
 
     final savedSort = prefs.getString('sort_order');
@@ -227,6 +241,60 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> setHideUnknownArtist(bool value) async {
     _hideUnknownArtist = value;
     await _prefs?.setBool('hide_unknown', value);
+    notifyListeners();
+  }
+
+  Future<void> setResumePlayback(bool value) async {
+    _resumePlayback = value;
+    await _prefs?.setBool('resume_playback', value);
+    notifyListeners();
+  }
+
+  void _maybePersistPosition() {
+    if (!_resumePlayback) return;
+    final now = DateTime.now();
+    if (now.difference(_lastPersist).inSeconds < 5) return;
+    _lastPersist = now;
+    _prefs?.setStringList(
+      'last_playlist_ids',
+      _playlist.map((t) => t.id.toString()).toList(),
+    );
+    _prefs?.setInt('last_index', _currentIndex);
+    _prefs?.setInt('last_position_ms', _position.inMilliseconds);
+  }
+
+  Future<void> _maybeResume() async {
+    if (!_resumePlayback) return;
+    final prefs = _prefs;
+    if (prefs == null) return;
+
+    final ids = prefs.getStringList('last_playlist_ids');
+    final index = prefs.getInt('last_index') ?? -1;
+    final positionMs = prefs.getInt('last_position_ms') ?? 0;
+    if (ids == null || ids.isEmpty) return;
+
+    final tracks = <AudioTrack>[];
+    for (final idStr in ids) {
+      final id = int.tryParse(idStr);
+      if (id == null) continue;
+      for (final t in _allTracks) {
+        if (t.id == id) {
+          tracks.add(t);
+          break;
+        }
+      }
+    }
+    if (tracks.isEmpty || index < 0 || index >= tracks.length) return;
+
+    _playlist = tracks;
+    final uris = _playlist.map((t) => t.uri).toList();
+    await _audioPlayer.setAudioSource(ConcatenatingAudioSource(
+      children: uris.map((uri) => AudioSource.uri(Uri.parse(uri))).toList(),
+      useLazyPreparation: true,
+    ));
+    _currentIndex = index;
+    await _audioPlayer.seek(Duration(milliseconds: positionMs), index: index);
+    _audioHandler?.setQueue(_playlist);
     notifyListeners();
   }
 
@@ -353,6 +421,7 @@ class PlayerProvider extends ChangeNotifier {
 
     _allTracks = sortTracks(_allTracks, _sortOrder);
     notifyListeners();
+    await _maybeResume();
   }
 
   Future<void> playTrack(AudioTrack track) async {
@@ -368,12 +437,19 @@ class PlayerProvider extends ChangeNotifier {
     _playlist = List<AudioTrack>.from(tracks);
     if (_playlist.isEmpty) return;
 
+    _prefs?.setStringList(
+      'last_playlist_ids',
+      _playlist.map((t) => t.id.toString()).toList(),
+    );
+    _prefs?.setInt('last_index', startIndex);
+
     final uris = _playlist.map((t) => t.uri).toList();
     await _audioPlayer.setAudioSource(ConcatenatingAudioSource(
       children: uris.map((uri) => AudioSource.uri(Uri.parse(uri))).toList(),
       useLazyPreparation: true,
     ));
 
+    _audioHandler?.setQueue(_playlist);
     await playAt(startIndex);
   }
 
@@ -532,6 +608,7 @@ class PlayerProvider extends ChangeNotifier {
       await _audioPlayer.stop();
       return;
     }
+    _audioHandler?.setQueue(_playlist);
     final uris = _playlist.map((t) => t.uri).toList();
     await _audioPlayer.setAudioSource(ConcatenatingAudioSource(
       children: uris.map((uri) => AudioSource.uri(Uri.parse(uri))).toList(),

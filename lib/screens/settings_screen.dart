@@ -88,6 +88,28 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          // Resume playback
+          _SettingsCard(
+            child: SwitchListTile(
+              secondary: _TileIcon(Icons.play_circle_outline_rounded),
+              title: const Text(
+                'Продолжать воспроизведение',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle: const Text(
+                'Возобновлять последний трек с места остановки',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+              value: player.resumePlayback,
+              activeTrackColor: AppTheme.accent,
+              onChanged: player.setResumePlayback,
+            ),
+          ),
+
           const _SectionHeader('Библиотека'),
 
           // Default sort order

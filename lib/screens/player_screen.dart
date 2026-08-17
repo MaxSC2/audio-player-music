@@ -209,7 +209,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
                 // Main Controls
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -224,16 +224,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                       _ControlButton(
                         icon: Icons.skip_previous_rounded,
-                        size: 34,
+                        size: 32,
                         onTap: player.previous,
+                      ),
+                      _ControlButton(
+                        icon: Icons.replay_10_rounded,
+                        size: 26,
+                        onTap: () {
+                          final target =
+                              player.position - const Duration(seconds: 10);
+                          player.seek(target.isNegative
+                              ? Duration.zero
+                              : target);
+                        },
                       ),
                       _PlayPauseButton(
                         isPlaying: player.isPlaying,
                         onTap: player.togglePlay,
                       ),
                       _ControlButton(
+                        icon: Icons.forward_10_rounded,
+                        size: 26,
+                        onTap: () {
+                          player.seek(
+                              player.position + const Duration(seconds: 10));
+                        },
+                      ),
+                      _ControlButton(
                         icon: Icons.skip_next_rounded,
-                        size: 34,
+                        size: 32,
                         onTap: player.next,
                       ),
                       _ControlButton(
