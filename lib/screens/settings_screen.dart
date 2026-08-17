@@ -17,6 +17,33 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
+          const _SectionHeader('Система'),
+
+          // Media service status (diagnostic)
+          _SettingsCard(
+            child: ListTile(
+              leading: _TileIcon(Icons.notifications_active_rounded),
+              title: const Text(
+                'Медиа-сервис (шторка/локскрин)',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle: Text(
+                player.mediaServiceReady ? 'Активен' : 'Недоступен',
+                style: TextStyle(
+                  color: player.mediaServiceReady
+                      ? AppTheme.accentCyan
+                      : AppTheme.accentPink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+
           const _SectionHeader('Воспроизведение'),
 
           // Default speed

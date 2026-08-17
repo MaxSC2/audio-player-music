@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:on_audio_query/on_audio_query.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
@@ -64,9 +65,11 @@ class PlayerProvider extends ChangeNotifier {
   double get defaultSpeed => _defaultSpeed;
   bool get hideUnknownArtist => _hideUnknownArtist;
   bool get resumePlayback => _resumePlayback;
+  bool get mediaServiceReady => _audioHandler != null;
 
   void attachAudioHandler(PlayerAudioHandler handler) {
     _audioHandler = handler;
+    notifyListeners();
   }
 
   bool isFavorite(int id) => _favoriteIds.any((f) => f == id);
@@ -391,7 +394,14 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> requestPermission() async {
     final hasPermission = await _audioQuery.checkAndRequest();
     if (!hasPermission) return;
+    await _requestNotificationPermission();
     await loadTracks();
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    try {
+      await Permission.notification.request();
+    } catch (_) {}
   }
 
   Future<void> loadTracks() async {
