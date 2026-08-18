@@ -133,9 +133,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   List<MediaControl> _buildControls(bool playing) => [
         MediaControl.custom(
-          id: 'shuffle',
+          androidIcon: _shuffleIcon,
           label: 'Shuffle',
-          icon: _shuffleIcon,
+          name: 'shuffle',
         ),
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
