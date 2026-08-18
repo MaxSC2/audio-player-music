@@ -16,6 +16,7 @@ enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 class PlayerProvider extends ChangeNotifier {
   late final AudioPlayer _audioPlayer;
   late final AndroidEqualizer _equalizer;
+  late final AndroidLoudnessEnhancer _loudness;
   final OnAudioQuery _audioQuery;
   SharedPreferences? _prefs;
 
@@ -36,6 +37,10 @@ class PlayerProvider extends ChangeNotifier {
   PlayerRepeatMode _repeatMode = PlayerRepeatMode.off;
   bool _shuffleMode = false;
   double _speed = 1.0;
+  bool _xBoost = false;
+  double _balance = 0.0;
+  Duration? _repeatA;
+  Duration? _repeatB;
 
   Timer? _sleepTimer;
   int _sleepTimerMinutes = 0;
@@ -63,6 +68,11 @@ class PlayerProvider extends ChangeNotifier {
   bool get shuffleMode => _shuffleMode;
   double get speed => _speed;
   int get sleepTimerMinutes => _sleepTimerMinutes;
+  bool get xBoost => _xBoost;
+  double get balance => _balance;
+  Duration? get repeatA => _repeatA;
+  Duration? get repeatB => _repeatB;
+  bool get repeatABActive => _repeatA != null && _repeatB != null;
   String get equalizerPreset => _equalizerPreset;
   List<CustomPlaylist> get playlists => _playlists;
   double get defaultSpeed => _defaultSpeed;
@@ -150,8 +160,11 @@ class PlayerProvider extends ChangeNotifier {
 
   PlayerProvider() : _audioQuery = OnAudioQuery() {
     _equalizer = AndroidEqualizer();
+    _loudness = AndroidLoudnessEnhancer();
     _audioPlayer = AudioPlayer(
-      audioPipeline: AudioPipeline(androidAudioEffects: [_equalizer]),
+      audioPipeline: AudioPipeline(
+        androidAudioEffects: [_equalizer, _loudness],
+      ),
     );
     _init();
   }
@@ -164,6 +177,9 @@ class PlayerProvider extends ChangeNotifier {
 
     _audioPlayer.positionStream.listen((pos) {
       _position = pos;
+      if (_repeatA != null && _repeatB != null && pos >= _repeatB!) {
+        _audioPlayer.seek(_repeatA!);
+      }
       _maybePersistPosition();
       notifyListeners();
     });
@@ -752,21 +768,29 @@ class PlayerProvider extends ChangeNotifier {
 
   static const Map<String, List<double>> _eqPresetGains = {
     'Flat (Стандарт)': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    'X-Bass 💥': [9, 7, 5, 3, 1, 0, 0, 0, 0, 0],
-    'Bass Boost 🔥': [8, 7, 5, 3, 1, 0, 0, 0, 0, 0],
-    'Treble Boost ✨': [0, 0, 0, 0, 0, 1, 3, 5, 7, 8],
-    'X-Wide 🌊': [2, 3, 4, 3, 0, 0, 3, 4, 3, 2],
-    'Reverb 🎼': [2, 2, 1, 0, 0, 0, 0, 1, 1, 2],
-    'Rock 🎸': [5, 4, 2, 1, 0, -1, 1, 2, 4, 5],
-    'Pop 🎤': [-1, 1, 3, 4, 5, 4, 2, 0, -1, -2],
-    'Jazz 🎷': [4, 3, 1, 1, 0, -1, 0, 1, 3, 4],
-    'Classical 🎻': [5, 4, 3, 2, 1, 0, 0, 1, 2, 3],
-    'Electronic ⚡': [6, 5, 2, 0, -1, 1, 3, 5, 6, 5],
-    'Hip-Hop 🎧': [7, 6, 4, 2, 1, 0, 0, 1, 2, 3],
-    'Acoustic 🎶': [3, 2, 1, 1, 0, 0, 1, 2, 2, 1],
-    'Dance 🕺': [6, 5, 3, 2, 1, 0, 1, 2, 3, 4],
-    'Bass & Treble ⚖️': [8, 6, 4, 2, 0, -2, 0, 2, 4, 6],
-    'Vocal Clarity 🗣️': [0, -1, 0, 2, 4, 5, 4, 2, 1, 0],
+    'X-Bass': [9, 7, 5, 3, 1, 0, 0, 0, 0, 0],
+    'Bass Boost': [8, 7, 5, 3, 1, 0, 0, 0, 0, 0],
+    'Treble Boost': [0, 0, 0, 0, 0, 1, 3, 5, 7, 8],
+    'X-Wide': [2, 3, 4, 3, 0, 0, 3, 4, 3, 2],
+    'Reverb': [2, 2, 1, 0, 0, 0, 0, 1, 1, 2],
+    'Rock': [5, 4, 2, 1, 0, -1, 1, 2, 4, 5],
+    'Pop': [-1, 1, 3, 4, 5, 4, 2, 0, -1, -2],
+    'Jazz': [4, 3, 1, 1, 0, -1, 0, 1, 3, 4],
+    'Classical': [5, 4, 3, 2, 1, 0, 0, 1, 2, 3],
+    'Electronic': [6, 5, 2, 0, -1, 1, 3, 5, 6, 5],
+    'Hip-Hop': [7, 6, 4, 2, 1, 0, 0, 1, 2, 3],
+    'Acoustic': [3, 2, 1, 1, 0, 0, 1, 2, 2, 1],
+    'Dance': [6, 5, 3, 2, 1, 0, 1, 2, 3, 4],
+    'Bass & Treble': [8, 6, 4, 2, 0, -2, 0, 2, 4, 6],
+    'Vocal Clarity': [0, -1, 0, 2, 4, 5, 4, 2, 1, 0],
+    'Classic Rock': [6, 5, 4, 2, 1, 0, 1, 2, 3, 4],
+    'Soft Rock': [3, 2, 1, 0, 0, 1, 2, 2, 1, 1],
+    'Reggae': [3, 2, 0, 0, 2, 3, 2, 1, 1, 0],
+    'Soul': [3, 2, 1, 0, 0, 1, 2, 3, 3, 2],
+    'Country': [2, 2, 1, 1, 0, 0, 1, 2, 2, 1],
+    'Lounge': [0, 0, 1, 2, 2, 1, 0, 0, 0, 0],
+    'Piano': [4, 3, 2, 1, 0, 0, 1, 2, 2, 1],
+    'Opera': [4, 3, 2, 0, -1, 0, 2, 3, 4, 5],
   };
 
   static List<double> eqGainsFor(String name) =>
@@ -810,6 +834,46 @@ class PlayerProvider extends ChangeNotifier {
     _equalizerPreset = name;
     _prefs?.setString('eq_preset', name);
     _applyEqualizerPreset(name);
+    notifyListeners();
+  }
+
+  void toggleXBoost() {
+    _xBoost = !_xBoost;
+    if (_xBoost) {
+      _loudness.setEnabled(true);
+      _loudness.setTargetGain(6.0);
+    } else {
+      _loudness.setEnabled(false);
+    }
+    notifyListeners();
+  }
+
+  void setBalance(double value) {
+    _balance = value.clamp(-1.0, 1.0);
+    _audioPlayer.setBalance(_balance);
+    notifyListeners();
+  }
+
+  void tapRepeatAB() {
+    if (_repeatA == null) {
+      _repeatA = _position;
+      _repeatB = null;
+    } else if (_repeatB == null) {
+      if (_position > _repeatA!) {
+        _repeatB = _position;
+      } else {
+        _repeatA = null;
+      }
+    } else {
+      _repeatA = null;
+      _repeatB = null;
+    }
+    notifyListeners();
+  }
+
+  void clearRepeatAB() {
+    _repeatA = null;
+    _repeatB = null;
     notifyListeners();
   }
 

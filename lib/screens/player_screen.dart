@@ -287,79 +287,129 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
 
+                // Balance Control
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.arrow_left_rounded,
+                          color: AppTheme.textMuted, size: 18),
+                      Expanded(
+                        child: Slider(
+                          value: player.balance,
+                          min: -1,
+                          max: 1,
+                          onChanged: player.setBalance,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_right_rounded,
+                          color: AppTheme.textMuted, size: 18),
+                    ],
+                  ),
+                ),
+
                 // Feature Actions Row
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Favorite
-                      _AnimatedFavoriteButton(
-                        isFavorite: track.isFavorite,
-                        onTap: () => player.toggleFavorite(track),
-                      ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        // Favorite
+                        _AnimatedFavoriteButton(
+                          isFavorite: track.isFavorite,
+                          onTap: () => player.toggleFavorite(track),
+                        ),
+                        const SizedBox(width: 14),
 
-                      // Speed
-                      _SpeedBadge(
-                        speed: player.speed,
-                        onTap: player.cycleSpeed,
-                      ),
+                        // X-Boost (Loudness Enhancer)
+                        _FeatureButton(
+                          icon: Icons.bolt_rounded,
+                          color: player.xBoost
+                              ? AppTheme.accentAmber
+                              : AppTheme.textSecondary,
+                          onTap: player.toggleXBoost,
+                        ),
+                        const SizedBox(width: 14),
 
-                      // Sleep Timer
-                      _FeatureButton(
-                        icon: player.sleepTimerMinutes > 0
-                            ? Icons.nightlight_round
-                            : Icons.nightlight_outlined,
-                        color: player.sleepTimerMinutes > 0
-                            ? AppTheme.accentAmber
-                            : AppTheme.textSecondary,
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => const SleepTimerDialog(),
-                          );
-                        },
-                      ),
+                        // Repeat A-B
+                        _FeatureButton(
+                          icon: Icons.compare_arrows_rounded,
+                          color: player.repeatABActive
+                              ? AppTheme.accentCyan
+                              : AppTheme.textSecondary,
+                          onTap: player.tapRepeatAB,
+                        ),
+                        const SizedBox(width: 14),
 
-                      // Equalizer Presets
-                      _FeatureButton(
-                        icon: Icons.graphic_eq_rounded,
-                        color: player.equalizerPreset != 'Flat (Стандарт)'
-                            ? AppTheme.accentGreen
-                            : AppTheme.textSecondary,
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => const EqualizerDialog(),
-                          );
-                        },
-                      ),
+                        // Speed
+                        _SpeedBadge(
+                          speed: player.speed,
+                          onTap: player.cycleSpeed,
+                        ),
+                        const SizedBox(width: 14),
 
-                      // Queue
-                      _FeatureButton(
-                        icon: Icons.queue_music_rounded,
-                        color: AppTheme.textSecondary,
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            backgroundColor: AppTheme.surface,
-                            isScrollControlled: true,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(24)),
-                            ),
-                            builder: (_) => const QueueSheet(),
-                          );
-                        },
-                      ),
+                        // Sleep Timer
+                        _FeatureButton(
+                          icon: player.sleepTimerMinutes > 0
+                              ? Icons.nightlight_round
+                              : Icons.nightlight_outlined,
+                          color: player.sleepTimerMinutes > 0
+                              ? AppTheme.accentAmber
+                              : AppTheme.textSecondary,
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => const SleepTimerDialog(),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 14),
 
-                      // Delete Track
-                      _FeatureButton(
-                        icon: Icons.delete_outline_rounded,
-                        color: AppTheme.textSecondary,
-                        onTap: () => _confirmDeleteTrack(context, player, track),
-                      ),
-                    ],
+                        // Equalizer Presets
+                        _FeatureButton(
+                          icon: Icons.graphic_eq_rounded,
+                          color: player.equalizerPreset != 'Flat (Стандарт)'
+                              ? AppTheme.accentGreen
+                              : AppTheme.textSecondary,
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => const EqualizerDialog(),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Queue
+                        _FeatureButton(
+                          icon: Icons.queue_music_rounded,
+                          color: AppTheme.textSecondary,
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: AppTheme.surface,
+                              isScrollControlled: true,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(24)),
+                              ),
+                              builder: (_) => const QueueSheet(),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Delete Track
+                        _FeatureButton(
+                          icon: Icons.delete_outline_rounded,
+                          color: AppTheme.textSecondary,
+                          onTap: () =>
+                              _confirmDeleteTrack(context, player, track),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
