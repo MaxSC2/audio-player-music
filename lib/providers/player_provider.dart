@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:on_audio_query/on_audio_query.dart';
+import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_track.dart';
@@ -364,11 +364,9 @@ class PlayerProvider extends ChangeNotifier {
     if (tracks.isEmpty || index < 0 || index >= tracks.length) return;
 
     _playlist = tracks;
-    final uris = _playlist.map((t) => t.uri).toList();
-    await _audioPlayer.setAudioSource(ConcatenatingAudioSource(
-      children: uris.map((uri) => AudioSource.uri(Uri.parse(uri))).toList(),
-      useLazyPreparation: true,
-    ));
+    await _audioPlayer.setAudioSources(
+      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+    );
     _currentIndex = index;
     await _audioPlayer.seek(Duration(milliseconds: positionMs), index: index);
     _audioHandler?.setQueue(_playlist);
@@ -545,11 +543,9 @@ class PlayerProvider extends ChangeNotifier {
     );
     _prefs?.setInt('last_index', startIndex);
 
-    final uris = _playlist.map((t) => t.uri).toList();
-    await _audioPlayer.setAudioSource(ConcatenatingAudioSource(
-      children: uris.map((uri) => AudioSource.uri(Uri.parse(uri))).toList(),
-      useLazyPreparation: true,
-    ));
+    await _audioPlayer.setAudioSources(
+      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+    );
 
     _audioHandler?.setQueue(_playlist);
     await playAt(startIndex);
@@ -713,11 +709,9 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
     _audioHandler?.setQueue(_playlist);
-    final uris = _playlist.map((t) => t.uri).toList();
-    await _audioPlayer.setAudioSource(ConcatenatingAudioSource(
-      children: uris.map((uri) => AudioSource.uri(Uri.parse(uri))).toList(),
-      useLazyPreparation: true,
-    ));
+    await _audioPlayer.setAudioSources(
+      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+    );
     if (_currentIndex >= 0) {
       await _audioPlayer.seek(_position, index: _currentIndex);
       if (_isPlaying) await _audioPlayer.play();

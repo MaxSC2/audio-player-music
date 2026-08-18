@@ -13,11 +13,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.16.0
+          flutter-version: 3.47.0
 
       - name: Create Flutter project
         run: |
@@ -32,6 +38,7 @@ jobs:
           cp -r lib_backup lib
           cp pubspec_backup.yaml pubspec.yaml
           cp -r mainactivity_backup/kotlin android/app/src/main/
+          rm -f android/settings.gradle android/build.gradle android/app/build.gradle
           rm -rf app_temp lib_backup pubspec_backup.yaml mainactivity_backup
 
       - name: Setup signing
@@ -43,7 +50,7 @@ jobs:
           keyAlias=${{ secrets.SIGNING_KEY_ALIAS }}
           storeFile=release.keystore
           EOF
-          cp android/app/build.gradle.tmpl android/app/build.gradle
+          cp android/app/build.gradle.kts.tmpl android/app/build.gradle.kts
 
       - name: Update AndroidManifest
         run: |
