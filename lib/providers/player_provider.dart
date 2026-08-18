@@ -68,6 +68,9 @@ class PlayerProvider extends ChangeNotifier {
   bool get resumePlayback => _resumePlayback;
   bool get mediaServiceReady => _audioHandler != null;
   String? get mediaServiceError => _mediaServiceError;
+  List<String> get mediaDebugLog => _audioHandler?.debugLog ?? const [];
+  String get mediaDiagnostics =>
+      _audioHandler?.diagnostics ?? 'Обработчик не подключён';
 
   void setMediaServiceError(String message) {
     _mediaServiceError = message;

@@ -30,6 +30,33 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   PlaybackState get _state => playbackState.value;
 
+  final List<String> debugLog = [];
+
+  void _log(String msg) {
+    final t = DateTime.now();
+    final ts = '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}:'
+        '${t.second.toString().padLeft(2, '0')}.'
+        '${t.millisecond.toString().padLeft(3, '0')}';
+    debugLog.insert(0, '$ts $msg');
+    if (debugLog.length > 60) debugLog.removeLast();
+  }
+
+  String _controlsSummary(List<MediaControl> c) => c
+      .map((m) => '${m.label}(${m.action.name}'
+          '${m.customAction != null ? '/c:${m.customAction!.name}' : ''})')
+      .join(' ');
+
+  String get diagnostics {
+    final s = _state;
+    return 'AudioService.running=${AudioService.running.value}\n'
+        'playing=${s.playing} processing=${s.processingState}\n'
+        'controls=[${_controlsSummary(s.controls)}]\n'
+        'systemActions=${s.systemActions?.map((a) => a.name).join(',')}\n'
+        'repeat=${s.repeatMode} shuffle=${s.shuffleMode}\n'
+        'compact=${s.androidCompactActionIndices}';
+  }
+
   String get _shuffleIcon => _shuffleOn
       ? 'drawable/ic_action_shuffle'
       : 'drawable/ic_action_shuffle_off';
@@ -68,50 +95,43 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   void setShuffleState(bool on) {
     _shuffleOn = on;
-    playbackState.add(_state.copyWith(
+    final state = _state.copyWith(
       controls: _buildControls(_state.playing),
       systemActions: _systemActions,
       repeatMode: _repeatServiceMode,
       shuffleMode:
           on ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
-    ));
+    );
+    _log('SHUFFLE=$on controls=[${_controlsSummary(state.controls)}]');
+    playbackState.add(state);
   }
 
   void setFavoriteState(bool on) {
     _favoriteOn = on;
-    playbackState.add(_state.copyWith(
+    final state = _state.copyWith(
       controls: _buildControls(_state.playing),
-    ));
+    );
+    _log('FAVORITE=$on controls=[${_controlsSummary(state.controls)}]');
+    playbackState.add(state);
   }
 
   void setRepeatState(int mode) {
     _repeat = mode;
-    playbackState.add(_state.copyWith(
+    final state = _state.copyWith(
       controls: _buildControls(_state.playing),
       systemActions: _systemActions,
       repeatMode: _repeatServiceMode,
       shuffleMode:
           _shuffleOn ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
-    ));
+    );
+    _log('REPEAT=$mode controls=[${_controlsSummary(state.controls)}]');
+    playbackState.add(state);
   }
 
   List<MediaControl> _buildControls(bool playing) => [
-        // Mirrors the reference player's Android 13+ media card layout:
-        // slot 1 = play/pause, slot 2 = previous, slot 3 = next,
-        // slots 4-5 = custom actions (shuffle, repeat).
-        MediaControl.custom(
-          androidIcon: _shuffleIcon,
-          label: 'Перемешать',
-          name: 'shuffle',
-        ),
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
         MediaControl.skipToNext,
-        MediaControl.custom(
-          androidIcon: _repeatIcon,
-          label: 'Повтор',
-          name: 'repeat',
-        ),
       ];
 
   @override
@@ -216,11 +236,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     });
 
     player.playingStream.listen((playing) {
-      playbackState.add(_state.copyWith(
+      final state = _state.copyWith(
         playing: playing,
         controls: _buildControls(playing),
         systemActions: _systemActions,
-        androidCompactActionIndices: const [1, 2, 3],
+        androidCompactActionIndices: null,
         processingState: _mapProcessing(player.processingState),
         updatePosition: player.position,
         bufferedPosition: player.bufferedPosition,
@@ -230,7 +250,14 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
             ? AudioServiceShuffleMode.all
             : AudioServiceShuffleMode.none,
         queueIndex: player.currentIndex,
-      ));
+      );
+      _log('PUBLISH playing=$playing processing=${state.processingState} '
+          'controls=[${_controlsSummary(state.controls)}] '
+          'sys=${state.systemActions?.map((a) => a.name).join(',')} '
+          'repeat=${state.repeatMode} shuffle=${state.shuffleMode} '
+          'compact=${state.androidCompactActionIndices} '
+          'running=${AudioService.running.value}');
+      playbackState.add(state);
     });
 
     player.currentIndexStream.listen((index) {

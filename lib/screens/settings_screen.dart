@@ -229,6 +229,57 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          const _SectionHeader('Диагностика (v41)'),
+
+          _SettingsCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _TileTitle(
+                  icon: Icons.bug_report_rounded,
+                  title: 'PlaybackState',
+                ),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    player.mediaDiagnostics,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Журнал публикации состояния (последние записи сверху):',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ...player.mediaDebugLog.take(15).map(
+                      (line) => Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 1),
+                        child: Text(
+                          line,
+                          style: const TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+
           const _SectionHeader('О приложении'),
 
           const _SettingsCard(
