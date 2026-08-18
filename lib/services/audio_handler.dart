@@ -96,24 +96,26 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   List<MediaControl> _buildControls(bool playing) => [
+        // On Android 13+ the system media card assigns slots by action type:
+        // slot 1 = play/pause, slots 2-5 = custom actions in order added.
+        // prev/next are intentionally omitted so shuffle/repeat occupy the
+        // always-visible compact slots 2/3.
         MediaControl.custom(
           androidIcon: _shuffleIcon,
           label: 'Перемешать',
           name: 'shuffle',
         ),
         MediaControl.custom(
-          androidIcon: _favoriteIcon,
-          label: 'В избранное',
-          name: 'favorite',
-        ),
-        MediaControl.skipToPrevious,
-        if (playing) MediaControl.pause else MediaControl.play,
-        MediaControl.skipToNext,
-        MediaControl.custom(
           androidIcon: _repeatIcon,
           label: 'Повтор',
           name: 'repeat',
         ),
+        MediaControl.custom(
+          androidIcon: _favoriteIcon,
+          label: 'В избранное',
+          name: 'favorite',
+        ),
+        if (playing) MediaControl.pause else MediaControl.play,
       ];
 
   @override
@@ -222,7 +224,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         playing: playing,
         controls: _buildControls(playing),
         systemActions: _systemActions,
-        androidCompactActionIndices: const [0, 3, 5],
+        androidCompactActionIndices: const [0, 3, 1],
         processingState: _mapProcessing(player.processingState),
         updatePosition: player.position,
         bufferedPosition: player.bufferedPosition,
