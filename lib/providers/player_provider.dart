@@ -10,7 +10,7 @@ import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../services/audio_handler.dart';
 
-enum RepeatMode { off, all, one }
+enum PlayerRepeatMode { off, all, one }
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 class PlayerProvider extends ChangeNotifier {
@@ -32,7 +32,7 @@ class PlayerProvider extends ChangeNotifier {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
-  RepeatMode _repeatMode = RepeatMode.off;
+  PlayerRepeatMode _repeatMode = PlayerRepeatMode.off;
   bool _shuffleMode = false;
   double _speed = 1.0;
 
@@ -58,7 +58,7 @@ class PlayerProvider extends ChangeNotifier {
   bool get isPlaying => _isPlaying;
   Duration get position => _position;
   Duration get duration => _duration;
-  RepeatMode get repeatMode => _repeatMode;
+  PlayerRepeatMode get repeatMode => _repeatMode;
   bool get shuffleMode => _shuffleMode;
   double get speed => _speed;
   int get sleepTimerMinutes => _sleepTimerMinutes;
@@ -576,7 +576,7 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> next() async {
     if (_playlist.isEmpty) return;
-    if (_repeatMode == RepeatMode.one) {
+    if (_repeatMode == PlayerRepeatMode.one) {
       await _audioPlayer.seek(Duration.zero);
       await _audioPlayer.play();
       return;
@@ -589,7 +589,7 @@ class PlayerProvider extends ChangeNotifier {
 
     final nextIndex = _currentIndex + 1;
     if (nextIndex >= _playlist.length) {
-      if (_repeatMode == RepeatMode.all) {
+      if (_repeatMode == PlayerRepeatMode.all) {
         await playAt(0);
       } else {
         await _audioPlayer.pause();
@@ -630,12 +630,12 @@ class PlayerProvider extends ChangeNotifier {
 
   void toggleRepeat() {
     switch (_repeatMode) {
-      case RepeatMode.off:
-        _repeatMode = RepeatMode.all;
-      case RepeatMode.all:
-        _repeatMode = RepeatMode.one;
-      case RepeatMode.one:
-        _repeatMode = RepeatMode.off;
+      case PlayerRepeatMode.off:
+        _repeatMode = PlayerRepeatMode.all;
+      case PlayerRepeatMode.all:
+        _repeatMode = PlayerRepeatMode.one;
+      case PlayerRepeatMode.one:
+        _repeatMode = PlayerRepeatMode.off;
     }
     _audioHandler?.setRepeatState(_repeatMode.index);
     notifyListeners();

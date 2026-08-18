@@ -76,7 +76,7 @@ class AppTheme {
           ),
           iconTheme: IconThemeData(color: textPrimary),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: card,
           elevation: 0,
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),

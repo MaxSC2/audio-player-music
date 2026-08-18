@@ -352,35 +352,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  String _repeatLabel(RepeatMode mode) {
+  String _repeatLabel(PlayerRepeatMode mode) {
     switch (mode) {
-      case RepeatMode.off:
+      case PlayerRepeatMode.off:
         return 'Повтор выключен';
-      case RepeatMode.all:
+      case PlayerRepeatMode.all:
         return 'Повтор всех';
-      case RepeatMode.one:
+      case PlayerRepeatMode.one:
         return 'Повтор одного';
     }
   }
 
-  IconData _repeatIcon(RepeatMode mode) {
+  IconData _repeatIcon(PlayerRepeatMode mode) {
     switch (mode) {
-      case RepeatMode.off:
+      case PlayerRepeatMode.off:
         return Icons.repeat_rounded;
-      case RepeatMode.all:
+      case PlayerRepeatMode.all:
         return Icons.repeat_rounded;
-      case RepeatMode.one:
+      case PlayerRepeatMode.one:
         return Icons.repeat_one_rounded;
     }
   }
 
-  Color _repeatColor(RepeatMode mode) {
+  Color _repeatColor(PlayerRepeatMode mode) {
     switch (mode) {
-      case RepeatMode.off:
+      case PlayerRepeatMode.off:
         return AppTheme.textMuted;
-      case RepeatMode.all:
+      case PlayerRepeatMode.all:
         return AppTheme.accent;
-      case RepeatMode.one:
+      case PlayerRepeatMode.one:
         return AppTheme.accentPink;
     }
   }
