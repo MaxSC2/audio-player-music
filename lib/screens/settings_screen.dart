@@ -328,8 +328,10 @@ class SettingsScreen extends StatelessWidget {
         return 'По названию';
       case SortOrder.artist:
         return 'По исполнителю';
-      case SortOrder.dateAdded:
-        return 'По дате добавления';
+      case SortOrder.dateAddedNew:
+        return 'По дате добавления (новые)';
+      case SortOrder.dateAddedOld:
+        return 'По дате добавления (старые)';
       case SortOrder.duration:
         return 'По длительности';
     }
