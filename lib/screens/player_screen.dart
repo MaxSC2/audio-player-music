@@ -287,27 +287,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
 
-                // Balance Control
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.arrow_left_rounded,
-                          color: AppTheme.textMuted, size: 18),
-                      Expanded(
-                        child: Slider(
-                          value: player.balance,
-                          min: -1,
-                          max: 1,
-                          onChanged: player.setBalance,
-                        ),
-                      ),
-                      const Icon(Icons.arrow_right_rounded,
-                          color: AppTheme.textMuted, size: 18),
-                    ],
-                  ),
-                ),
-
                 // Feature Actions Row
                 Padding(
                   padding:

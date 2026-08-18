@@ -38,7 +38,6 @@ class PlayerProvider extends ChangeNotifier {
   bool _shuffleMode = false;
   double _speed = 1.0;
   bool _xBoost = false;
-  double _balance = 0.0;
   Duration? _repeatA;
   Duration? _repeatB;
 
@@ -69,7 +68,6 @@ class PlayerProvider extends ChangeNotifier {
   double get speed => _speed;
   int get sleepTimerMinutes => _sleepTimerMinutes;
   bool get xBoost => _xBoost;
-  double get balance => _balance;
   Duration? get repeatA => _repeatA;
   Duration? get repeatB => _repeatB;
   bool get repeatABActive => _repeatA != null && _repeatB != null;
@@ -845,12 +843,6 @@ class PlayerProvider extends ChangeNotifier {
     } else {
       _loudness.setEnabled(false);
     }
-    notifyListeners();
-  }
-
-  void setBalance(double value) {
-    _balance = value.clamp(-1.0, 1.0);
-    _audioPlayer.setBalance(_balance);
     notifyListeners();
   }
 
