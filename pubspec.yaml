@@ -22,5 +22,9 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
 
+dependency_overrides:
+  on_audio_query_plus_android:
+    path: packages/on_audio_query_plus_android
+
 flutter:
   uses-material-design: true
