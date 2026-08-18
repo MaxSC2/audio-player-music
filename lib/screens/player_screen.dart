@@ -1,6 +1,7 @@
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/audio_track.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import '../widgets/animated_waveform.dart';
@@ -341,6 +342,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           );
                         },
                       ),
+
+                      // Delete Track
+                      _FeatureButton(
+                        icon: Icons.delete_outline_rounded,
+                        color: AppTheme.textSecondary,
+                        onTap: () => _confirmDeleteTrack(context, player, track),
+                      ),
                     ],
                   ),
                 ),
@@ -390,6 +398,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final m = (total ~/ 60).toString();
     final s = (total % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  Future<void> _confirmDeleteTrack(
+      BuildContext context, PlayerProvider player, AudioTrack track) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Удалить трек?',
+            style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
+          style: const TextStyle(color: AppTheme.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Удалить',
+                style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final ok = await player.deleteTrack(track);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'Трек удалён' : 'Не удалось удалить трек')),
+    );
+    if (ok && player.currentTrack == null) {
+      Navigator.pop(context);
+    }
   }
 }
 

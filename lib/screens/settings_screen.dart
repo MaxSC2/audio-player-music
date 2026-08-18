@@ -16,7 +16,8 @@ class SettingsScreen extends StatelessWidget {
       backgroundColor: AppTheme.background,
       appBar: AppBar(title: const Text('Настройки')),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: EdgeInsets.only(
+            bottom: 24 + MediaQuery.viewPaddingOf(context).bottom),
         children: [
           const _SectionHeader('Система'),
 

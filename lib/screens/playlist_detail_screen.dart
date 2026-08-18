@@ -166,7 +166,8 @@ class PlaylistDetailScreen extends StatelessWidget {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: EdgeInsets.only(
+                        bottom: 16 + MediaQuery.viewPaddingOf(context).bottom),
                     itemCount: tracks.length,
                     itemBuilder: (context, trackIndex) {
                       final track = tracks[trackIndex];

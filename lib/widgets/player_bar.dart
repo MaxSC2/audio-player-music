@@ -106,7 +106,7 @@ class MiniPlayerBar extends StatelessWidget {
                         height: 20,
                         width: 24,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
 
                       // Play/Pause Button
                       InkWell(
@@ -125,6 +125,27 @@ class MiniPlayerBar extends StatelessWidget {
                                 : Icons.play_arrow_rounded,
                             color: Colors.white,
                             size: 26,
+                          ),
+                        ),
+                      ),
+
+                      // Next Button
+                      InkWell(
+                        onTap: player.next,
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.surfaceLight,
+                            border:
+                                Border.all(color: AppTheme.cardBorder, width: 0.8),
+                          ),
+                          child: const Icon(
+                            Icons.skip_next_rounded,
+                            color: AppTheme.textPrimary,
+                            size: 22,
                           ),
                         ),
                       ),

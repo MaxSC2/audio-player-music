@@ -54,7 +54,32 @@ class _LibraryScreenState extends State<LibraryScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('NeonWave'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
+              child: const Text(
+                'NeonWave',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+            if (player.allTracks.isNotEmpty)
+              Text(
+                '${player.allTracks.length} ${_pluralTracks(player.allTracks.length)}',
+                style: const TextStyle(
+                  color: AppTheme.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_rounded,
@@ -83,10 +108,10 @@ class _LibraryScreenState extends State<LibraryScreen>
                   case 'artist':
                     player.sortOrder = SortOrder.artist;
                     break;
-                  case 'date_new':
+                  case 'dateAddedNew':
                     player.sortOrder = SortOrder.dateAddedNew;
                     break;
-                  case 'date_old':
+                  case 'dateAddedOld':
                     player.sortOrder = SortOrder.dateAddedOld;
                     break;
                   case 'duration':
@@ -109,18 +134,20 @@ class _LibraryScreenState extends State<LibraryScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: AppTheme.accent,
           indicatorSize: TabBarIndicatorSize.label,
           indicatorWeight: 3,
           labelColor: AppTheme.textPrimary,
           unselectedLabelColor: AppTheme.textMuted,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           tabs: const [
-            Tab(text: 'Треки'),
-            Tab(text: 'Плейлисты'),
-            Tab(text: 'Альбомы'),
-            Tab(text: 'Исполнители'),
-            Tab(text: 'Избранное'),
+            Tab(text: 'Треки', icon: Icon(Icons.music_note_rounded, size: 18)),
+            Tab(text: 'Плейлисты', icon: Icon(Icons.queue_music_rounded, size: 18)),
+            Tab(text: 'Альбомы', icon: Icon(Icons.album_rounded, size: 18)),
+            Tab(text: 'Исполнители', icon: Icon(Icons.mic_external_on_rounded, size: 18)),
+            Tab(text: 'Избранное', icon: Icon(Icons.favorite_rounded, size: 18)),
           ],
         ),
       ),
@@ -185,34 +212,37 @@ class _LibraryScreenState extends State<LibraryScreen>
           ),
         ],
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MiniPlayerBar(
-            onExpand: () {
-              Navigator.of(context).push(
-                PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => const PlayerScreen(),
-                  transitionsBuilder: (_, anim, __, child) {
-                    return FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.4),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MiniPlayerBar(
+              onExpand: () {
+                Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const PlayerScreen(),
+                    transitionsBuilder: (_, anim, __, child) {
+                      return FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.4),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
+                          ),
+                          child: child,
                         ),
-                        child: child,
-                      ),
-                    );
-                  },
-                  transitionDuration: const Duration(milliseconds: 350),
-                ),
-              );
-            },
-          ),
-        ],
+                      );
+                    },
+                    transitionDuration: const Duration(milliseconds: 350),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
