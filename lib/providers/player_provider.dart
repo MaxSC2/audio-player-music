@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -10,7 +11,7 @@ import '../models/custom_playlist.dart';
 import '../services/audio_handler.dart';
 
 enum RepeatMode { off, all, one }
-enum SortOrder { title, artist, dateAdded, duration }
+enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 class PlayerProvider extends ChangeNotifier {
   final AudioPlayer _audioPlayer;
@@ -68,13 +69,71 @@ class PlayerProvider extends ChangeNotifier {
   bool get resumePlayback => _resumePlayback;
   bool get mediaServiceReady => _audioHandler != null;
   String? get mediaServiceError => _mediaServiceError;
-  List<String> get mediaDebugLog => _audioHandler?.debugLog ?? const [];
-  String get mediaDiagnostics =>
-      _audioHandler?.diagnostics ?? 'Обработчик не подключён';
+  List<String> get mediaDebugLog {
+    try {
+      return _audioHandler?.debugLog ?? const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+  String get mediaDiagnostics {
+    try {
+      return _audioHandler?.diagnostics ?? 'Обработчик не подключён';
+    } catch (e) {
+      return 'ошибка: $e';
+    }
+  }
 
   void setMediaServiceError(String message) {
     _mediaServiceError = message;
     notifyListeners();
+  }
+
+  static const MethodChannel _deleteChannel =
+      MethodChannel('neonwave/deletion');
+
+  Future<bool> deleteTrack(AudioTrack track) async {
+    try {
+      final path = track.data ?? track.uri;
+      if (path.isEmpty) return false;
+      final ok = await _deleteChannel.invokeMethod<bool>(
+            'deleteTrack',
+            {'path': path},
+          ) ??
+          false;
+      if (!ok) return false;
+
+      final deletedId = track.id;
+      _allTracks.removeWhere((t) => t.id == deletedId);
+      _favoriteIds.removeWhere((id) => id == deletedId);
+      for (var i = 0; i < _playlists.length; i++) {
+        final ids = _playlists[i].trackIds
+            .where((id) => id != deletedId)
+            .toList();
+        if (ids.length != _playlists[i].trackIds.length) {
+          _playlists[i] = _playlists[i].copyWith(trackIds: ids);
+        }
+      }
+
+      final queueIndex = _playlist.indexWhere((t) => t.id == deletedId);
+      if (queueIndex >= 0) {
+        if (queueIndex == _currentIndex) {
+          await _audioPlayer.stop();
+          _isPlaying = false;
+          _position = Duration.zero;
+          _duration = Duration.zero;
+          _currentIndex = -1;
+        } else if (queueIndex < _currentIndex) {
+          _currentIndex -= 1;
+        }
+        _playlist.removeAt(queueIndex);
+      }
+
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void attachAudioHandler(PlayerAudioHandler handler) {
@@ -145,8 +204,9 @@ class PlayerProvider extends ChangeNotifier {
 
     final savedSort = prefs.getString('sort_order');
     if (savedSort != null) {
+      final migrated = savedSort == 'dateAdded' ? 'dateAddedNew' : savedSort;
       _sortOrder = SortOrder.values.firstWhere(
-        (s) => s.name == savedSort,
+        (s) => s.name == migrated,
         orElse: () => SortOrder.title,
       );
     }
@@ -386,14 +446,22 @@ class PlayerProvider extends ChangeNotifier {
     final list = List<AudioTrack>.from(tracks);
     switch (order) {
       case SortOrder.title:
-        list.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        list.sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        break;
       case SortOrder.artist:
         list.sort(
             (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
-      case SortOrder.dateAdded:
+        break;
+      case SortOrder.dateAddedNew:
         list.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
+        break;
+      case SortOrder.dateAddedOld:
+        list.sort((a, b) => (a.dateAdded ?? 0).compareTo(b.dateAdded ?? 0));
+        break;
       case SortOrder.duration:
         list.sort((a, b) => b.duration.compareTo(a.duration));
+        break;
     }
     return list;
   }

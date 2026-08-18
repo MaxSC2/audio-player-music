@@ -13,6 +13,7 @@ class TrackTile extends StatelessWidget {
   final bool isPlaying;
   final bool isCurrent;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const TrackTile({
     super.key,
@@ -20,6 +21,7 @@ class TrackTile extends StatelessWidget {
     required this.isPlaying,
     this.isCurrent = false,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -44,6 +46,7 @@ class TrackTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(16),
           splashColor: AppTheme.accent.withOpacity(0.15),
           highlightColor: AppTheme.accent.withOpacity(0.08),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
@@ -78,20 +79,29 @@ class _LibraryScreenState extends State<LibraryScreen>
                 switch (value) {
                   case 'title':
                     player.sortOrder = SortOrder.title;
+                    break;
                   case 'artist':
                     player.sortOrder = SortOrder.artist;
-                  case 'date':
-                    player.sortOrder = SortOrder.dateAdded;
+                    break;
+                  case 'date_new':
+                    player.sortOrder = SortOrder.dateAddedNew;
+                    break;
+                  case 'date_old':
+                    player.sortOrder = SortOrder.dateAddedOld;
+                    break;
                   case 'duration':
                     player.sortOrder = SortOrder.duration;
+                    break;
                 }
               },
               itemBuilder: (context) => [
                 _buildSortItem(SortOrder.title, player.sortOrder, 'По названию'),
                 _buildSortItem(
                     SortOrder.artist, player.sortOrder, 'По исполнителю'),
-                _buildSortItem(
-                    SortOrder.dateAdded, player.sortOrder, 'По дате добавления'),
+                _buildSortItem(SortOrder.dateAddedNew, player.sortOrder,
+                    'По дате добавления (новые)'),
+                _buildSortItem(SortOrder.dateAddedOld, player.sortOrder,
+                    'По дате добавления (старые)'),
                 _buildSortItem(
                     SortOrder.duration, player.sortOrder, 'По длительности'),
               ],
@@ -305,6 +315,7 @@ class _LibraryScreenState extends State<LibraryScreen>
               player.playTrack(track);
             }
           },
+          onLongPress: () => _showTrackActions(context, player, track),
         );
       },
     );
@@ -646,8 +657,86 @@ class _LibraryScreenState extends State<LibraryScreen>
               player.playTrack(track);
             }
           },
+          onLongPress: () => _showTrackActions(context, player, track),
         );
       },
+    );
+  }
+
+  void _showTrackActions(
+      BuildContext context, PlayerProvider player, AudioTrack track) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                track.title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded,
+                  color: Colors.redAccent),
+              title: const Text('Удалить с устройства',
+                  style: TextStyle(color: Colors.redAccent)),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    backgroundColor: AppTheme.card,
+                    title: const Text('Удалить трек?',
+                        style: TextStyle(color: Colors.white)),
+                    content: Text(
+                      'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
+                      style: const TextStyle(color: AppTheme.textMuted),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pop(dialogContext, false),
+                        child: const Text('Отмена'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: const Text('Удалить',
+                            style: TextStyle(color: Colors.redAccent)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
+                final ok = await player.deleteTrack(track);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok
+                          ? 'Трек удалён'
+                          : 'Не удалось удалить трек'),
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 

@@ -48,13 +48,16 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       .join(' ');
 
   String get diagnostics {
-    final s = _state;
-    return 'AudioService.running=${AudioService.running}\n'
-        'playing=${s.playing} processing=${s.processingState}\n'
-        'controls=[${_controlsSummary(s.controls)}]\n'
-        'systemActions=${s.systemActions?.map((a) => a.name).join(',')}\n'
-        'repeat=${s.repeatMode} shuffle=${s.shuffleMode}\n'
-        'compact=${s.androidCompactActionIndices}';
+    try {
+      final s = _state;
+      return 'playing=${s.playing} processing=${s.processingState}\n'
+          'controls=[${_controlsSummary(s.controls)}]\n'
+          'systemActions=${s.systemActions?.map((a) => a.name).join(',')}\n'
+          'repeat=${s.repeatMode} shuffle=${s.shuffleMode}\n'
+          'compact=${s.androidCompactActionIndices}';
+    } catch (e) {
+      return 'ошибка диагностики: $e';
+    }
   }
 
   String get _shuffleIcon => _shuffleOn
@@ -255,8 +258,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
           'controls=[${_controlsSummary(state.controls)}] '
           'sys=${state.systemActions?.map((a) => a.name).join(',')} '
           'repeat=${state.repeatMode} shuffle=${state.shuffleMode} '
-          'compact=${state.androidCompactActionIndices} '
-          'running=${AudioService.running}');
+          'compact=${state.androidCompactActionIndices}');
       playbackState.add(state);
     });
 
