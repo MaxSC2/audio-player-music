@@ -482,10 +482,16 @@ class PlayerProvider extends ChangeNotifier {
       visibleTracks.where((t) => t.album != null && t.album!.isNotEmpty).map((t) => t.album!).toSet().toList()..sort();
 
   Future<void> requestPermission() async {
-    final hasPermission = await _audioQuery.checkAndRequest();
-    if (!hasPermission) return;
+    try {
+      final status = await Permission.audio.request();
+      if (!status.isGranted) return;
+    } catch (_) {
+      return;
+    }
     await _requestNotificationPermission();
-    await loadTracks();
+    try {
+      await loadTracks();
+    } catch (_) {}
   }
 
   Future<void> _requestNotificationPermission() async {
