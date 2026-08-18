@@ -77,7 +77,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
 
           SafeArea(
-            child: Column(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragEnd: (details) {
+                final v = details.primaryVelocity ?? 0;
+                if (v < -300) {
+                  player.next();
+                } else if (v > 300) {
+                  player.previous();
+                }
+              },
+              child: Column(
               children: [
                 // Top Bar
                 Row(
@@ -353,6 +363,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         ],

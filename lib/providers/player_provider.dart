@@ -15,6 +15,7 @@ enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 class PlayerProvider extends ChangeNotifier {
   final AudioPlayer _audioPlayer;
+  final AndroidEqualizer _equalizer;
   final OnAudioQuery _audioQuery;
   SharedPreferences? _prefs;
 
@@ -148,7 +149,10 @@ class PlayerProvider extends ChangeNotifier {
   bool isFavorite(int id) => _favoriteIds.any((f) => f == id);
 
   PlayerProvider()
-      : _audioPlayer = AudioPlayer(),
+      : _equalizer = AndroidEqualizer(),
+        _audioPlayer = AudioPlayer(
+          audioPipeline: AudioPipeline(androidAudioEffects: [_equalizer]),
+        ),
         _audioQuery = OnAudioQuery() {
     _init();
   }
@@ -178,6 +182,9 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     _audioPlayer.processingStateStream.listen((state) {
+      if (state == ProcessingState.ready) {
+        _applyEqualizerPreset(_equalizerPreset);
+      }
       if (state == ProcessingState.completed) {
         _onTrackComplete();
       }
@@ -481,6 +488,26 @@ class PlayerProvider extends ChangeNotifier {
   List<String> get albums =>
       visibleTracks.where((t) => t.album != null && t.album!.isNotEmpty).map((t) => t.album!).toSet().toList()..sort();
 
+  String? _folderPathOf(AudioTrack t) {
+    final d = t.data;
+    if (d == null || d.isEmpty) return null;
+    final idx = d.lastIndexOf('/');
+    if (idx <= 0) return null;
+    return d.substring(0, idx);
+  }
+
+  List<String> get folders {
+    final set = <String>{};
+    for (final t in visibleTracks) {
+      final f = _folderPathOf(t);
+      if (f != null) set.add(f);
+    }
+    return set.toList()..sort();
+  }
+
+  List<AudioTrack> tracksInFolder(String folder) =>
+      visibleTracks.where((t) => _folderPathOf(t) == folder).toList();
+
   Future<void> requestPermission() async {
     try {
       final status = await Permission.audio.request();
@@ -724,9 +751,66 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  static const Map<String, List<double>> _eqPresetGains = {
+    'Flat (Стандарт)': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    'X-Bass 💥': [9, 7, 5, 3, 1, 0, 0, 0, 0, 0],
+    'Bass Boost 🔥': [8, 7, 5, 3, 1, 0, 0, 0, 0, 0],
+    'Treble Boost ✨': [0, 0, 0, 0, 0, 1, 3, 5, 7, 8],
+    'X-Wide 🌊': [2, 3, 4, 3, 0, 0, 3, 4, 3, 2],
+    'Reverb 🎼': [2, 2, 1, 0, 0, 0, 0, 1, 1, 2],
+    'Rock 🎸': [5, 4, 2, 1, 0, -1, 1, 2, 4, 5],
+    'Pop 🎤': [-1, 1, 3, 4, 5, 4, 2, 0, -1, -2],
+    'Jazz 🎷': [4, 3, 1, 1, 0, -1, 0, 1, 3, 4],
+    'Classical 🎻': [5, 4, 3, 2, 1, 0, 0, 1, 2, 3],
+    'Electronic ⚡': [6, 5, 2, 0, -1, 1, 3, 5, 6, 5],
+    'Hip-Hop 🎧': [7, 6, 4, 2, 1, 0, 0, 1, 2, 3],
+    'Acoustic 🎶': [3, 2, 1, 1, 0, 0, 1, 2, 2, 1],
+    'Dance 🕺': [6, 5, 3, 2, 1, 0, 1, 2, 3, 4],
+    'Bass & Treble ⚖️': [8, 6, 4, 2, 0, -2, 0, 2, 4, 6],
+    'Vocal Clarity 🗣️': [0, -1, 0, 2, 4, 5, 4, 2, 1, 0],
+  };
+
+  static List<double> eqGainsFor(String name) =>
+      List.from(_eqPresetGains[name] ?? const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+  static List<double> _resampleGains(List<double> gains, int count) {
+    if (count == gains.length) return List.from(gains);
+    if (count <= 0) return const [];
+    if (gains.isEmpty) return List.filled(count, 0);
+    if (count == 1) return [gains[gains.length ~/ 2]];
+    final result = <double>[];
+    for (var i = 0; i < count; i++) {
+      final pos = (gains.length - 1) * i / (count - 1);
+      final low = pos.floor();
+      final high = (low + 1).clamp(0, gains.length - 1);
+      final frac = pos - low;
+      result.add(gains[low] + (gains[high] - gains[low]) * frac);
+    }
+    return result;
+  }
+
+  Future<void> _applyEqualizerPreset(String name) async {
+    try {
+      final gains = _eqPresetGains[name] ??
+          _eqPresetGains['Flat (Стандарт)'] ??
+          const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      final params = await _equalizer.parameters;
+      final bands = params.bands;
+      final target = _resampleGains(gains, bands.length);
+      for (var i = 0; i < bands.length; i++) {
+        final clamped = target[i]
+            .clamp(params.minDecibels, params.maxDecibels)
+            .toDouble();
+        await bands[i].setGain(clamped);
+      }
+      await _equalizer.setEnabled(true);
+    } catch (_) {}
+  }
+
   void setEqualizerPreset(String name) {
     _equalizerPreset = name;
     _prefs?.setString('eq_preset', name);
+    _applyEqualizerPreset(name);
     notifyListeners();
   }
 

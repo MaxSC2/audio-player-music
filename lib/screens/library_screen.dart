@@ -27,7 +27,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _requestPermission();
   }
 
@@ -147,6 +147,7 @@ class _LibraryScreenState extends State<LibraryScreen>
             Tab(text: 'Плейлисты', icon: Icon(Icons.queue_music_rounded, size: 18)),
             Tab(text: 'Альбомы', icon: Icon(Icons.album_rounded, size: 18)),
             Tab(text: 'Исполнители', icon: Icon(Icons.mic_external_on_rounded, size: 18)),
+            Tab(text: 'Папки', icon: Icon(Icons.folder_rounded, size: 18)),
             Tab(text: 'Избранное', icon: Icon(Icons.favorite_rounded, size: 18)),
           ],
         ),
@@ -206,6 +207,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                           _buildPlaylistList(player),
                           _buildAlbumList(player),
                           _buildArtistList(player),
+                          _buildFolderList(player),
                           _buildFavoriteList(player),
                         ],
                       ),
@@ -580,6 +582,79 @@ class _LibraryScreenState extends State<LibraryScreen>
             subtitle: Text(
               '${tracks.length} треков',
               style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+            onTap: () {
+              player.playFromPlaylist(tracks, 0);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFolderList(PlayerProvider player) {
+    final query = _searchQuery.toLowerCase();
+    final folders = player.folders
+        .where((f) => f.toLowerCase().contains(query))
+        .toList();
+
+    if (folders.isEmpty) {
+      return _buildEmptyState('Папки не найдены', Icons.folder_off_rounded);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      itemCount: folders.length,
+      itemBuilder: (context, index) {
+        final folder = folders[index];
+        final tracks = player.tracksInFolder(folder);
+        final parts = folder.split('/');
+        final name = parts.isNotEmpty ? parts.last : folder;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.cardBorder),
+          ),
+          child: ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            leading: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                gradient: AppTheme.cyanGreenGradient,
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+              child: const Icon(Icons.folder_rounded,
+                  color: Colors.white, size: 26),
+            ),
+            title: Text(
+              name,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              '${tracks.length} ${_pluralTracks(tracks.length)}',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.play_circle_fill_rounded,
+                  color: AppTheme.accent),
+              onPressed: () {
+                if (tracks.isNotEmpty) {
+                  player.playFromPlaylist(tracks, 0);
+                }
+              },
+              tooltip: 'Слушать',
             ),
             onTap: () {
               player.playFromPlaylist(tracks, 0);
