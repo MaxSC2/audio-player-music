@@ -49,7 +49,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   String get diagnostics {
     final s = _state;
-    return 'AudioService.running=${AudioService.running.value}\n'
+    return 'AudioService.running=${AudioService.running}\n'
         'playing=${s.playing} processing=${s.processingState}\n'
         'controls=[${_controlsSummary(s.controls)}]\n'
         'systemActions=${s.systemActions?.map((a) => a.name).join(',')}\n'
@@ -256,7 +256,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
           'sys=${state.systemActions?.map((a) => a.name).join(',')} '
           'repeat=${state.repeatMode} shuffle=${state.shuffleMode} '
           'compact=${state.androidCompactActionIndices} '
-          'running=${AudioService.running.value}');
+          'running=${AudioService.running}');
       playbackState.add(state);
     });
 
