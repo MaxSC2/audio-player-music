@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
@@ -235,9 +236,33 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _TileTitle(
-                  icon: Icons.bug_report_rounded,
-                  title: 'PlaybackState',
+                Row(
+                  children: [
+                    const _TileTitle(
+                      icon: Icons.bug_report_rounded,
+                      title: 'PlaybackState',
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () {
+                        final text = '${player.mediaDiagnostics}\n'
+                            '\nЖурнал:\n'
+                            '${player.mediaDebugLog.take(15).join('\n')}';
+                        Clipboard.setData(ClipboardData(text: text));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Диагностика скопирована'),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 16),
+                      label: const Text('Копировать'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.accent,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 Padding(
