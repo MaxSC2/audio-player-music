@@ -14,8 +14,8 @@ enum PlayerRepeatMode { off, all, one }
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 class PlayerProvider extends ChangeNotifier {
-  final AudioPlayer _audioPlayer;
-  final AndroidEqualizer _equalizer;
+  late final AudioPlayer _audioPlayer;
+  late final AndroidEqualizer _equalizer;
   final OnAudioQuery _audioQuery;
   SharedPreferences? _prefs;
 
@@ -148,12 +148,11 @@ class PlayerProvider extends ChangeNotifier {
 
   bool isFavorite(int id) => _favoriteIds.any((f) => f == id);
 
-  PlayerProvider()
-      : _equalizer = AndroidEqualizer(),
-        _audioPlayer = AudioPlayer(
-          audioPipeline: AudioPipeline(androidAudioEffects: [_equalizer]),
-        ),
-        _audioQuery = OnAudioQuery() {
+  PlayerProvider() : _audioQuery = OnAudioQuery() {
+    _equalizer = AndroidEqualizer();
+    _audioPlayer = AudioPlayer(
+      audioPipeline: AudioPipeline(androidAudioEffects: [_equalizer]),
+    );
     _init();
   }
 
