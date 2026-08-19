@@ -23,6 +23,7 @@ class PlayerProvider extends ChangeNotifier {
   List<AudioTrack> _allTracks = [];
   List<int> _favoriteIds = [];
   List<CustomPlaylist> _playlists = [];
+  List<Map<String, int>> _historyRaw = [];
 
   double _defaultSpeed = 1.0;
   bool _hideUnknownArtist = false;
@@ -206,6 +207,9 @@ class PlayerProvider extends ChangeNotifier {
     _audioPlayer.playbackEventStream.listen((event) {
       if (event.currentIndex != null) {
         _currentIndex = event.currentIndex!;
+        if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+          _recordHistory(_playlist[_currentIndex]);
+        }
         notifyListeners();
       }
     });
@@ -221,6 +225,18 @@ class PlayerProvider extends ChangeNotifier {
     _hideUnknownArtist = prefs.getBool('hide_unknown') ?? false;
     _resumePlayback = prefs.getBool('resume_playback') ?? false;
     _speed = _defaultSpeed;
+
+    final savedHistory = prefs.getString('history');
+    if (savedHistory != null) {
+      try {
+        _historyRaw = (jsonDecode(savedHistory) as List)
+            .whereType<Map>()
+            .map((e) => e.cast<String, int>())
+            .toList();
+      } catch (_) {
+        _historyRaw = [];
+      }
+    }
 
     final savedSort = prefs.getString('sort_order');
     if (savedSort != null) {
@@ -449,6 +465,40 @@ class PlayerProvider extends ChangeNotifier {
   List<AudioTrack> get favoriteTracks {
     final fav = visibleTracks.where((t) => isFavorite(t.id)).toList();
     return sortTracks(fav, _sortOrder);
+  }
+
+  List<({AudioTrack track, DateTime time})> get historyEntries {
+    final result = <({AudioTrack track, DateTime time})>[];
+    if (_historyRaw.isEmpty) return result;
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      final ts = e['ts'];
+      if (id == null || ts == null) continue;
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index < 0) continue;
+      result.add((
+        track: _allTracks[index],
+        time: DateTime.fromMillisecondsSinceEpoch(ts),
+      ));
+    }
+    return result;
+  }
+
+  void _recordHistory(AudioTrack track) {
+    _historyRaw.insert(
+      0,
+      {'id': track.id, 'ts': DateTime.now().millisecondsSinceEpoch},
+    );
+    if (_historyRaw.length > 300) {
+      _historyRaw.removeRange(300, _historyRaw.length);
+    }
+    _prefs?.setString('history', jsonEncode(_historyRaw));
+  }
+
+  Future<void> clearHistory() async {
+    _historyRaw = [];
+    await _prefs?.remove('history');
+    notifyListeners();
   }
 
   SortOrder _sortOrder = SortOrder.title;

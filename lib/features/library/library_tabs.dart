@@ -32,7 +32,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
@@ -86,6 +86,9 @@ class _LibraryTabsState extends State<LibraryTabs>
             Tab(
                 text: 'Избранное',
                 icon: Icon(Icons.favorite_rounded, size: 18)),
+            Tab(
+                text: 'История',
+                icon: Icon(Icons.history_rounded, size: 18)),
           ],
         ),
         Expanded(
@@ -102,6 +105,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                         _buildArtistList(player),
                         _buildFolderList(player),
                         _buildFavoriteList(player),
+                        _buildHistoryList(player),
                       ],
                     ),
         ),
@@ -852,6 +856,108 @@ class _LibraryTabsState extends State<LibraryTabs>
         if (_selectedIds.isEmpty) _selectionMode = false;
       }
     });
+  }
+
+  Widget _buildHistoryList(PlayerProvider player) {
+    final query = _searchQuery.toLowerCase();
+    final entries = player.historyEntries
+        .where((e) =>
+            e.track.title.toLowerCase().contains(query) ||
+            e.track.artist.toLowerCase().contains(query))
+        .toList();
+
+    if (entries.isEmpty) {
+      return _buildEmptyState(
+        'Нет истории',
+        Icons.history_rounded,
+        subtitle: 'Прослушанные треки появятся здесь.',
+      );
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    List<Widget> children = [];
+    Widget header(String title, List<({AudioTrack track, DateTime time})> items,
+        PlayerProvider p, int startIndex) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppTheme.accentLight,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          ...List.generate(items.length, (i) {
+            final track = items[i].track;
+            final isCurrent = p.currentTrack?.id == track.id;
+            return TrackTile(
+              track: track,
+              isPlaying: isCurrent && p.isPlaying,
+              isCurrent: isCurrent,
+              threeD: widget.threeD,
+              onTap: () {
+                final ids = items.map((e) => e.track.id).toList();
+                final idx = ids.indexOf(track.id);
+                final list = items.map((e) => e.track).toList();
+                if (list.length > 1) {
+                  p.playFromPlaylist(list, idx);
+                } else {
+                  p.playTrack(track);
+                }
+              },
+              onLongPress: () => _showTrackActions(context, p, track),
+            );
+          }),
+        ],
+      );
+    }
+
+    final todayItems = entries
+        .where((e) => e.time.isAfter(today))
+        .toList();
+    final yesterdayItems = entries
+        .where((e) => e.time.isAfter(yesterday) && !e.time.isAfter(today))
+        .toList();
+    final earlierItems = entries
+        .where((e) => !e.time.isAfter(yesterday))
+        .toList();
+
+    if (todayItems.isNotEmpty) {
+      children.add(header('Сегодня', todayItems, player, 0));
+    }
+    if (yesterdayItems.isNotEmpty) {
+      children.add(header('Вчера', yesterdayItems, player, 0));
+    }
+    if (earlierItems.isNotEmpty) {
+      children.add(header('Ранее', earlierItems, player, 0));
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 16),
+      children: [
+        ...children,
+        Center(
+          child: TextButton.icon(
+            onPressed: player.clearHistory,
+            icon: const Icon(Icons.delete_sweep_outlined,
+                color: AppTheme.textMuted, size: 18),
+            label: const Text(
+              'Очистить историю',
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _exitSelection() {
