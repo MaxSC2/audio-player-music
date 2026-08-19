@@ -4,8 +4,8 @@ import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
-import '../mini_player/mini_player.dart';
-import '../now_playing/now_playing_screen.dart';
+import '../../mini_player/mini_player.dart';
+import '../../now_playing/now_playing_screen.dart';
 
 class CoverFlowHomeScreen extends StatefulWidget {
   const CoverFlowHomeScreen({super.key});
