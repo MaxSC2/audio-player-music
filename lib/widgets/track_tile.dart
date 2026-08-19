@@ -12,6 +12,7 @@ class TrackTile extends StatelessWidget {
   final AudioTrack track;
   final bool isPlaying;
   final bool isCurrent;
+  final bool selected;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -20,6 +21,7 @@ class TrackTile extends StatelessWidget {
     required this.track,
     required this.isPlaying,
     this.isCurrent = false,
+    this.selected = false,
     required this.onTap,
     this.onLongPress,
   });
@@ -31,15 +33,19 @@ class TrackTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: isCurrent
-            ? AppTheme.accent.withOpacity(0.12)
-            : AppTheme.card,
+        color: selected
+            ? AppTheme.accent.withOpacity(0.2)
+            : isCurrent
+                ? AppTheme.accent.withOpacity(0.12)
+                : AppTheme.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isCurrent
-              ? AppTheme.accent.withOpacity(0.6)
-              : AppTheme.cardBorder,
-          width: isCurrent ? 1.2 : 0.8,
+          color: selected
+              ? AppTheme.accent
+              : isCurrent
+                  ? AppTheme.accent.withOpacity(0.6)
+                  : AppTheme.cardBorder,
+          width: selected ? 1.4 : (isCurrent ? 1.2 : 0.8),
         ),
       ),
       child: Material(
@@ -99,6 +105,20 @@ class TrackTile extends StatelessWidget {
                               colors: [Color(0xFF00F5D4), Color(0xFFBB86FC)],
                             ),
                           ),
+                        ),
+                      ),
+                    if (selected)
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppTheme.accent.withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 28,
                         ),
                       ),
                   ],

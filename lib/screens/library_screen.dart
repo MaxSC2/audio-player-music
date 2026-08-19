@@ -4,6 +4,7 @@ import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
+import '../widgets/cached_artwork.dart';
 import '../widgets/player_bar.dart';
 import '../widgets/track_tile.dart';
 import 'player_screen.dart';
@@ -23,11 +24,17 @@ class _LibraryScreenState extends State<LibraryScreen>
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _permissionDenied = false;
+  bool _selectionMode = false;
+  final Set<int> _selectedIds = <int>{};
+  bool _albumGridView = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) setState(() {});
+    });
     _requestPermission();
   }
 
@@ -54,84 +61,134 @@ class _LibraryScreenState extends State<LibraryScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ShaderMask(
-              shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-              child: const Text(
-                'NeonWave',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ),
-            if (player.allTracks.isNotEmpty)
-              Text(
-                '${player.allTracks.length} ${_pluralTracks(player.allTracks.length)}',
+        title: _selectionMode
+            ? Text(
+                '${_selectedIds.length} выбрано',
                 style: const TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                 ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) =>
+                        AppTheme.primaryGradient.createShader(bounds),
+                    child: const Text(
+                      'NeonWave',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  if (player.allTracks.isNotEmpty)
+                    Text(
+                      '${player.allTracks.length} ${_pluralTracks(player.allTracks.length)}',
+                      style: const TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
               ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_rounded,
-                color: AppTheme.textSecondary),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
-            tooltip: 'Настройки',
-          ),
-          if (player.allTracks.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.sort_rounded,
-                  color: AppTheme.textSecondary),
-              color: AppTheme.surfaceLight,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: AppTheme.cardBorder),
-              ),
-              onSelected: (value) {
-                switch (value) {
-                  case 'title':
-                    player.sortOrder = SortOrder.title;
-                    break;
-                  case 'artist':
-                    player.sortOrder = SortOrder.artist;
-                    break;
-                  case 'dateAddedNew':
-                    player.sortOrder = SortOrder.dateAddedNew;
-                    break;
-                  case 'dateAddedOld':
-                    player.sortOrder = SortOrder.dateAddedOld;
-                    break;
-                  case 'duration':
-                    player.sortOrder = SortOrder.duration;
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                _buildSortItem(SortOrder.title, player.sortOrder, 'По названию'),
-                _buildSortItem(
-                    SortOrder.artist, player.sortOrder, 'По исполнителю'),
-                _buildSortItem(SortOrder.dateAddedNew, player.sortOrder,
-                    'По дате добавления (новые)'),
-                _buildSortItem(SortOrder.dateAddedOld, player.sortOrder,
-                    'По дате добавления (старые)'),
-                _buildSortItem(
-                    SortOrder.duration, player.sortOrder, 'По длительности'),
+        actions: _selectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.playlist_add_rounded,
+                      color: AppTheme.accentGreen),
+                  onPressed: _pickPlaylistForSelected,
+                  tooltip: 'В плейлист',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.favorite_rounded,
+                      color: AppTheme.accentPink),
+                  onPressed: _addSelectedToFavorites,
+                  tooltip: 'В избранное',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded,
+                      color: AppTheme.accentPink),
+                  onPressed: _confirmDeleteSelected,
+                  tooltip: 'Удалить',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppTheme.textSecondary),
+                  onPressed: _exitSelection,
+                  tooltip: 'Отмена',
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.settings_rounded,
+                      color: AppTheme.textSecondary),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    );
+                  },
+                  tooltip: 'Настройки',
+                ),
+                if (_tabController.index == 2 && player.allTracks.isNotEmpty)
+                  IconButton(
+                    icon: Icon(
+                      _albumGridView
+                          ? Icons.view_list_rounded
+                          : Icons.grid_view_rounded,
+                      color: AppTheme.textSecondary,
+                    ),
+                    onPressed: () =>
+                        setState(() => _albumGridView = !_albumGridView),
+                    tooltip: _albumGridView ? 'Списком' : 'Сеткой',
+                  ),
+                if (player.allTracks.isNotEmpty)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.sort_rounded,
+                        color: AppTheme.textSecondary),
+                    color: AppTheme.surfaceLight,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'title':
+                          player.sortOrder = SortOrder.title;
+                          break;
+                        case 'artist':
+                          player.sortOrder = SortOrder.artist;
+                          break;
+                        case 'dateAddedNew':
+                          player.sortOrder = SortOrder.dateAddedNew;
+                          break;
+                        case 'dateAddedOld':
+                          player.sortOrder = SortOrder.dateAddedOld;
+                          break;
+                        case 'duration':
+                          player.sortOrder = SortOrder.duration;
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      _buildSortItem(SortOrder.title, player.sortOrder,
+                          'По названию'),
+                      _buildSortItem(
+                          SortOrder.artist, player.sortOrder, 'По исполнителю'),
+                      _buildSortItem(SortOrder.dateAddedNew, player.sortOrder,
+                          'По дате добавления (новые)'),
+                      _buildSortItem(SortOrder.dateAddedOld, player.sortOrder,
+                          'По дате добавления (старые)'),
+                      _buildSortItem(SortOrder.duration, player.sortOrder,
+                          'По длительности'),
+                    ],
+                  ),
               ],
-            ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -340,14 +397,26 @@ class _LibraryScreenState extends State<LibraryScreen>
           track: track,
           isPlaying: isCurrent && player.isPlaying,
           isCurrent: isCurrent,
+          selected: _selectedIds.contains(track.id),
           onTap: () {
-            if (playlist.length > 1) {
+            if (_selectionMode) {
+              _toggleSelection(track);
+            } else if (playlist.length > 1) {
               player.playFromPlaylist(playlist, index);
             } else {
               player.playTrack(track);
             }
           },
-          onLongPress: () => _showTrackActions(context, player, track),
+          onLongPress: () {
+            if (_selectionMode) {
+              _toggleSelection(track);
+            } else {
+              setState(() {
+                _selectionMode = true;
+                _selectedIds.add(track.id);
+              });
+            }
+          },
         );
       },
     );
@@ -675,6 +744,33 @@ class _LibraryScreenState extends State<LibraryScreen>
       return _buildEmptyState('Альбомы не найдены', Icons.album_outlined);
     }
 
+    if (_albumGridView) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          const pad = 14.0;
+          const spacing = 12.0;
+          final cellW = (constraints.maxWidth - pad * 2 - spacing) / 2;
+          return GridView.builder(
+            padding: const EdgeInsets.all(pad),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.74,
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+            ),
+            itemCount: albums.length,
+            itemBuilder: (context, index) {
+              final album = albums[index];
+              final tracks = player.allTracks
+                  .where((t) => t.album == album)
+                  .toList();
+              return _buildAlbumCard(player, album, tracks, cellW);
+            },
+          );
+        },
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 6, bottom: 16),
       itemCount: albums.length,
@@ -728,6 +824,41 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
+  Widget _buildAlbumCard(PlayerProvider player, String album,
+      List<AudioTrack> tracks, double cellW) {
+    return InkWell(
+      onTap: () => player.playFromPlaylist(tracks, 0),
+      borderRadius: BorderRadius.circular(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CachedArtwork(
+            trackId: tracks.first.id,
+            width: cellW,
+            height: cellW,
+            radius: 18,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            album,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${tracks.length} треков',
+            style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFavoriteList(PlayerProvider player) {
     final query = _searchQuery;
     final favs = player.favoriteTracks
@@ -765,6 +896,249 @@ class _LibraryScreenState extends State<LibraryScreen>
           onLongPress: () => _showTrackActions(context, player, track),
         );
       },
+    );
+  }
+
+  void _toggleSelection(AudioTrack track) {
+    setState(() {
+      if (!_selectedIds.add(track.id)) {
+        _selectedIds.remove(track.id);
+        if (_selectedIds.isEmpty) _selectionMode = false;
+      }
+    });
+  }
+
+  void _exitSelection() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  List<AudioTrack> _selectedTracksFrom(PlayerProvider player) {
+    return player.allTracks
+        .where((t) => _selectedIds.contains(t.id))
+        .toList();
+  }
+
+  void _addSelectedToFavorites() {
+    final player = context.read<PlayerProvider>();
+    final selected = _selectedTracksFrom(player);
+    var added = 0;
+    for (final t in selected) {
+      if (!t.isFavorite) {
+        player.toggleFavorite(t);
+        added++;
+      }
+    }
+    _exitSelection();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added == selected.length
+              ? '$added ${_pluralTracks(added)} добавлено в избранное'
+              : 'Избранное обновлено',
+        ),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteSelected() async {
+    final player = context.read<PlayerProvider>();
+    final selected = _selectedTracksFrom(player);
+    if (selected.isEmpty) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppTheme.cardBorder),
+        ),
+        title: Text(
+          'Удалить ${selected.length} ${_pluralTracks(selected.length)}?',
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Файлы будут удалены с устройства. Это действие нельзя отменить.',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена',
+                style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Удалить',
+                style: TextStyle(
+                    color: AppTheme.accentPink,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    var deleted = 0;
+    for (final t in selected) {
+      if (await player.deleteTrack(t)) deleted++;
+    }
+    _exitSelection();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted > 0
+              ? 'Удалено $deleted ${_pluralTracks(deleted)}'
+              : 'Не удалось удалить треки',
+        ),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _pickPlaylistForSelected() async {
+    final player = context.read<PlayerProvider>();
+    final selected = _selectedTracksFrom(player);
+    if (selected.isEmpty) return;
+
+    final playlistId = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Добавить в плейлист · ${selected.length} треков',
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Divider(height: 1, color: AppTheme.cardBorder),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final p in player.playlists)
+                    ListTile(
+                      leading: const Icon(Icons.queue_music_rounded,
+                          color: AppTheme.accentCyan),
+                      title: Text(
+                        p.name,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                      ),
+                      trailing: Text(
+                        '${p.trackIds.length}',
+                        style: const TextStyle(color: AppTheme.textMuted),
+                      ),
+                      onTap: () => Navigator.pop(sheetCtx, p.id),
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.add_rounded,
+                        color: AppTheme.accentGreen),
+                    title: const Text(
+                      'Новый плейлист',
+                      style: TextStyle(color: AppTheme.textPrimary),
+                    ),
+                    onTap: () async {
+                      final name = await _promptPlaylistName(sheetCtx);
+                      if (name != null && name.isNotEmpty) {
+                        await player.createPlaylist(name);
+                        final created = player.playlists.last.id;
+                        if (sheetCtx.mounted) Navigator.pop(sheetCtx, created);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (playlistId == null) return;
+    for (final t in selected) {
+      await player.addToPlaylist(playlistId, t);
+    }
+    _exitSelection();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '${selected.length} ${_pluralTracks(selected.length)} добавлено в плейлист'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _promptPlaylistName(BuildContext ctx) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppTheme.cardBorder),
+        ),
+        title: const Text(
+          'Новый плейлист',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: AppTheme.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Название плейлиста',
+            hintStyle: const TextStyle(color: AppTheme.textMuted),
+            filled: true,
+            fillColor: AppTheme.surfaceLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Отмена',
+                style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, controller.text.trim()),
+            child: const Text('Создать',
+                style: TextStyle(
+                    color: AppTheme.accentLight,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
