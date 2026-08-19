@@ -21,6 +21,55 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
   bool _centerInitialized = false;
   late double _cardW;
   late double _cardH;
+  bool _permissionDenied = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestPermission();
+  }
+
+  Future<void> _requestPermission() async {
+    final player = context.read<PlayerProvider>();
+    await player.requestPermission();
+    if (!mounted) return;
+    setState(() {
+      _permissionDenied = player.allTracks.isEmpty;
+    });
+  }
+
+  AppBar _buildAppBar() {
+    return AppBar(
+      title: const Text(
+        'Cover Flow',
+        style: TextStyle(
+          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.3,
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.settings_rounded,
+              color: AppTheme.textSecondary),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            );
+          },
+          tooltip: 'Настройки',
+        ),
+        IconButton(
+          icon: const Icon(Icons.palette_outlined,
+              color: AppTheme.textSecondary),
+          onPressed: () => context
+              .read<UiStyleController>()
+              .setStyle(PlayerUIStyle.simple),
+          tooltip: 'Простой интерфейс',
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,29 +81,71 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
     if (tracks.isEmpty) {
       return Scaffold(
         backgroundColor: AppTheme.background,
-        appBar: AppBar(
-          title: const Text(
-            'Cover Flow',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ),
-        body: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.music_off_rounded,
-                  color: AppTheme.textMuted, size: 56),
-              SizedBox(height: 16),
-              Text(
-                'Нет треков',
-                style: TextStyle(color: AppTheme.textSecondary),
-              ),
-            ],
-          ),
+        appBar: _buildAppBar(),
+        body: Center(
+          child: _permissionDenied
+              ? Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceLight,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.music_off_rounded,
+                          color: AppTheme.textSecondary,
+                          size: 48,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Нет доступа к музыке',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Разрешите доступ к аудиофайлам, чтобы видеть вашу музыкальную библиотеку.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: AppTheme.textSecondary, fontSize: 14),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _requestPermission,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Запросить доступ'),
+                      ),
+                    ],
+                  ),
+                )
+              : const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: AppTheme.accent),
+                    SizedBox(height: 16),
+                    Text(
+                      'Сканируем музыку...',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
         ),
       );
     }
@@ -200,36 +291,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text(
-          'Cover Flow',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_rounded,
-                color: AppTheme.textSecondary),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                    builder: (_) => const SettingsScreen()),
-              );
-            },
-            tooltip: 'Настройки',
-          ),
-          IconButton(
-            icon: const Icon(Icons.palette_outlined,
-                color: AppTheme.textSecondary),
-            onPressed: () =>
-                context.read<UiStyleController>().setStyle(PlayerUIStyle.simple),
-            tooltip: 'Простой интерфейс',
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: Column(
         children: [
           Expanded(
