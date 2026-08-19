@@ -1,14 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/ui_style.dart';
 import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
+import '../../../widgets/animated_waveform.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
+import '../../../widgets/marquee_text.dart';
+import '../../../widgets/three_d_background.dart';
 import '../../library/library_tabs.dart';
-import '../../mini_player/mini_player.dart';
-import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
 
 class CoverFlowHomeScreen extends StatefulWidget {
@@ -19,148 +22,446 @@ class CoverFlowHomeScreen extends StatefulWidget {
 }
 
 class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
-  int _center = 0;
-  bool _centerInitialized = false;
+  PageController? _controller;
+  int _lastSyncedKey = -1;
+  bool _programmatic = false;
 
-  @override
-  Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
+  static String _fmt(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '${d.inHours > 0 ? '${d.inHours}:' : ''}$m:$s';
+  }
+
+  int _targetIndex(PlayerProvider player) {
     final albums = player.albums;
-    final useAlbums = albums.isNotEmpty;
-
-    final currentAlbum = player.currentTrack?.album;
-    final initialCenter = useAlbums
-        ? (currentAlbum == null
-            ? 0
-            : albums.indexOf(currentAlbum).clamp(0, albums.length - 1).toInt())
-        : 0;
-
-    if (!_centerInitialized) {
-      _centerInitialized = true;
-      _center = initialCenter;
+    if (albums.isNotEmpty) {
+      final album = player.currentTrack?.album;
+      if (album == null) return 0;
+      final i = albums.indexOf(album);
+      return i < 0 ? 0 : i;
     }
+    final id = player.currentTrack?.id;
+    if (id == null) return 0;
+    final i = player.visibleTracks.indexWhere((t) => t.id == id);
+    return i < 0 ? 0 : i;
+  }
 
-    final centerIndex =
-        useAlbums ? _center.clamp(0, albums.length - 1).toInt() : 0;
-    final centerAlbum = useAlbums ? albums[centerIndex] : null;
-    final galleryTracks = player.visibleTracks;
+  void _onPageChanged(int index) {
+    if (_programmatic) {
+      _programmatic = false;
+      return;
+    }
+    Future.delayed(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      final p = context.read<PlayerProvider>();
+      final settled = (_controller?.hasClients ?? false)
+          ? _controller!.page!.round()
+          : index;
+      if (settled != index) return;
+      final albums = p.albums;
+      if (albums.isNotEmpty) {
+        if (index >= albums.length) return;
+        final album = albums[index];
+        final tracks =
+            p.allTracks.where((t) => t.album == album).toList();
+        if (tracks.isNotEmpty) p.playFromPlaylist(tracks, 0);
+      } else {
+        final tracks = p.visibleTracks;
+        if (index >= tracks.length) return;
+        p.playFromPlaylist(tracks, index);
+      }
+    });
+  }
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: Stack(
-        children: [
-          // 3D scene background: deep gradient + glowing blobs
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF0B0C14), Color(0xFF151228)],
+  void _openLibrary() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.45),
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.92,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xE60F101C),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(
+              top: BorderSide(color: Colors.white10, width: 1),
+            ),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            top: -80,
-            left: -60,
-            child: _GlowBlob(
-              size: 260,
-              color: const Color(0x334433FF),
-            ),
-          ),
-          Positioned(
-            top: 90,
-            right: -70,
-            child: _GlowBlob(
-              size: 220,
-              color: const Color(0x3306B6D4),
-            ),
-          ),
-          Positioned(
-            bottom: 60,
-            right: -90,
-            child: _GlowBlob(
-              size: 320,
-              color: const Color(0x33A855F7),
-            ),
-          ),
-          Positioned.fill(
-            child: Column(
-              children: [
-                _buildAppBar(),
-                // 3D gallery hero
-                SizedBox(
-                  height: 244,
-                  child: useAlbums
-                      ? _buildAlbumHero(player, albums, initialCenter)
-                      : _buildTrackHero(player, galleryTracks, initialCenter),
-                ),
-                if (useAlbums && centerAlbum != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      centerAlbum,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.accentLight,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox(height: 22),
-                // Glass library panel
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                    decoration: BoxDecoration(
-                      color: AppTheme.background.withOpacity(0.55),
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(28)),
-                      border: Border(
-                        top: BorderSide(
-                            color: Colors.white.withOpacity(0.08), width: 1),
-                        left: BorderSide(
-                            color: Colors.white.withOpacity(0.06), width: 1),
-                        right: BorderSide(
-                            color: Colors.white.withOpacity(0.06), width: 1),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x66000000),
-                          blurRadius: 30,
-                          offset: Offset(0, -6),
-                        ),
-                      ],
-                    ),
-                    child: const LibraryTabs(threeD: true),
+              const SizedBox(height: 6),
+              const Padding(
+                padding: EdgeInsets.only(top: 6, bottom: 2),
+                child: Text(
+                  'Библиотека',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                SafeArea(
-                  top: false,
-                  child: MiniPlayer(
-                    onExpand: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const NowPlayingScreen()),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              const Expanded(child: LibraryTabs(threeD: true)),
+              const SizedBox(height: 6),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildAppBar() {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<PlayerProvider>().requestPermission();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = context.watch<PlayerProvider>();
+    final track = player.currentTrack;
+
+    final albums = player.albums;
+    final useAlbums = albums.isNotEmpty;
+    final tracks = player.visibleTracks;
+
+    final targetIndex = _targetIndex(player);
+    _controller ??= PageController(
+      viewportFraction: 0.4,
+      initialPage: targetIndex,
+    );
+
+    if (_lastSyncedKey != targetIndex) {
+      _lastSyncedKey = targetIndex;
+      _programmatic = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _controller == null) return;
+        final c = _controller!;
+        if (c.hasClients && (c.page ?? 0).round() != targetIndex) {
+          c.animateToPage(
+            targetIndex,
+            duration: const Duration(milliseconds: 460),
+            curve: Curves.easeOutCubic,
+          );
+        } else {
+          _programmatic = false;
+        }
+      });
+    }
+
+    final screenW = MediaQuery.sizeOf(context).width;
+    final posMs = player.position.inMilliseconds;
+    final durMs = player.duration.inMilliseconds;
+    final posFrac = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0).toDouble() : 0.0;
+
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      body: ThreeDBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildTopBar(),
+              // Full-screen carousel with equalizer behind
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (tracks.isEmpty && !useAlbums) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircularProgressIndicator(
+                                color: AppTheme.accent),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Сканируем музыку...',
+                              style:
+                                  TextStyle(color: AppTheme.textSecondary),
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton.icon(
+                              onPressed: () => context
+                                  .read<PlayerProvider>()
+                                  .requestPermission(),
+                              icon: const Icon(Icons.folder_open_rounded,
+                                  color: AppTheme.accentLight, size: 18),
+                              label: const Text('Запросить доступ'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    final cardW = (constraints.maxWidth * 0.44)
+                        .clamp(150.0, 210.0)
+                        .toDouble();
+                    final cardH = (cardW * 1.28)
+                        .clamp(0.0, constraints.maxHeight - 12)
+                        .toDouble();
+                    final barsW = math.min(cardW + 160, constraints.maxWidth - 16);
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IgnorePointer(
+                          child: Center(
+                            child: AnimatedWaveform(
+                              isPlaying: player.isPlaying,
+                              barCount: 24,
+                              height: constraints.maxHeight - 20,
+                              width: barsW,
+                              gradient: AppTheme.cyanGreenGradient,
+                            ),
+                          ),
+                        ),
+                        CoverFlowCarousel(
+                          itemCount: useAlbums ? albums.length : tracks.length,
+                          initialIndex: targetIndex,
+                          controller: _controller,
+                          cardWidth: cardW,
+                          cardHeight: cardH,
+                          onPageChanged: _onPageChanged,
+                          itemBuilder: (context, index) {
+                            final item = useAlbums
+                                ? player.allTracks
+                                    .where((t) => t.album == albums[index])
+                                    .toList()
+                                    .first
+                                : tracks[index];
+                            return CoverFlowCard(
+                              track: item,
+                              width: cardW,
+                              height: cardH,
+                              isCurrent: item.id == track?.id,
+                              onTap: () {
+                                if (useAlbums) {
+                                  final albumTracks = player.allTracks
+                                      .where((t) => t.album == albums[index])
+                                      .toList();
+                                  if (albumTracks.isNotEmpty) {
+                                    player.playFromPlaylist(albumTracks, 0);
+                                  }
+                                } else {
+                                  player.playFromPlaylist(tracks, index);
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              // Track info
+              if (track != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 26),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            MarqueeText(
+                              text: track.title,
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              track.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          track.isFavorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: track.isFavorite
+                              ? AppTheme.accentPink
+                              : AppTheme.textSecondary,
+                        ),
+                        onPressed: player.toggleFavoriteCurrent,
+                        tooltip: 'В избранное',
+                      ),
+                    ],
+                  ),
+                ),
+              // Progress
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 26),
+                child: Column(
+                  children: [
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 4,
+                        activeTrackColor: AppTheme.accent,
+                        inactiveTrackColor: AppTheme.surfaceLight,
+                        thumbColor: AppTheme.accentLight,
+                        thumbShape:
+                            const RoundSliderThumbShape(enabledThumbRadius: 7),
+                        overlayColor: AppTheme.accent.withOpacity(0.15),
+                      ),
+                      child: Slider(
+                        value: posFrac,
+                        onChanged: (v) => player
+                            .seek(Duration(milliseconds: (durMs * v).round())),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _fmt(player.position),
+                            style: const TextStyle(
+                                color: AppTheme.textMuted, fontSize: 11),
+                          ),
+                          Text(
+                            durMs > 0
+                                ? '-${_fmt(player.duration - player.position)}'
+                                : '',
+                            style: const TextStyle(
+                                color: AppTheme.textMuted, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Controls
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shuffle_rounded),
+                      color: player.shuffleMode
+                          ? AppTheme.accentCyan
+                          : AppTheme.textSecondary,
+                      iconSize: 26,
+                      onPressed: player.toggleShuffle,
+                      tooltip: 'Перемешать',
+                    ),
+                    const SizedBox(width: 18),
+                    IconButton(
+                      icon: const Icon(Icons.skip_previous_rounded,
+                          color: AppTheme.textPrimary),
+                      iconSize: 42,
+                      onPressed: player.previous,
+                      tooltip: 'Предыдущий',
+                    ),
+                    const SizedBox(width: 14),
+                    IconButton(
+                      icon: Icon(
+                        player.isPlaying
+                            ? Icons.pause_circle_filled_rounded
+                            : Icons.play_circle_filled_rounded,
+                        color: AppTheme.accentLight,
+                      ),
+                      iconSize: 70,
+                      onPressed: player.togglePlay,
+                      tooltip: player.isPlaying ? 'Пауза' : 'Играть',
+                    ),
+                    const SizedBox(width: 14),
+                    IconButton(
+                      icon: const Icon(Icons.skip_next_rounded,
+                          color: AppTheme.textPrimary),
+                      iconSize: 42,
+                      onPressed: player.next,
+                      tooltip: 'Следующий',
+                    ),
+                    const SizedBox(width: 18),
+                    IconButton(
+                      icon: Icon(
+                        player.repeatMode == PlayerRepeatMode.one
+                            ? Icons.repeat_one_rounded
+                            : Icons.repeat_rounded,
+                        color: player.repeatMode != PlayerRepeatMode.off
+                            ? AppTheme.accentCyan
+                            : AppTheme.textSecondary,
+                      ),
+                      iconSize: 26,
+                      onPressed: player.toggleRepeat,
+                      tooltip: 'Повтор',
+                    ),
+                  ],
+                ),
+              ),
+              // Library handle
+              GestureDetector(
+                onTap: _openLibrary,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.07),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.list_rounded,
+                          color: AppTheme.textSecondary, size: 19),
+                      SizedBox(width: 8),
+                      Text(
+                        'Библиотека',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 4, 0),
+      padding: const EdgeInsets.fromLTRB(14, 4, 4, 0),
       child: Row(
         children: [
           ShaderMask(
@@ -170,7 +471,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
               'Cover Flow',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: 21,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.3,
               ),
@@ -196,72 +497,6 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
             tooltip: 'Настройки',
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildAlbumHero(
-      PlayerProvider player, List<String> albums, int initialCenter) {
-    return CoverFlowCarousel(
-      itemCount: albums.length,
-      initialIndex: initialCenter,
-      viewportFraction: 0.4,
-      cardWidth: 150,
-      cardHeight: 190,
-      onPageChanged: (i) => setState(() => _center = i),
-      itemBuilder: (context, index) {
-        final album = albums[index];
-        final tracks = player.allTracks.where((t) => t.album == album).toList();
-        return CoverFlowCard(
-          track: tracks.first,
-          width: 150,
-          height: 190,
-          onTap: () => player.playFromPlaylist(tracks, 0),
-        );
-      },
-    );
-  }
-
-  Widget _buildTrackHero(
-      PlayerProvider player, List<AudioTrack> tracks, int initialCenter) {
-    return CoverFlowCarousel(
-      itemCount: tracks.length,
-      initialIndex: initialCenter,
-      viewportFraction: 0.4,
-      cardWidth: 150,
-      cardHeight: 190,
-      onPageChanged: (i) => setState(() => _center = i),
-      itemBuilder: (context, index) {
-        final track = tracks[index];
-        return CoverFlowCard(
-          track: track,
-          width: 150,
-          height: 190,
-          onTap: () => player.playFromPlaylist(tracks, index),
-        );
-      },
-    );
-  }
-}
-
-class _GlowBlob extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _GlowBlob({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, color.withOpacity(0)],
-          ),
-        ),
       ),
     );
   }

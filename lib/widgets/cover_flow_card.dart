@@ -8,6 +8,7 @@ class CoverFlowCard extends StatelessWidget {
   final double width;
   final double height;
   final bool showReflection;
+  final bool isCurrent;
   final VoidCallback onTap;
 
   const CoverFlowCard({
@@ -16,6 +17,7 @@ class CoverFlowCard extends StatelessWidget {
     required this.width,
     required this.height,
     this.showReflection = true,
+    this.isCurrent = false,
     required this.onTap,
   });
 
@@ -35,12 +37,18 @@ class CoverFlowCard extends StatelessWidget {
             height: artHeight,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white12, width: 0.8),
+              border: Border.all(
+                color: isCurrent
+                    ? AppTheme.accentLight.withOpacity(0.85)
+                    : Colors.white12,
+                width: isCurrent ? 1.6 : 0.8,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.accent.withOpacity(0.22),
-                  blurRadius: 22,
-                  spreadRadius: 1,
+                  color: (isCurrent ? AppTheme.accentLight : AppTheme.accent)
+                      .withOpacity(isCurrent ? 0.45 : 0.22),
+                  blurRadius: isCurrent ? 34 : 22,
+                  spreadRadius: isCurrent ? 2 : 1,
                 ),
                 BoxShadow(
                   color: Colors.black.withOpacity(0.5),

@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 import '../../../core/ui_style.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
+import '../../../widgets/animated_waveform.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
+import '../../../widgets/three_d_background.dart';
 
 class CoverFlowNowPlayingScreen extends StatefulWidget {
   const CoverFlowNowPlayingScreen({super.key});
@@ -93,8 +95,9 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Column(
+      body: ThreeDBackground(
+        child: SafeArea(
+          child: Column(
           children: [
             // Top bar
             Padding(
@@ -150,21 +153,40 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                   final cardH = (cardW * 1.26)
                       .clamp(0.0, constraints.maxHeight - 12)
                       .toDouble();
-                  return CoverFlowCarousel(
-                    itemCount: playlist.length,
-                    initialIndex: currentIndex,
-                    controller: _controller,
-                    cardWidth: cardW,
-                    cardHeight: cardH,
-                    onPageChanged: _onPageChanged,
-                    itemBuilder: (context, index) {
-                      return CoverFlowCard(
-                        track: playlist[index],
-                        width: cardW,
-                        height: cardH,
-                        onTap: () => player.playAt(index),
-                      );
-                    },
+                  final barsW =
+                      (cardW + 160).clamp(0.0, constraints.maxWidth - 16);
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IgnorePointer(
+                        child: Center(
+                          child: AnimatedWaveform(
+                            isPlaying: player.isPlaying,
+                            barCount: 26,
+                            height: constraints.maxHeight - 20,
+                            width: barsW,
+                            gradient: AppTheme.cyanGreenGradient,
+                          ),
+                        ),
+                      ),
+                      CoverFlowCarousel(
+                        itemCount: playlist.length,
+                        initialIndex: currentIndex,
+                        controller: _controller,
+                        cardWidth: cardW,
+                        cardHeight: cardH,
+                        onPageChanged: _onPageChanged,
+                        itemBuilder: (context, index) {
+                          return CoverFlowCard(
+                            track: playlist[index],
+                            width: cardW,
+                            height: cardH,
+                            isCurrent: playlist[index].id == track.id,
+                            onTap: () => player.playAt(index),
+                          );
+                        },
+                      ),
+                    ],
                   );
                 },
               ),
@@ -317,6 +339,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
