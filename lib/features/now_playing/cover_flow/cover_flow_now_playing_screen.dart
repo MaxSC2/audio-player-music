@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/ui_style.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/cover_flow_card.dart';
@@ -105,6 +106,14 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                         color: AppTheme.textSecondary, size: 30),
                     onPressed: () => Navigator.of(context).pop(),
                     tooltip: 'Свернуть',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.palette_outlined,
+                        color: AppTheme.textSecondary, size: 22),
+                    onPressed: () =>
+                        context.read<UiStyleController>().setStyle(
+                            PlayerUIStyle.simple),
+                    tooltip: 'Простой интерфейс',
                   ),
                   const Spacer(),
                   const Text(

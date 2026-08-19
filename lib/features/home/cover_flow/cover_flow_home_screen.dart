@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/ui_style.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
 import '../../mini_player/mini_player.dart';
 import '../../now_playing/now_playing_screen.dart';
+import '../../settings/settings_screen.dart';
 
 class CoverFlowHomeScreen extends StatefulWidget {
   const CoverFlowHomeScreen({super.key});
@@ -15,15 +17,19 @@ class CoverFlowHomeScreen extends StatefulWidget {
 }
 
 class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
-  int _centerAlbum = 0;
+  int _center = 0;
   bool _centerInitialized = false;
+  late double _cardW;
+  late double _cardH;
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
+    final tracks = player.visibleTracks;
     final albums = player.albums;
+    final useAlbums = albums.isNotEmpty;
 
-    if (albums.isEmpty) {
+    if (tracks.isEmpty) {
       return Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(
@@ -36,15 +42,15 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
             ),
           ),
         ),
-        body: Center(
+        body: const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.album_outlined,
+              Icon(Icons.music_off_rounded,
                   color: AppTheme.textMuted, size: 56),
-              const SizedBox(height: 16),
-              const Text(
-                'Альбомы не найдены',
+              SizedBox(height: 16),
+              Text(
+                'Нет треков',
                 style: TextStyle(color: AppTheme.textSecondary),
               ),
             ],
@@ -53,18 +59,144 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
       );
     }
 
+    final items = useAlbums ? albums : tracks;
     final currentAlbum = player.currentTrack?.album;
-    final initialAlbumIndex =
-        currentAlbum == null ? 0 : (albums.indexOf(currentAlbum).clamp(0, albums.length - 1).toInt());
+    final initialCenter = useAlbums
+        ? (currentAlbum == null
+            ? 0
+            : albums
+                .indexOf(currentAlbum)
+                .clamp(0, albums.length - 1)
+                .toInt())
+        : (player.currentIndex < 0
+            ? 0
+            : player.currentIndex.clamp(0, tracks.length - 1).toInt());
+
     if (!_centerInitialized) {
       _centerInitialized = true;
-      _centerAlbum = initialAlbumIndex;
+      _center = initialCenter;
     }
-    final centerAlbum = albums[_centerAlbum.clamp(0, albums.length - 1).toInt()];
-    final centerTracks =
-        player.allTracks.where((t) => t.album == centerAlbum).toList();
 
+    final centerIndex = _center.clamp(0, items.length - 1).toInt();
     final screenW = MediaQuery.sizeOf(context).width;
+
+    Widget cardFor(int index) {
+      if (useAlbums) {
+        final album = albums[index];
+        final albumTracks =
+            tracks.where((t) => t.album == album).toList();
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CoverFlowCard(
+              track: albumTracks.first,
+              width: _cardW,
+              height: _cardH - 52,
+              onTap: () => player.playFromPlaylist(albumTracks, 0),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              album,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${albumTracks.length} '
+              '${albumTracks.length == 1 ? 'трек' : 'треков'}',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+          ],
+        );
+      } else {
+        final track = tracks[index];
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CoverFlowCard(
+              track: track,
+              width: _cardW,
+              height: _cardH - 52,
+              onTap: () => player.playFromPlaylist(tracks, index),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              track.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              track.artist,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+          ],
+        );
+      }
+    }
+
+    Widget labelFor(int index) {
+      if (useAlbums) {
+        final album = albums[index];
+        final albumTracks = tracks.where((t) => t.album == album).toList();
+        return Column(
+          children: [
+            Text(
+              album,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.accentLight,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${albumTracks.length} '
+              '${albumTracks.length == 1 ? 'трек' : 'треков'} · '
+              'нажмите на обложку, чтобы играть',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+          ],
+        );
+      } else {
+        final track = tracks[index];
+        return Column(
+          children: [
+            Text(
+              track.title,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.accentLight,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${track.artist} · нажмите на обложку, чтобы играть',
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            ),
+          ],
+        );
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -78,106 +210,50 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
           ),
         ),
         actions: [
-          if (player.allTracks.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  '${albums.length} ${albums.length == 1 ? 'альбом' : 'альбомов'}',
-                  style: const TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded,
+                color: AppTheme.textSecondary),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                    builder: (_) => const SettingsScreen()),
+              );
+            },
+            tooltip: 'Настройки',
+          ),
+          IconButton(
+            icon: const Icon(Icons.palette_outlined,
+                color: AppTheme.textSecondary),
+            onPressed: () =>
+                context.read<UiStyleController>().setStyle(PlayerUIStyle.simple),
+            tooltip: 'Простой интерфейс',
+          ),
         ],
       ),
       body: Column(
         children: [
-          // 3D album carousel
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final cardW = (screenW * 0.62 - 12).clamp(170.0, 250.0).toDouble();
-                final cardH = (cardW * 1.22)
+                _cardW = (screenW * 0.62 - 12).clamp(170.0, 250.0).toDouble();
+                _cardH = (_cardW * 1.26)
                     .clamp(0.0, constraints.maxHeight - 56)
                     .toDouble();
                 return CoverFlowCarousel(
-                  itemCount: albums.length,
-                  initialIndex: initialAlbumIndex,
-                  cardWidth: cardW,
-                  cardHeight: cardH,
-                  onPageChanged: (i) => setState(() => _centerAlbum = i),
-                  itemBuilder: (context, index) {
-                    final album = albums[index];
-                    final tracks = player.allTracks
-                        .where((t) => t.album == album)
-                        .toList();
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CoverFlowCard(
-                          track: tracks.first,
-                          width: cardW,
-                          height: cardH - 52,
-                          onTap: () {
-                            player.playFromPlaylist(tracks, 0);
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          album,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${tracks.length} ${tracks.length == 1 ? 'трек' : 'треков'}',
-                          style: const TextStyle(
-                              color: AppTheme.textMuted, fontSize: 12),
-                        ),
-                      ],
-                    );
-                  },
+                  itemCount: items.length,
+                  initialIndex: initialCenter,
+                  cardWidth: _cardW,
+                  cardHeight: _cardH,
+                  onPageChanged: (i) => setState(() => _center = i),
+                  itemBuilder: (context, index) => cardFor(index),
                 );
               },
             ),
           ),
-
-          // Centered album info
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
-            child: Column(
-              children: [
-                Text(
-                  centerAlbum,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.accentLight,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${centerTracks.length} '
-                  '${centerTracks.length == 1 ? 'трек' : 'треков'} · '
-                  'нажмите на обложку, чтобы играть',
-                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
-                ),
-              ],
-            ),
+            child: labelFor(centerIndex),
           ),
-
-          // Mini player
           SafeArea(
             top: false,
             child: MiniPlayer(
