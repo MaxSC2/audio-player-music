@@ -11,7 +11,9 @@ import '../../widgets/track_tile.dart';
 /// artists, folders, favorites), sort, grid toggle, multi-select.
 /// Used by both the simple and the 3D cover flow home screens.
 class LibraryTabs extends StatefulWidget {
-  const LibraryTabs({super.key});
+  final bool threeD;
+
+  const LibraryTabs({super.key, this.threeD = false});
 
   @override
   State<LibraryTabs> createState() => _LibraryTabsState();
@@ -59,8 +61,7 @@ class _LibraryTabsState extends State<LibraryTabs>
 
     return Column(
       children: [
-        _buildToolbar(player),
-        _buildSearchField(),
+        _buildHeaderRow(player),
         TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -108,10 +109,10 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
   }
 
-  Widget _buildToolbar(PlayerProvider player) {
+  Widget _buildHeaderRow(PlayerProvider player) {
     if (_selectionMode) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 6, 0),
+        padding: const EdgeInsets.fromLTRB(16, 8, 6, 2),
         child: Row(
           children: [
             Text(
@@ -152,104 +153,100 @@ class _LibraryTabsState extends State<LibraryTabs>
       );
     }
 
-    if (player.allTracks.isEmpty) return const SizedBox.shrink();
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 6, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 2),
       child: Row(
         children: [
-          const Spacer(),
-          if (_tabController.index == 2)
-            IconButton(
-              icon: Icon(
-                _albumGridView
-                    ? Icons.view_list_rounded
-                    : Icons.grid_view_rounded,
-                color: AppTheme.textSecondary,
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.trim();
+                });
+              },
+              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Поиск...',
+                hintStyle: const TextStyle(color: AppTheme.textMuted),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    color: AppTheme.textMuted, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded,
+                            color: AppTheme.textMuted, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppTheme.surfaceLight,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
-              onPressed: () => setState(() => _albumGridView = !_albumGridView),
-              tooltip: _albumGridView ? 'Списком' : 'Сеткой',
             ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort_rounded,
-                color: AppTheme.textSecondary),
-            color: AppTheme.surfaceLight,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: AppTheme.cardBorder),
-            ),
-            onSelected: (value) {
-              switch (value) {
-                case 'title':
-                  player.sortOrder = SortOrder.title;
-                  break;
-                case 'artist':
-                  player.sortOrder = SortOrder.artist;
-                  break;
-                case 'dateAddedNew':
-                  player.sortOrder = SortOrder.dateAddedNew;
-                  break;
-                case 'dateAddedOld':
-                  player.sortOrder = SortOrder.dateAddedOld;
-                  break;
-                case 'duration':
-                  player.sortOrder = SortOrder.duration;
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              _buildSortItem(SortOrder.title, player.sortOrder, 'По названию'),
-              _buildSortItem(
-                  SortOrder.artist, player.sortOrder, 'По исполнителю'),
-              _buildSortItem(SortOrder.dateAddedNew, player.sortOrder,
-                  'По дате добавления (новые)'),
-              _buildSortItem(SortOrder.dateAddedOld, player.sortOrder,
-                  'По дате добавления (старые)'),
-              _buildSortItem(
-                  SortOrder.duration, player.sortOrder, 'По длительности'),
-            ],
           ),
+          if (player.allTracks.isNotEmpty) ...[
+            if (_tabController.index == 2)
+              IconButton(
+                icon: Icon(
+                  _albumGridView
+                      ? Icons.view_list_rounded
+                      : Icons.grid_view_rounded,
+                  color: AppTheme.textSecondary,
+                ),
+                onPressed: () => setState(() => _albumGridView = !_albumGridView),
+                tooltip: _albumGridView ? 'Списком' : 'Сеткой',
+              ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.sort_rounded,
+                  color: AppTheme.textSecondary),
+              color: AppTheme.surfaceLight,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: AppTheme.cardBorder),
+              ),
+              onSelected: (value) {
+                switch (value) {
+                  case 'title':
+                    player.sortOrder = SortOrder.title;
+                    break;
+                  case 'artist':
+                    player.sortOrder = SortOrder.artist;
+                    break;
+                  case 'dateAddedNew':
+                    player.sortOrder = SortOrder.dateAddedNew;
+                    break;
+                  case 'dateAddedOld':
+                    player.sortOrder = SortOrder.dateAddedOld;
+                    break;
+                  case 'duration':
+                    player.sortOrder = SortOrder.duration;
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                _buildSortItem(SortOrder.title, player.sortOrder, 'По названию'),
+                _buildSortItem(
+                    SortOrder.artist, player.sortOrder, 'По исполнителю'),
+                _buildSortItem(SortOrder.dateAddedNew, player.sortOrder,
+                    'По дате добавления (новые)'),
+                _buildSortItem(SortOrder.dateAddedOld, player.sortOrder,
+                    'По дате добавления (старые)'),
+                _buildSortItem(
+                    SortOrder.duration, player.sortOrder, 'По длительности'),
+              ],
+            ),
+          ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildSearchField() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value.trim();
-          });
-        },
-        style: const TextStyle(color: AppTheme.textPrimary),
-        decoration: InputDecoration(
-          hintText: 'Поиск треков, исполнителей...',
-          hintStyle: const TextStyle(color: AppTheme.textMuted),
-          prefixIcon:
-              const Icon(Icons.search_rounded, color: AppTheme.textMuted),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear_rounded,
-                      color: AppTheme.textMuted),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {
-                      _searchQuery = '';
-                    });
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: AppTheme.surfaceLight,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
       ),
     );
   }
@@ -346,6 +343,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           isPlaying: isCurrent && player.isPlaying,
           isCurrent: isCurrent,
           selected: _selectedIds.contains(track.id),
+          threeD: widget.threeD,
           onTap: () {
             if (_selectionMode) {
               _toggleSelection(track);
@@ -833,6 +831,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           track: track,
           isPlaying: isCurrent && player.isPlaying,
           isCurrent: isCurrent,
+          threeD: widget.threeD,
           onTap: () {
             if (favs.length > 1) {
               player.playFromPlaylist(favs, index);

@@ -13,6 +13,7 @@ class TrackTile extends StatelessWidget {
   final bool isPlaying;
   final bool isCurrent;
   final bool selected;
+  final bool threeD;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -22,6 +23,7 @@ class TrackTile extends StatelessWidget {
     required this.isPlaying,
     this.isCurrent = false,
     this.selected = false,
+    this.threeD = false,
     required this.onTap,
     this.onLongPress,
   });
@@ -30,7 +32,7 @@ class TrackTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final player = context.read<PlayerProvider>();
 
-    return Container(
+    final tile = Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
         color: selected
@@ -284,6 +286,17 @@ class TrackTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+
+    if (!threeD) return tile;
+
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..setEntry(3, 2, 0.0012)
+        ..rotateX(-0.028)
+        ..rotateZ(0.006),
+      child: tile,
     );
   }
 }

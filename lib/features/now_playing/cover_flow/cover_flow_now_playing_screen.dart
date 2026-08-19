@@ -108,7 +108,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                     tooltip: 'Свернуть',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.palette_outlined,
+                    icon: const Icon(Icons.view_agenda_outlined,
                         color: AppTheme.textSecondary, size: 22),
                     onPressed: () =>
                         context.read<UiStyleController>().setStyle(

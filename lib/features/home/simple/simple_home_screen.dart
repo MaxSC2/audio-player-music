@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/ui_style.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../mini_player/mini_player.dart';
@@ -17,8 +18,8 @@ class SimpleHomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             ShaderMask(
               shaderCallback: (bounds) =>
@@ -27,24 +28,34 @@ class SimpleHomeScreen extends StatelessWidget {
                 'NeonWave',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.3,
                 ),
               ),
             ),
             if (player.allTracks.isNotEmpty)
-              Text(
-                '${player.allTracks.length} ${player.allTracks.length == 1 ? 'трек' : 'треков'}',
-                style: const TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Text(
+                  '${player.allTracks.length}',
+                  style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.album_rounded, color: AppTheme.textSecondary),
+            onPressed: () => context
+                .read<UiStyleController>()
+                .setStyle(PlayerUIStyle.coverFlow3D),
+            tooltip: '3D Cover Flow',
+          ),
           IconButton(
             icon: const Icon(Icons.settings_rounded,
                 color: AppTheme.textSecondary),
