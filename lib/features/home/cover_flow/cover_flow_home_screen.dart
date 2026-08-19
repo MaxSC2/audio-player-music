@@ -12,6 +12,7 @@ import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/three_d_background.dart';
 import '../../library/library_tabs.dart';
+import '../../library/personal_dj_sheet.dart';
 import '../../settings/settings_screen.dart';
 
 class CoverFlowHomeScreen extends StatefulWidget {
@@ -423,34 +424,79 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                   ],
                 ),
               ),
-              // Library handle
-              GestureDetector(
-                onTap: _openLibrary,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.07),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white10),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.list_rounded,
-                          color: AppTheme.textSecondary, size: 19),
-                      SizedBox(width: 8),
-                      Text(
-                        'Библиотека',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+              // Bottom actions: Personal DJ + Library
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: AppTheme.surface,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(24)),
                         ),
+                        builder: (_) => const PersonalDJSheet(),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accent.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppTheme.accent.withOpacity(0.4)),
                       ),
-                    ],
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.auto_awesome_rounded,
+                              color: AppTheme.accentLight, size: 19),
+                          SizedBox(width: 8),
+                          Text(
+                            'Personal DJ',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: _openLibrary,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 22, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.07),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.list_rounded,
+                              color: AppTheme.textSecondary, size: 19),
+                          SizedBox(width: 8),
+                          Text(
+                            'Библиотека',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
             ],

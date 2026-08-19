@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
@@ -13,6 +14,8 @@ import '../services/audio_handler.dart';
 enum PlayerRepeatMode { off, all, one }
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
+enum ListeningContext { balanced, energy, calm, party, focus }
+
 class PlayerProvider extends ChangeNotifier {
   late final AudioPlayer _audioPlayer;
   late final AndroidEqualizer _equalizer;
@@ -24,6 +27,8 @@ class PlayerProvider extends ChangeNotifier {
   List<int> _favoriteIds = [];
   List<CustomPlaylist> _playlists = [];
   List<Map<String, int>> _historyRaw = [];
+  List<Map<String, int>> _notNowRaw = [];
+  ListeningContext _listeningContext = ListeningContext.balanced;
 
   double _defaultSpeed = 1.0;
   bool _hideUnknownArtist = false;
@@ -236,6 +241,26 @@ class PlayerProvider extends ChangeNotifier {
       } catch (_) {
         _historyRaw = [];
       }
+    }
+
+    final savedNotNow = prefs.getString('not_now');
+    if (savedNotNow != null) {
+      try {
+        _notNowRaw = (jsonDecode(savedNotNow) as List)
+            .whereType<Map>()
+            .map((e) => e.cast<String, int>())
+            .toList();
+      } catch (_) {
+        _notNowRaw = [];
+      }
+    }
+
+    final savedContext = prefs.getString('listening_context');
+    if (savedContext != null) {
+      _listeningContext = ListeningContext.values.firstWhere(
+        (c) => c.name == savedContext,
+        orElse: () => ListeningContext.balanced,
+      );
     }
 
     final savedSort = prefs.getString('sort_order');
@@ -499,6 +524,158 @@ class PlayerProvider extends ChangeNotifier {
     _historyRaw = [];
     await _prefs?.remove('history');
     notifyListeners();
+  }
+
+  // ─── "Не хочу сейчас" ──────────────────────────────────────────────
+  static const int _notNowExpiryMs = 7 * 24 * 3600 * 1000;
+
+  List<AudioTrack> get notNowTracks {
+    _expireNotNow();
+    final result = <AudioTrack>[];
+    for (final e in _notNowRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index < 0) continue;
+      result.add(_allTracks[index]);
+    }
+    return result;
+  }
+
+  bool isNotNow(int id) => _notNowRaw.any((e) => e['id'] == id);
+
+  void _expireNotNow() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final before = _notNowRaw.length;
+    _notNowRaw.removeWhere((e) => (now - (e['ts'] ?? 0)) > _notNowExpiryMs);
+    if (_notNowRaw.length != before) {
+      _prefs?.setString('not_now', jsonEncode(_notNowRaw));
+    }
+  }
+
+  void toggleNotNow(AudioTrack track) {
+    _expireNotNow();
+    final index = _notNowRaw.indexWhere((e) => e['id'] == track.id);
+    if (index >= 0) {
+      _notNowRaw.removeAt(index);
+    } else {
+      _notNowRaw.insert(
+        0,
+        {'id': track.id, 'ts': DateTime.now().millisecondsSinceEpoch},
+      );
+      if (_notNowRaw.length > 200) {
+        _notNowRaw.removeRange(200, _notNowRaw.length);
+      }
+    }
+    _prefs?.setString('not_now', jsonEncode(_notNowRaw));
+    notifyListeners();
+  }
+
+  // ─── Listening Context ─────────────────────────────────────────────
+  ListeningContext get listeningContext => _listeningContext;
+
+  void setListeningContext(ListeningContext value) {
+    _listeningContext = value;
+    _prefs?.setString('listening_context', value.name);
+    notifyListeners();
+  }
+
+  // ─── Personal DJ / Smart Queue ─────────────────────────────────────
+  List<AudioTrack> buildSmartQueue({int count = 60}) {
+    _expireNotNow();
+    final pool = visibleTracks
+        .where((t) => !isNotNow(t.id))
+        .toList();
+    if (pool.isEmpty) return const [];
+
+    final recentIndex = <int, int>{};
+    for (var i = 0; i < _historyRaw.length; i++) {
+      final id = _historyRaw[i]['id'];
+      if (id != null && !recentIndex.containsKey(id)) {
+        recentIndex[id] = i;
+      }
+    }
+
+    final currentArtist = currentTrack?.artist;
+    final favSet = _favoriteIds.toSet();
+    final queue = <AudioTrack>[];
+    final used = <int>{};
+    final usedArtistCount = <String, int>{};
+    int seed = DateTime.now().millisecondsSinceEpoch;
+
+    final favWeight = switch (_listeningContext) {
+      ListeningContext.energy || ListeningContext.party => 1.6,
+      ListeningContext.calm || ListeningContext.focus => 1.25,
+      ListeningContext.balanced => 1.0,
+    };
+
+    int _nextRand() {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed;
+    }
+
+    while (queue.length < count && used.length < pool.length) {
+      AudioTrack? best;
+      double bestScore = -1e9;
+
+      for (final t in pool) {
+        if (used.contains(t.id)) continue;
+
+        double score = 0;
+        if (favSet.contains(t.id)) score += 45 * favWeight;
+        if (t.artist == currentArtist) score += 18;
+
+        final rec = recentIndex[t.id];
+        if (rec != null) {
+          score -= math.max(0, 55 - rec);
+        }
+
+        final artistCount = usedArtistCount[t.artist] ?? 0;
+        score -= artistCount * 34;
+
+        final sameAlbum =
+            currentTrack != null && t.album == currentTrack!.album && t.id != currentTrack!.id;
+        if (sameAlbum) score += 10;
+
+        if (queue.contains(t)) score -= 40;
+
+        if (t.isFavorite) score += 8;
+        if (t.id == currentTrack?.id) score -= 50;
+
+        switch (_listeningContext) {
+          case ListeningContext.energy || ListeningContext.party:
+            if (t.duration > 0 && t.duration < 3 * 60 * 1000) {
+              score += 12;
+            }
+          case ListeningContext.calm || ListeningContext.focus:
+            if (t.duration >= 3 * 60 * 1000) {
+              score += 12;
+            }
+          case ListeningContext.balanced:
+            break;
+        }
+
+        score += (_nextRand() % 400) / 100.0;
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = t;
+        }
+      }
+
+      if (best == null) break;
+      used.add(best.id);
+      queue.add(best);
+      usedArtistCount[best.artist] = (usedArtistCount[best.artist] ?? 0) + 1;
+    }
+
+    return queue;
+  }
+
+  Future<void> launchPersonalDJ({int count = 60}) async {
+    final queue = buildSmartQueue(count: count);
+    if (queue.isEmpty) return;
+    await playFromPlaylist(queue, 0);
   }
 
   SortOrder _sortOrder = SortOrder.title;

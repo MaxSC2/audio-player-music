@@ -7,6 +7,7 @@ import '../../mini_player/mini_player.dart';
 import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../../library/library_tabs.dart';
+import '../../library/personal_dj_sheet.dart';
 
 class SimpleHomeScreen extends StatelessWidget {
   const SimpleHomeScreen({super.key});
@@ -49,6 +50,22 @@ class SimpleHomeScreen extends StatelessWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.auto_awesome_rounded,
+                color: AppTheme.textSecondary),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: AppTheme.surface,
+                isScrollControlled: true,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                builder: (_) => const PersonalDJSheet(),
+              );
+            },
+            tooltip: 'Personal DJ',
+          ),
           IconButton(
             icon: const Icon(Icons.album_rounded, color: AppTheme.textSecondary),
             onPressed: () => context

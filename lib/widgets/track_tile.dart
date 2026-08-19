@@ -225,6 +225,17 @@ class TrackTile extends StatelessWidget {
                         context: context,
                         builder: (_) => TrackInfoDialog(track: track),
                       );
+                    } else if (value == 'not_now') {
+                      player.toggleNotNow(track);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(player.isNotNow(track.id)
+                              ? '"${track.title}" скрыт на неделю'
+                              : '"${track.title}" снова в подборе'),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
                     }
                   },
                   itemBuilder: (context) => [
@@ -265,6 +276,24 @@ class TrackTile extends StatelessWidget {
                               color: AppTheme.accentGreen, size: 18),
                           SizedBox(width: 10),
                           Text('Добавить в плейлист'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'not_now',
+                      child: Row(
+                        children: [
+                          Icon(
+                            player.isNotNow(track.id)
+                                ? Icons.undo_rounded
+                                : Icons.do_not_disturb_on_rounded,
+                            color: AppTheme.textSecondary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(player.isNotNow(track.id)
+                              ? 'Вернуть в подбор'
+                              : 'Не хочу сейчас'),
                         ],
                       ),
                     ),
