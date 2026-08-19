@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/player_provider.dart';
-import '../ui/theme.dart';
-import 'animated_waveform.dart';
-import 'cached_artwork.dart';
+import '../../../providers/player_provider.dart';
+import '../../../ui/theme.dart';
+import '../../../widgets/animated_waveform.dart';
+import '../../../widgets/cached_artwork.dart';
 
-class MiniPlayerBar extends StatelessWidget {
+class SimpleMiniPlayer extends StatelessWidget {
   final VoidCallback onExpand;
 
-  const MiniPlayerBar({super.key, required this.onExpand});
+  const SimpleMiniPlayer({super.key, required this.onExpand});
 
   @override
   Widget build(BuildContext context) {

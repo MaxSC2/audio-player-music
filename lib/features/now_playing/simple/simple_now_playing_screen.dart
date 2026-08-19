@@ -1,25 +1,25 @@
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/audio_track.dart';
-import '../providers/player_provider.dart';
-import '../ui/theme.dart';
-import '../widgets/animated_waveform.dart';
-import '../widgets/artwork_backdrop.dart';
-import '../widgets/equalizer_dialog.dart';
-import '../widgets/marquee_text.dart';
-import '../widgets/queue_sheet.dart';
-import '../widgets/sleep_timer_dialog.dart';
-import '../widgets/spinning_vinyl.dart';
+import '../../../models/audio_track.dart';
+import '../../../providers/player_provider.dart';
+import '../../../ui/theme.dart';
+import '../../../widgets/animated_waveform.dart';
+import '../../../widgets/artwork_backdrop.dart';
+import '../../../widgets/equalizer_dialog.dart';
+import '../../../widgets/marquee_text.dart';
+import '../../../widgets/queue_sheet.dart';
+import '../../../widgets/sleep_timer_dialog.dart';
+import '../../../widgets/spinning_vinyl.dart';
 
-class PlayerScreen extends StatefulWidget {
-  const PlayerScreen({super.key});
+class SimpleNowPlayingScreen extends StatefulWidget {
+  const SimpleNowPlayingScreen({super.key});
 
   @override
-  State<PlayerScreen> createState() => _PlayerScreenState();
+  State<SimpleNowPlayingScreen> createState() => _SimpleNowPlayingScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen> {
+class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();

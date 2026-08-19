@@ -3,14 +3,18 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/ui_style.dart';
+import 'features/home/home_screen.dart';
 import 'providers/player_provider.dart';
-import 'screens/library_screen.dart';
 import 'services/audio_handler.dart';
 import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final playerProvider = PlayerProvider();
+  final uiStyle = UiStyleController();
+
+  await uiStyle.init();
 
   final handlerFuture = AudioService.init(
     builder: () => PlayerAudioHandler(
@@ -44,8 +48,11 @@ Future<void> main() async {
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => playerProvider,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => playerProvider),
+        ChangeNotifierProvider(create: (_) => uiStyle),
+      ],
       child: const NeonWaveApp(),
     ),
   );
@@ -60,7 +67,7 @@ class NeonWaveApp extends StatelessWidget {
       title: 'NeonWave',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      home: const LibraryScreen(),
+      home: const HomeScreen(),
     );
   }
 }

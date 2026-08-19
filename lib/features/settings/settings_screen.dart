@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../providers/player_provider.dart';
-import '../ui/theme.dart';
-import '../widgets/equalizer_dialog.dart';
+import '../../providers/player_provider.dart';
+import '../../ui/theme.dart';
+import '../../widgets/equalizer_dialog.dart';
+import '../../core/ui_style.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -11,6 +12,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
+    final uiStyle = context.watch<UiStyleController>();
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -44,6 +46,58 @@ class SettingsScreen extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+            ),
+          ),
+
+          const _SectionHeader('Интерфейс'),
+
+          _SettingsCard(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _TileTitle(
+                    icon: Icons.palette_outlined,
+                    title: 'Стиль интерфейса',
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<PlayerUIStyle>(
+                      segments: const [
+                        ButtonSegment(
+                          value: PlayerUIStyle.simple,
+                          label: Text('Простой'),
+                          icon: Icon(Icons.view_agenda_outlined, size: 18),
+                        ),
+                        ButtonSegment(
+                          value: PlayerUIStyle.coverFlow3D,
+                          label: Text('3D'),
+                          icon: Icon(Icons.album_rounded, size: 18),
+                        ),
+                      ],
+                      selected: {uiStyle.style},
+                      showSelectedIcon: false,
+                      style: SegmentedButton.styleFrom(
+                        selectedBackgroundColor: AppTheme.accent,
+                        selectedForegroundColor: Colors.white,
+                        backgroundColor: AppTheme.surfaceLight,
+                        foregroundColor: AppTheme.textSecondary,
+                        side: const BorderSide(color: AppTheme.cardBorder),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onSelectionChanged: (sel) =>
+                          uiStyle.setStyle(sel.first),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Долгое нажатие на мини-плеер — быстрый переключатель.',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                  ),
+                ],
               ),
             ),
           ),

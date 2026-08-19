@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/audio_track.dart';
-import '../models/custom_playlist.dart';
-import '../providers/player_provider.dart';
-import '../ui/theme.dart';
-import '../widgets/cached_artwork.dart';
-import '../widgets/player_bar.dart';
-import '../widgets/track_tile.dart';
-import 'player_screen.dart';
-import 'playlist_detail_screen.dart';
-import 'settings_screen.dart';
+import '../../../models/audio_track.dart';
+import '../../../models/custom_playlist.dart';
+import '../../../providers/player_provider.dart';
+import '../../../ui/theme.dart';
+import '../../../widgets/cached_artwork.dart';
+import '../../../widgets/track_tile.dart';
+import '../../mini_player/mini_player.dart';
+import '../../now_playing/now_playing_screen.dart';
+import '../../settings/settings_screen.dart';
+import '../../../screens/playlist_detail_screen.dart';
 
-class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key});
+class SimpleHomeScreen extends StatefulWidget {
+  const SimpleHomeScreen({super.key});
 
   @override
-  State<LibraryScreen> createState() => _LibraryScreenState();
+  State<SimpleHomeScreen> createState() => _SimpleHomeScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen>
+class _SimpleHomeScreenState extends State<SimpleHomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
@@ -276,11 +276,11 @@ class _LibraryScreenState extends State<LibraryScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            MiniPlayerBar(
+            MiniPlayer(
               onExpand: () {
                 Navigator.of(context).push(
                   PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const PlayerScreen(),
+                    pageBuilder: (_, __, ___) => const NowPlayingScreen(),
                     transitionsBuilder: (_, anim, __, child) {
                       return FadeTransition(
                         opacity: anim,
