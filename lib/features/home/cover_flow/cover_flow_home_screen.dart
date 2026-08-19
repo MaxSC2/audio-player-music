@@ -6,7 +6,7 @@ import '../../../core/ui_style.dart';
 import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
-import '../../../widgets/animated_waveform.dart';
+import '../../../widgets/animated_sound_dome.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
@@ -218,18 +218,19 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     final cardH = (cardW * 1.28)
                         .clamp(0.0, constraints.maxHeight - 12)
                         .toDouble();
-                    final barsW = math.min(cardW + 160, constraints.maxWidth - 16);
+                    final barsW =
+                        math.min(cardW + 160, constraints.maxWidth - 16);
                     return Stack(
                       alignment: Alignment.center,
                       children: [
                         IgnorePointer(
                           child: Center(
-                            child: AnimatedWaveform(
+                            child: AnimatedSoundDome(
                               isPlaying: player.isPlaying,
-                              barCount: 24,
-                              height: constraints.maxHeight - 20,
                               width: barsW,
-                              gradient: AppTheme.cyanGreenGradient,
+                              height: math.min(
+                                  constraints.maxHeight - 20, 300.0),
+                              barCount: 20,
                             ),
                           ),
                         ),

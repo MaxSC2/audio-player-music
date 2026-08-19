@@ -1,9 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/ui_style.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
-import '../../../widgets/animated_waveform.dart';
+import '../../../widgets/animated_sound_dome.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
@@ -160,12 +162,12 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                     children: [
                       IgnorePointer(
                         child: Center(
-                          child: AnimatedWaveform(
+                          child: AnimatedSoundDome(
                             isPlaying: player.isPlaying,
-                            barCount: 26,
-                            height: constraints.maxHeight - 20,
                             width: barsW,
-                            gradient: AppTheme.cyanGreenGradient,
+                            height:
+                                math.min(constraints.maxHeight - 20, 320.0),
+                            barCount: 20,
                           ),
                         ),
                       ),
