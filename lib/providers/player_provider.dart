@@ -387,16 +387,18 @@ class PlayerProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> createPlaylist(String name) async {
+  Future<String?> createPlaylist(String name) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return null;
+    final id = 'pl_${DateTime.now().millisecondsSinceEpoch}';
     _playlists.add(CustomPlaylist(
-      id: 'pl_${DateTime.now().millisecondsSinceEpoch}',
+      id: id,
       name: trimmed,
       createdAt: DateTime.now().millisecondsSinceEpoch,
     ));
     await _savePlaylists();
     notifyListeners();
+    return id;
   }
 
   Future<void> deletePlaylist(String id) async {
@@ -943,10 +945,19 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Personal DJ / Smart Queue ─────────────────────────────────────
-  List<AudioTrack> buildSmartQueue({int count = 60}) {
+  List<AudioTrack> buildSmartQueue({
+    int count = 60,
+    Set<ListeningContext>? contexts,
+    DiscoveryLevel? discovery,
+    bool? deepCuts,
+    Set<int>? exclude,
+  }) {
     _expireNotNow();
+    final activeCtx = contexts ?? _activeContexts;
+    final useDeepCuts = deepCuts ?? _deepCuts;
     final pool = visibleTracks
         .where((t) => !isNotNow(t.id))
+        .where((t) => exclude == null || !exclude.contains(t.id))
         .toList();
     if (pool.isEmpty) return const [];
 
@@ -985,13 +996,13 @@ class PlayerProvider extends ChangeNotifier {
     final usedArtistCount = <String, int>{};
     int seed = DateTime.now().millisecondsSinceEpoch;
 
-    final hasEnergy = _activeContexts.any(
+    final hasEnergy = activeCtx.any(
         (c) => c == ListeningContext.energy || c == ListeningContext.party);
-    final hasCalm = _activeContexts
+    final hasCalm = activeCtx
         .any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
     final favWeight = hasEnergy ? 1.6 : (hasCalm ? 1.25 : 1.0);
 
-    final discoveryF = _discoveryLevel.factor;
+    final discoveryF = (discovery ?? _discoveryLevel).factor;
 
     int _nextRand() {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -1035,7 +1046,7 @@ class PlayerProvider extends ChangeNotifier {
         if (t.id == currentTrack?.id) score -= 50;
 
         final pc = playCount[t.id] ?? 0;
-        if (_deepCuts) {
+        if (useDeepCuts) {
           score += (1 - math.min(1.0, pc / 8)) * 30;
         }
 
@@ -1077,6 +1088,75 @@ class PlayerProvider extends ChangeNotifier {
     final queue = buildSmartQueue(count: count);
     if (queue.isEmpty) return;
     await playFromPlaylist(queue, 0);
+  }
+
+  // ─── AI Radio ──────────────────────────────────────────────────────
+  bool _radioMode = false;
+  final Set<int> _radioUsedIds = <int>{};
+
+  bool get radioMode => _radioMode;
+
+  Future<void> launchRadio() async {
+    _radioUsedIds.clear();
+    final queue = buildSmartQueue(count: 60, exclude: _radioUsedIds);
+    if (queue.isEmpty) return;
+    _radioUsedIds.addAll(queue.map((t) => t.id));
+    await playFromPlaylist(queue, 0, radio: true);
+  }
+
+  void stopRadio() {
+    _radioMode = false;
+    _radioUsedIds.clear();
+    notifyListeners();
+  }
+
+  Future<void> _extendRadio() async {
+    final more = buildSmartQueue(count: 30, exclude: _radioUsedIds);
+    if (more.isEmpty) return;
+    _radioUsedIds.addAll(more.map((t) => t.id));
+    _playlist = [..._playlist, ...more];
+    _audioHandler?.setQueue(_playlist);
+    await _audioPlayer.setAudioSources(
+      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+    );
+    notifyListeners();
+  }
+
+  // ─── Natural Language Playlist ─────────────────────────────────────
+  List<AudioTrack> buildPlaylistFromPrompt(String prompt) {
+    final p = prompt.toLowerCase();
+    final ctxs = <ListeningContext>{};
+
+    if (RegExp(r'энерг|бодр|быстр|спорт|тренир|пробежк|заряд|кача|ускор')
+        .hasMatch(p)) {
+      ctxs.add(ListeningContext.energy);
+    }
+    if (RegExp(r'спокойн|расслаб|медлен|сон|ночь|релакс|тих|уютн|дожд|лёгк')
+        .hasMatch(p)) {
+      ctxs.add(ListeningContext.calm);
+    }
+    if (RegExp(r'фокус|работ|учеб|концентрац|сосред|глуб|начит').hasMatch(p)) {
+      ctxs.add(ListeningContext.focus);
+    }
+    if (RegExp(r'вечеринк|танц|тусовк|драйв|весел').hasMatch(p)) {
+      ctxs.add(ListeningContext.party);
+    }
+
+    final discovery = RegExp(r'нов|открыт|незнаком|эксперимент|свеж')
+            .hasMatch(p)
+        ? DiscoveryLevel.experimental
+        : (RegExp(r'знаком|любим|классик|привычн').hasMatch(p)
+            ? DiscoveryLevel.familiar
+            : _discoveryLevel);
+
+    final deepCuts = RegExp(r'малоизвестн|редк|андерграунд|скрыт').hasMatch(p);
+
+    return buildSmartQueue(
+      count: 40,
+      contexts: ctxs.isEmpty ? null : ctxs,
+      discovery: discovery,
+      deepCuts: deepCuts,
+    );
   }
 
   // ─── Queue Snapshots ───────────────────────────────────────────────
@@ -1294,9 +1374,12 @@ class PlayerProvider extends ChangeNotifier {
     await playFromPlaylist([track], 0);
   }
 
-  Future<void> playFromPlaylist(List<AudioTrack> tracks, int startIndex) async {
+  Future<void> playFromPlaylist(List<AudioTrack> tracks, int startIndex,
+      {bool radio = false}) async {
     _playlist = List<AudioTrack>.from(tracks);
     if (_playlist.isEmpty) return;
+    _radioMode = radio;
+    if (!radio) _radioUsedIds.clear();
 
     _prefs?.setStringList(
       'last_playlist_ids',
@@ -1355,6 +1438,13 @@ class PlayerProvider extends ChangeNotifier {
 
     final nextIndex = _currentIndex + 1;
     if (nextIndex >= _playlist.length) {
+      if (_radioMode) {
+        await _extendRadio();
+        if (_currentIndex + 1 < _playlist.length) {
+          await playAt(_currentIndex + 1);
+          return;
+        }
+      }
       if (_repeatMode == PlayerRepeatMode.all) {
         await playAt(0);
       } else {

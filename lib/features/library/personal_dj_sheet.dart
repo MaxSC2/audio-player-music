@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/player_provider.dart';
 import '../../ui/theme.dart';
+import '../../widgets/prompt_playlist_sheet.dart';
 
 class PersonalDJSheet extends StatelessWidget {
   const PersonalDJSheet({super.key});
@@ -244,6 +245,70 @@ class PersonalDJSheet extends StatelessWidget {
                   const SizedBox(height: 2),
                 ],
               ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        if (player.radioMode) {
+                          player.stopRadio();
+                        } else {
+                          player.launchRadio();
+                        }
+                        Navigator.of(context).pop();
+                      },
+                      icon: Icon(
+                        player.radioMode
+                            ? Icons.stop_rounded
+                            : Icons.radio_rounded,
+                        size: 18,
+                      ),
+                      label: Text(player.radioMode
+                          ? 'Остановить радио'
+                          : 'AI Radio'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: player.radioMode
+                            ? AppTheme.accentPink
+                            : AppTheme.accentCyan,
+                        side: BorderSide(
+                            color: player.radioMode
+                                ? AppTheme.accentPink.withOpacity(0.5)
+                                : AppTheme.accentCyan.withOpacity(0.4)),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: AppTheme.surface,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(24)),
+                          ),
+                          builder: (_) => const PromptPlaylistSheet(),
+                        );
+                      },
+                      icon: const Icon(Icons.text_fields_rounded, size: 18),
+                      label: const Text('Сборник текстом'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.accentLight,
+                        side: const BorderSide(color: AppTheme.cardBorder),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             FilledButton.icon(

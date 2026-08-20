@@ -348,6 +348,7 @@ class _LibraryTabsState extends State<LibraryTabs>
         icon: Icons.playlist_play_rounded,
         color: AppTheme.accentCyan,
         tooltip: 'Играть следующим',
+        label: 'В очередь',
         onTap: () {
           player.addToQueueNext(track);
           snack('В очередь: ${track.title}');
@@ -359,12 +360,14 @@ class _LibraryTabsState extends State<LibraryTabs>
             : Icons.favorite_border_rounded,
         color: AppTheme.accentPink,
         tooltip: 'В избранное',
+        label: 'Избранное',
         onTap: () => player.toggleFavorite(track),
       ),
       SwipeAction(
         icon: Icons.do_not_disturb_on_rounded,
         color: AppTheme.accentGreen,
         tooltip: 'Не хочу сейчас',
+        label: 'Скрыть',
         onTap: () {
           player.toggleNotNow(track);
           snack('Скрыто на неделю: ${track.title}');
