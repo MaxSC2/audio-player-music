@@ -42,7 +42,7 @@ class EqualizerDialog extends StatelessWidget {
       backgroundColor: AppTheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: AppTheme.cardBorder),
+        side: BorderSide(color: AppTheme.cardBorder),
       ),
       title: Row(
         children: [
@@ -56,7 +56,7 @@ class EqualizerDialog extends StatelessWidget {
                 const Icon(Icons.graphic_eq_rounded, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Эквалайзер / Пресеты',
             style: TextStyle(
               color: AppTheme.textPrimary,
@@ -112,7 +112,7 @@ class EqualizerDialog extends StatelessWidget {
                           decoration: BoxDecoration(
                             gradient: isSelected
                                 ? AppTheme.primaryGradient
-                                : const LinearGradient(colors: [
+                                : LinearGradient(colors: [
                                     AppTheme.textMuted,
                                     AppTheme.textSecondary,
                                   ]),

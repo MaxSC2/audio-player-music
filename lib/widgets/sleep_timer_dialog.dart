@@ -24,7 +24,7 @@ class SleepTimerDialog extends StatelessWidget {
       backgroundColor: AppTheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: AppTheme.cardBorder),
+        side: BorderSide(color: AppTheme.cardBorder),
       ),
       title: Row(
         children: [
@@ -37,7 +37,7 @@ class SleepTimerDialog extends StatelessWidget {
             child: const Icon(Icons.nightlight_round, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Таймер сна',
             style: TextStyle(
               color: AppTheme.textPrimary,

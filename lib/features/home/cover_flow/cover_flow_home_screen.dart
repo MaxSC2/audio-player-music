@@ -100,7 +100,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 6, bottom: 2),
                 child: Text(
                   'Библиотека',
@@ -193,7 +193,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                             CircularProgressIndicator(
                                 color: AppTheme.accent),
                             const SizedBox(height: 16),
-                            const Text(
+                            Text(
                               'Сканируем музыку...',
                               style:
                                   TextStyle(color: AppTheme.textSecondary),
@@ -282,7 +282,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                           children: [
                             MarqueeText(
                               text: track.title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
@@ -293,7 +293,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                               track.artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textSecondary,
                                 fontSize: 14,
                               ),
@@ -344,14 +344,14 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         children: [
                           Text(
                             _fmt(player.position),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppTheme.textMuted, fontSize: 11),
                           ),
                           Text(
                             durMs > 0
                                 ? '-${_fmt(player.duration - player.position)}'
                                 : '',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppTheme.textMuted, fontSize: 11),
                           ),
                         ],
@@ -377,7 +377,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     ),
                     const SizedBox(width: 18),
                     IconButton(
-                      icon: const Icon(Icons.skip_previous_rounded,
+                      icon: Icon(Icons.skip_previous_rounded,
                           color: AppTheme.textPrimary),
                       iconSize: 42,
                       onPressed: player.previous,
@@ -397,7 +397,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     ),
                     const SizedBox(width: 14),
                     IconButton(
-                      icon: const Icon(Icons.skip_next_rounded,
+                      icon: Icon(Icons.skip_next_rounded,
                           color: AppTheme.textPrimary),
                       iconSize: 42,
                       onPressed: player.next,
@@ -474,7 +474,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: Colors.white10),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.list_rounded,
@@ -522,7 +522,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
           ),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.view_agenda_outlined,
+            icon: Icon(Icons.view_agenda_outlined,
                 color: AppTheme.textSecondary),
             onPressed: () => context
                 .read<UiStyleController>()
@@ -530,7 +530,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
             tooltip: 'Простой интерфейс',
           ),
           IconButton(
-            icon: const Icon(Icons.settings_rounded,
+            icon: Icon(Icons.settings_rounded,
                 color: AppTheme.textSecondary),
             onPressed: () {
               Navigator.of(context).push(

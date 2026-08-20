@@ -19,7 +19,7 @@ class PlaylistDetailScreen extends StatelessWidget {
       return Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(title: const Text('Плейлист')),
-        body: const Center(
+        body: Center(
           child: Text(
             'Плейлист не найден',
             style: TextStyle(color: AppTheme.textSecondary),
@@ -36,7 +36,7 @@ class PlaylistDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           playlist.name,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -44,12 +44,12 @@ class PlaylistDetailScreen extends StatelessWidget {
         ),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded,
+            icon: Icon(Icons.more_vert_rounded,
                 color: AppTheme.textSecondary),
             color: AppTheme.surfaceLight,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: AppTheme.cardBorder),
+              side: BorderSide(color: AppTheme.cardBorder),
             ),
             onSelected: (value) async {
               if (value == 'rename') {
@@ -113,7 +113,7 @@ class PlaylistDetailScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   playlist.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -123,7 +123,7 @@ class PlaylistDetailScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${tracks.length} ${_plural(tracks.length)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textMuted,
                     fontSize: 13,
                   ),
@@ -158,7 +158,7 @@ class PlaylistDetailScreen extends StatelessWidget {
           // Tracks
           Expanded(
             child: tracks.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'В плейлисте пока нет треков.\nДобавьте их через меню трека',
                       textAlign: TextAlign.center,
@@ -198,9 +198,9 @@ class PlaylistDetailScreen extends StatelessWidget {
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.cardBorder),
+          side: BorderSide(color: AppTheme.cardBorder),
         ),
-        title: const Text(
+        title: Text(
           'Переименовать плейлист',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -210,7 +210,7 @@ class PlaylistDetailScreen extends StatelessWidget {
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: AppTheme.textPrimary),
+          style: TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppTheme.surfaceLight,
@@ -223,7 +223,7 @@ class PlaylistDetailScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена',
+            child: Text('Отмена',
                 style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(
@@ -247,23 +247,23 @@ class PlaylistDetailScreen extends StatelessWidget {
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.cardBorder),
+          side: BorderSide(color: AppTheme.cardBorder),
         ),
-        title: const Text(
+        title: Text(
           'Удалить плейлист?',
           style: TextStyle(
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
+        content: Text(
           'Треки в библиотеке останутся, удалится только плейлист.',
           style: TextStyle(color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена',
+            child: Text('Отмена',
                 style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(

@@ -40,7 +40,7 @@ class SimpleHomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 10),
                 child: Text(
                   '${player.allTracks.length}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.textMuted,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -51,7 +51,7 @@ class SimpleHomeScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.auto_awesome_rounded,
+            icon: Icon(Icons.auto_awesome_rounded,
                 color: AppTheme.textSecondary),
             onPressed: () {
               showModalBottomSheet(
@@ -67,14 +67,14 @@ class SimpleHomeScreen extends StatelessWidget {
             tooltip: 'Personal DJ',
           ),
           IconButton(
-            icon: const Icon(Icons.album_rounded, color: AppTheme.textSecondary),
+            icon: Icon(Icons.album_rounded, color: AppTheme.textSecondary),
             onPressed: () => context
                 .read<UiStyleController>()
                 .setStyle(PlayerUIStyle.coverFlow3D),
             tooltip: '3D Cover Flow',
           ),
           IconButton(
-            icon: const Icon(Icons.settings_rounded,
+            icon: Icon(Icons.settings_rounded,
                 color: AppTheme.textSecondary),
             onPressed: () {
               Navigator.of(context).push(

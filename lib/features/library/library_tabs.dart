@@ -153,7 +153,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               tooltip: 'Удалить',
             ),
             IconButton(
-              icon: const Icon(Icons.close_rounded,
+              icon: Icon(Icons.close_rounded,
                   color: AppTheme.textSecondary),
               onPressed: _exitSelection,
               tooltip: 'Отмена',
@@ -175,15 +175,15 @@ class _LibraryTabsState extends State<LibraryTabs>
                   _searchQuery = value.trim();
                 });
               },
-              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+              style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Поиск...',
-                hintStyle: const TextStyle(color: AppTheme.textMuted),
-                prefixIcon: const Icon(Icons.search_rounded,
+                hintStyle: TextStyle(color: AppTheme.textMuted),
+                prefixIcon: Icon(Icons.search_rounded,
                     color: AppTheme.textMuted, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear_rounded,
+                        icon: Icon(Icons.clear_rounded,
                             color: AppTheme.textMuted, size: 18),
                         onPressed: () {
                           _searchController.clear();
@@ -217,12 +217,12 @@ class _LibraryTabsState extends State<LibraryTabs>
                 tooltip: _albumGridView ? 'Списком' : 'Сеткой',
               ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.sort_rounded,
+              icon: Icon(Icons.sort_rounded,
                   color: AppTheme.textSecondary),
               color: AppTheme.surfaceLight,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: AppTheme.cardBorder),
+                side: BorderSide(color: AppTheme.cardBorder),
               ),
               onSelected: (value) {
                 switch (value) {
@@ -290,14 +290,14 @@ class _LibraryTabsState extends State<LibraryTabs>
                 color: AppTheme.surfaceLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.music_off_rounded,
                 color: AppTheme.textSecondary,
                 size: 48,
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Нет доступа к музыке',
               style: TextStyle(
                 color: AppTheme.textPrimary,
@@ -306,7 +306,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Разрешите доступ к аудиофайлам, чтобы видеть вашу музыкальную библиотеку.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
@@ -465,7 +465,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             title: Text(
               playlist.name,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
@@ -531,7 +531,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             fontSize: 15,
           ),
         ),
-        subtitle: const Text(
+        subtitle: Text(
           'Соберите свою подборку',
           style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
         ),
@@ -548,9 +548,9 @@ class _LibraryTabsState extends State<LibraryTabs>
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.cardBorder),
+          side: BorderSide(color: AppTheme.cardBorder),
         ),
-        title: const Text(
+        title: Text(
           'Новый плейлист',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -560,10 +560,10 @@ class _LibraryTabsState extends State<LibraryTabs>
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: AppTheme.textPrimary),
+          style: TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             hintText: 'Название плейлиста',
-            hintStyle: const TextStyle(color: AppTheme.textMuted),
+            hintStyle: TextStyle(color: AppTheme.textMuted),
             filled: true,
             fillColor: AppTheme.surfaceLight,
             border: OutlineInputBorder(
@@ -575,7 +575,7 @@ class _LibraryTabsState extends State<LibraryTabs>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена',
+            child: Text('Отмена',
                 style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(
@@ -645,7 +645,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             title: Text(
               artist,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
@@ -655,7 +655,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             subtitle: Text(
               '${tracks.length} треков',
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             onTap: () {
               player.playFromPlaylist(tracks, 0);
@@ -707,7 +707,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             title: Text(
               name,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
@@ -806,7 +806,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             title: Text(
               album,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
@@ -816,7 +816,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             subtitle: Text(
               '${tracks.length} треков',
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             onTap: () {
               player.playFromPlaylist(tracks, 0);
@@ -846,7 +846,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             album,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textPrimary,
               fontWeight: FontWeight.w600,
               fontSize: 14,
@@ -855,7 +855,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           const SizedBox(height: 2),
           Text(
             '${tracks.length} треков',
-            style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
           ),
         ],
       ),
@@ -1018,9 +1018,9 @@ class _LibraryTabsState extends State<LibraryTabs>
         Center(
           child: TextButton.icon(
             onPressed: player.clearHistory,
-            icon: const Icon(Icons.delete_sweep_outlined,
+            icon: Icon(Icons.delete_sweep_outlined,
                 color: AppTheme.textMuted, size: 18),
-            label: const Text(
+            label: Text(
               'Очистить историю',
               style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
             ),
@@ -1084,7 +1084,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                 b.track.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textPrimary, fontSize: 13),
               ),
               subtitle: Text(
@@ -1153,7 +1153,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -1162,7 +1162,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               const SizedBox(height: 2),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textMuted, fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1236,12 +1236,12 @@ class _LibraryTabsState extends State<LibraryTabs>
             children: [
               Text(
                 'Всего прослушиваний: $totalPlays',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textMuted, fontSize: 11),
               ),
               Text(
                 '${fmt(today.length)} сегодня',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textMuted, fontSize: 11),
               ),
             ],
@@ -1299,23 +1299,23 @@ class _LibraryTabsState extends State<LibraryTabs>
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.cardBorder),
+          side: BorderSide(color: AppTheme.cardBorder),
         ),
         title: Text(
           'Удалить ${selected.length} ${_pluralTracks(selected.length)}?',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
+        content: Text(
           'Файлы будут удалены с устройства. Это действие нельзя отменить.',
           style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена',
+            child: Text('Отмена',
                 style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(
@@ -1368,14 +1368,14 @@ class _LibraryTabsState extends State<LibraryTabs>
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Добавить в плейлист · ${selected.length} треков',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const Divider(height: 1, color: AppTheme.cardBorder),
+            Divider(height: 1, color: AppTheme.cardBorder),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
@@ -1386,7 +1386,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                           color: AppTheme.accentCyan),
                       title: Text(
                         p.name,
-                        style: const TextStyle(color: AppTheme.textPrimary),
+                        style: TextStyle(color: AppTheme.textPrimary),
                       ),
                       trailing: Text(
                         '${p.trackIds.length}',
@@ -1397,7 +1397,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                   ListTile(
                     leading: Icon(Icons.add_rounded,
                         color: AppTheme.accentGreen),
-                    title: const Text(
+                    title: Text(
                       'Новый плейлист',
                       style: TextStyle(color: AppTheme.textPrimary),
                     ),
@@ -1443,9 +1443,9 @@ class _LibraryTabsState extends State<LibraryTabs>
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.cardBorder),
+          side: BorderSide(color: AppTheme.cardBorder),
         ),
-        title: const Text(
+        title: Text(
           'Новый плейлист',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -1455,10 +1455,10 @@ class _LibraryTabsState extends State<LibraryTabs>
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: AppTheme.textPrimary),
+          style: TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             hintText: 'Название плейлиста',
-            hintStyle: const TextStyle(color: AppTheme.textMuted),
+            hintStyle: TextStyle(color: AppTheme.textMuted),
             filled: true,
             fillColor: AppTheme.surfaceLight,
             border: OutlineInputBorder(
@@ -1470,7 +1470,7 @@ class _LibraryTabsState extends State<LibraryTabs>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Отмена',
+            child: Text('Отмена',
                 style: TextStyle(color: AppTheme.textSecondary)),
           ),
           TextButton(
@@ -1522,11 +1522,11 @@ class _LibraryTabsState extends State<LibraryTabs>
                   context: context,
                   builder: (dialogContext) => AlertDialog(
                     backgroundColor: AppTheme.card,
-                    title: const Text('Удалить трек?',
-                        style: TextStyle(color: Colors.white)),
+                    title: Text('Удалить трек?',
+                        style: TextStyle(color: AppTheme.textPrimary)),
                     content: Text(
                       'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
-                      style: const TextStyle(color: AppTheme.textMuted),
+                      style: TextStyle(color: AppTheme.textMuted),
                     ),
                     actions: [
                       TextButton(
@@ -1571,7 +1571,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           const SizedBox(height: 16),
           Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -1584,7 +1584,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               child: Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textMuted, fontSize: 13),
               ),
             ),

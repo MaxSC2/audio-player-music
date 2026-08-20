@@ -26,7 +26,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
     return AlertDialog(
       backgroundColor: AppTheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text(
+      title: Text(
         'Цвет',
         style: TextStyle(
           color: AppTheme.textPrimary,
@@ -90,7 +90,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Отмена',
+          child: Text('Отмена',
               style: TextStyle(color: AppTheme.textSecondary)),
         ),
         FilledButton(
@@ -127,7 +127,7 @@ class _HsvSlider extends StatelessWidget {
           width: 44,
           child: Text(
             label,
-            style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
           ),
         ),
         Expanded(

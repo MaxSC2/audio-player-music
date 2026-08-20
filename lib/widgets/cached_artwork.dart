@@ -102,17 +102,70 @@ class _CachedArtworkState extends State<CachedArtwork> {
   }
 
   Widget _buildFallback() {
+    final hash = widget.trackId;
+    final palette = <Color>[
+      AppTheme.accent,
+      AppTheme.accentCyan,
+      AppTheme.accentPink,
+      AppTheme.accentGreen,
+      AppTheme.accentAmber,
+      AppTheme.accentLight,
+    ];
+    final c1 = palette[hash.abs() % palette.length];
+    final c2 = palette[(hash.abs() ~/ 7) % palette.length];
+    final iconSize =
+        (widget.width < widget.height ? widget.width : widget.height) * 0.38;
+
     return Container(
       decoration: BoxDecoration(
-        gradient: AppTheme.pinkPurpleGradient,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [c1, c2],
+        ),
       ),
-      child: const Center(
-        child: Icon(
-          Icons.music_note_rounded,
-          color: Colors.white,
-          size: 24,
+      child: CustomPaint(
+        painter: _CoverPatternPainter(hash: hash),
+        child: Center(
+          child: Icon(
+            Icons.music_note_rounded,
+            color: Colors.white,
+            size: iconSize.clamp(18.0, 64.0),
+          ),
         ),
       ),
     );
   }
+}
+
+class _CoverPatternPainter extends CustomPainter {
+  final int hash;
+
+  _CoverPatternPainter({required this.hash});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.white.withOpacity(0.12);
+    final rng = hash.abs();
+    final cx = size.width * (0.2 + (rng % 60) / 100);
+    final cy = size.height * (0.15 + ((rng ~/ 13) % 70) / 100);
+    final r0 = size.shortestSide * 0.55;
+    canvas.drawCircle(Offset(cx, cy), r0, paint);
+    paint.color = Colors.white.withOpacity(0.08);
+    canvas.drawCircle(
+      Offset(size.width - cx * 0.6, size.height - cy * 0.7),
+      r0 * 0.7,
+      paint,
+    );
+    paint.color = Colors.black.withOpacity(0.07);
+    canvas.drawCircle(
+      Offset(size.width * 0.75, size.height * 0.3),
+      r0 * 0.45,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CoverPatternPainter oldDelegate) =>
+      oldDelegate.hash != hash;
 }

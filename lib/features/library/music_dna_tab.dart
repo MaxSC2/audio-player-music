@@ -33,7 +33,7 @@ class MusicDnaTab extends StatelessWidget {
         children: [
           Text(
             '$value',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -61,7 +61,7 @@ class MusicDnaTab extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
           ),
         ],
       );
@@ -118,7 +118,7 @@ class MusicDnaTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'Когда ты слушаешь',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
@@ -167,7 +167,7 @@ class MusicDnaTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Вернись в любой день и послушай его снова',
                 style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
               ),
@@ -218,7 +218,7 @@ class MusicDnaTab extends StatelessWidget {
                 item.artist,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -273,7 +273,7 @@ class MusicDnaTab extends StatelessWidget {
                 item.track.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -334,7 +334,7 @@ class MusicDnaTab extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -344,7 +344,7 @@ class MusicDnaTab extends StatelessWidget {
             Text(
               label,
               style:
-                  const TextStyle(color: AppTheme.textMuted, fontSize: 10),
+                  TextStyle(color: AppTheme.textMuted, fontSize: 10),
             ),
           ],
         ),
@@ -358,7 +358,7 @@ class MusicDnaTab extends StatelessWidget {
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.fingerprint_rounded,
                 color: AppTheme.textMuted, size: 48),
             SizedBox(height: 12),
@@ -431,7 +431,7 @@ class MusicDnaTab extends StatelessWidget {
             ),
             Text(
               'Твой день — $dateLabel',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -439,7 +439,7 @@ class MusicDnaTab extends StatelessWidget {
             ),
             Text(
               '${dayTracks.length} ${_plural(dayTracks.length)}',
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             const SizedBox(height: 8),
             Flexible(
@@ -456,7 +456,7 @@ class MusicDnaTab extends StatelessWidget {
                     dense: true,
                     leading: Text(
                       '$h:$m',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -466,14 +466,14 @@ class MusicDnaTab extends StatelessWidget {
                       t.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppTheme.textPrimary, fontSize: 14),
                     ),
                     subtitle: Text(
                       t.artist,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppTheme.textMuted, fontSize: 12),
                     ),
                     onTap: () => player.playTrack(t),

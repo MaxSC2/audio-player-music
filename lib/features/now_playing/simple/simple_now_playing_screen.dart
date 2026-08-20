@@ -40,7 +40,7 @@ void _showTrackBookmarks(
             'Закладки — ${track.title}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -48,7 +48,7 @@ void _showTrackBookmarks(
           ),
           const SizedBox(height: 12),
           if (bookmarks.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Text(
                 'Нет закладок. Нажмите на иконку закладки во время трека.',
@@ -69,13 +69,13 @@ void _showTrackBookmarks(
                         color: AppTheme.accentLight, size: 20),
                     title: Text(
                       AudioTrack.formatDuration(ms),
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600),
                     ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.close_rounded,
+                      icon: Icon(Icons.close_rounded,
                           color: AppTheme.textMuted, size: 20),
                       onPressed: () {
                         player.removeBookmark(track.id, ms);
@@ -115,7 +115,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
       return Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(leading: const SizedBox.shrink()),
-        body: const Center(
+        body: Center(
           child: Text(
             'Выберите трек для воспроизведения',
             style: TextStyle(color: AppTheme.textSecondary),
@@ -179,14 +179,14 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                      icon: Icon(Icons.keyboard_arrow_down_rounded,
                           color: AppTheme.textSecondary, size: 30),
                       onPressed: () => Navigator.pop(context),
                     ),
                     Expanded(
                       child: Column(
                         children: [
-                          const Text(
+                          Text(
                             'СЕЙЧАС ИГРАЕТ',
                             style: TextStyle(
                               color: AppTheme.textMuted,
@@ -198,7 +198,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                           const SizedBox(height: 4),
                           Text(
                             _repeatLabel(player.repeatMode),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppTheme.textSecondary,
                               fontSize: 13,
                             ),
@@ -207,7 +207,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.more_vert_rounded,
+                      icon: Icon(Icons.more_vert_rounded,
                           color: AppTheme.textSecondary),
                       onPressed: () {
                         showModalBottomSheet(
@@ -243,7 +243,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                     children: [
                       MarqueeText(
                         text: track.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -254,7 +254,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                       MarqueeText(
                         text: '${track.artist}${track.album != null ? ' — ${track.album}' : ''}',
                         velocity: 18,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
@@ -295,7 +295,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                           children: [
                             Text(
                               _formatPosition(player.position),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textMuted,
                                 fontSize: 12,
                                 fontFeatures: [FontFeature.tabularFigures()],
@@ -303,7 +303,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                             ),
                             Text(
                               _formatPosition(player.duration),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textMuted,
                                 fontSize: 12,
                                 fontFeatures: [FontFeature.tabularFigures()],
@@ -581,11 +581,11 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text('Удалить трек?',
-            style: TextStyle(color: Colors.white)),
+        title: Text('Удалить трек?',
+            style: TextStyle(color: AppTheme.textPrimary)),
         content: Text(
           'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
-          style: const TextStyle(color: AppTheme.textMuted),
+          style: TextStyle(color: AppTheme.textMuted),
         ),
         actions: [
           TextButton(

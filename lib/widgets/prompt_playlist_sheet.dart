@@ -80,7 +80,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const Text(
+            Text(
               'Сборник по описанию',
               style: TextStyle(
                 color: AppTheme.textPrimary,
@@ -89,7 +89,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
               ),
             ),
             const SizedBox(height: 2),
-            const Text(
+            Text(
               'Опиши настроение словами — DJ соберёт плейлист',
               style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
@@ -114,7 +114,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textPrimary, fontSize: 14),
               ),
             ),
@@ -145,7 +145,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
             ),
             if (result != null) ...[
               const SizedBox(height: 6),
-              const Divider(color: AppTheme.cardBorder),
+              Divider(color: AppTheme.cardBorder),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Align(
@@ -154,7 +154,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                     result.isEmpty
                         ? 'Ничего не нашлось'
                         : 'Собрано треков: ${result.length}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppTheme.textSecondary, fontSize: 12),
                   ),
                 ),
@@ -192,14 +192,14 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                           t.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppTheme.textPrimary, fontSize: 13),
                         ),
                         subtitle: Text(
                           t.artist,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppTheme.textMuted, fontSize: 11),
                         ),
                         onTap: () => player.playTrack(t),
@@ -220,7 +220,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                       label: Text(_saved ? 'Сохранено' : 'Сохранить в плейлисты'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.accentLight,
-                        side: const BorderSide(color: AppTheme.cardBorder),
+                        side: BorderSide(color: AppTheme.cardBorder),
                       ),
                     ),
                     FilledButton.icon(
@@ -266,7 +266,7 @@ class _HintChip extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
         ),
       ),
     );

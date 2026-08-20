@@ -57,7 +57,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
       return Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(leading: const SizedBox.shrink()),
-        body: const Center(
+        body: Center(
           child: Text(
             'Нет воспроизводимого трека',
             style: TextStyle(color: AppTheme.textMuted),
@@ -105,13 +105,13 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
                         color: AppTheme.textSecondary, size: 30),
                     onPressed: () => Navigator.of(context).pop(),
                     tooltip: 'Свернуть',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.view_agenda_outlined,
+                    icon: Icon(Icons.view_agenda_outlined,
                         color: AppTheme.textSecondary, size: 22),
                     onPressed: () =>
                         context.read<UiStyleController>().setStyle(
@@ -119,7 +119,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                     tooltip: 'Простой интерфейс',
                   ),
                   const Spacer(),
-                  const Text(
+                  Text(
                     'Сейчас играет',
                     style: TextStyle(
                       color: AppTheme.textMuted,
@@ -197,7 +197,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                 children: [
                   MarqueeText(
                     text: track.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -210,7 +210,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 15,
                     ),
@@ -248,12 +248,12 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                       children: [
                         Text(
                           _fmt(player.position),
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppTheme.textMuted, fontSize: 11),
                         ),
                         Text(
                           '-${_fmt(player.duration - player.position)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppTheme.textMuted, fontSize: 11),
                         ),
                       ],
@@ -280,7 +280,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                   ),
                   const SizedBox(width: 22),
                   IconButton(
-                    icon: const Icon(Icons.skip_previous_rounded,
+                    icon: Icon(Icons.skip_previous_rounded,
                         color: AppTheme.textPrimary),
                     iconSize: 42,
                     onPressed: player.previous,
@@ -300,7 +300,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                   ),
                   const SizedBox(width: 20),
                   IconButton(
-                    icon: const Icon(Icons.skip_next_rounded,
+                    icon: Icon(Icons.skip_next_rounded,
                         color: AppTheme.textPrimary),
                     iconSize: 42,
                     onPressed: player.next,

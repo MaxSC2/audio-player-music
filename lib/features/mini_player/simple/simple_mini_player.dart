@@ -77,7 +77,7 @@ class SimpleMiniPlayer extends StatelessWidget {
                           children: [
                             Text(
                               track.title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -88,7 +88,7 @@ class SimpleMiniPlayer extends StatelessWidget {
                             const SizedBox(height: 3),
                             Text(
                               track.artist,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textSecondary,
                                 fontSize: 12,
                               ),
@@ -142,7 +142,7 @@ class SimpleMiniPlayer extends StatelessWidget {
                             border:
                                 Border.all(color: AppTheme.cardBorder, width: 0.8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.skip_next_rounded,
                             color: AppTheme.textPrimary,
                             size: 22,

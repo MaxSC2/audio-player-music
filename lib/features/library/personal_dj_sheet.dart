@@ -36,7 +36,7 @@ class PersonalDJSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'Personal DJ',
               style: TextStyle(
                 color: AppTheme.textPrimary,
@@ -45,12 +45,12 @@ class PersonalDJSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Плеер сам соберёт очередь под настроение',
               style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Можно выбрать несколько настроений разом',
               style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
             ),
@@ -111,10 +111,10 @@ class PersonalDJSheet extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.tune_rounded,
+                      Icon(Icons.tune_rounded,
                           color: AppTheme.textSecondary, size: 16),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Настройки подбора',
                         style: TextStyle(
                           color: AppTheme.textSecondary,
@@ -171,7 +171,7 @@ class PersonalDJSheet extends StatelessWidget {
                   ),
                   if (player.deepCuts) ...[
                     const SizedBox(height: 2),
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Тянет малоигранные треки',
@@ -231,7 +231,7 @@ class PersonalDJSheet extends StatelessWidget {
                                   textAlign: TextAlign.center,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       color: AppTheme.textMuted,
                                       fontSize: 9),
                                 ),
@@ -303,7 +303,7 @@ class PersonalDJSheet extends StatelessWidget {
                       label: const Text('Сборник текстом'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.accentLight,
-                        side: const BorderSide(color: AppTheme.cardBorder),
+                        side: BorderSide(color: AppTheme.cardBorder),
                       ),
                     ),
                   ),
@@ -332,7 +332,7 @@ class PersonalDJSheet extends StatelessWidget {
             ),
             if (notNow.isNotEmpty) ...[
               const SizedBox(height: 18),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -356,13 +356,13 @@ class PersonalDJSheet extends StatelessWidget {
                     final t = notNow[index];
                     return ListTile(
                       dense: true,
-                      leading: const Icon(Icons.do_not_disturb_on_rounded,
+                      leading: Icon(Icons.do_not_disturb_on_rounded,
                           color: AppTheme.textMuted, size: 20),
                       title: Text(
                         t.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.textPrimary, fontSize: 14),
                       ),
                       subtitle: Text(

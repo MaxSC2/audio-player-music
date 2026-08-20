@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../ui/theme.dart';
 
@@ -68,6 +69,7 @@ class PaletteColors {
 class PaletteController extends ChangeNotifier {
   static const _modeKey = 'palette_mode';
   static const _customKey = 'palette_custom';
+  static const _themeKey = 'theme_mode';
 
   static const List<PaletteColors> presets = [
     // Neon — по умолчанию
@@ -120,6 +122,46 @@ class PaletteController extends ChangeNotifier {
       accentGreen: Color(0xFF4ADE80),
       accentAmber: Color(0xFFF59E0B),
     ),
+    // Полночь
+    PaletteColors(
+      background: Color(0xFF05070F),
+      accent: Color(0xFF6366F1),
+      accentLight: Color(0xFF818CF8),
+      accentCyan: Color(0xFF22D3EE),
+      accentPink: Color(0xFFF472B6),
+      accentGreen: Color(0xFF34D399),
+      accentAmber: Color(0xFFFBBF24),
+    ),
+    // Лава
+    PaletteColors(
+      background: Color(0xFF16080A),
+      accent: Color(0xFFEF4444),
+      accentLight: Color(0xFFF87171),
+      accentCyan: Color(0xFFFB923C),
+      accentPink: Color(0xFFF43F5E),
+      accentGreen: Color(0xFFFBBF24),
+      accentAmber: Color(0xFFF97316),
+    ),
+    // Лес
+    PaletteColors(
+      background: Color(0xFF06100B),
+      accent: Color(0xFF22C55E),
+      accentLight: Color(0xFF4ADE80),
+      accentCyan: Color(0xFF14B8A6),
+      accentPink: Color(0xFFFB7185),
+      accentGreen: Color(0xFFA3E635),
+      accentAmber: Color(0xFFF59E0B),
+    ),
+    // Роза
+    PaletteColors(
+      background: Color(0xFF120609),
+      accent: Color(0xFFE879F9),
+      accentLight: Color(0xFFF0ABFC),
+      accentCyan: Color(0xFF67E8F9),
+      accentPink: Color(0xFFF472B6),
+      accentGreen: Color(0xFF86EFAC),
+      accentAmber: Color(0xFFFCD34D),
+    ),
   ];
 
   static const List<String> presetNames = [
@@ -128,24 +170,38 @@ class PaletteController extends ChangeNotifier {
     'Океан',
     'Закат',
     'Мята',
+    'Полночь',
+    'Лава',
+    'Лес',
+    'Роза',
   ];
 
   SharedPreferences? _prefs;
   int _index = 0; // -1 = своя палитра
+  bool _light = false;
   PaletteColors? _custom;
 
   int get index => _index;
   bool get isCustom => _index < 0;
+  bool get light => _light;
   PaletteColors get active =>
       isCustom ? (_custom ?? presets.first) : presets[_index];
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     _index = _prefs?.getInt(_modeKey) ?? 0;
+    if (_index < 0 || _index >= presets.length) _index = 0;
+    _light = _prefs?.getBool(_themeKey) ?? false;
     final raw = _prefs?.getString(_customKey);
     if (raw != null && raw.isNotEmpty) {
       _custom = PaletteColors.decode(raw);
     }
+    _apply();
+  }
+
+  void setMode(bool light) {
+    _light = light;
+    _prefs?.setBool(_themeKey, light);
     _apply();
   }
 
@@ -191,8 +247,11 @@ class PaletteController extends ChangeNotifier {
 
   void _apply() {
     final p = active;
-    AppTheme.applyPalette(
-      background: p.background,
+    AppTheme.applyMode(light: _light);
+    if (!_light) {
+      AppTheme.applyBackground(p.background);
+    }
+    AppTheme.applyAccents(
       accent: p.accent,
       accentLight: p.accentLight,
       accentCyan: p.accentCyan,
@@ -200,6 +259,16 @@ class PaletteController extends ChangeNotifier {
       accentGreen: p.accentGreen,
       accentAmber: p.accentAmber,
     );
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: _light ? Brightness.dark : Brightness.light,
+      statusBarBrightness: _light ? Brightness.light : Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness:
+          _light ? Brightness.dark : Brightness.light,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ));
     notifyListeners();
   }
 }

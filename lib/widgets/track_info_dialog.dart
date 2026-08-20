@@ -13,7 +13,7 @@ class TrackInfoDialog extends StatelessWidget {
       backgroundColor: AppTheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: AppTheme.cardBorder),
+        side: BorderSide(color: AppTheme.cardBorder),
       ),
       title: Row(
         children: [
@@ -27,7 +27,7 @@ class TrackInfoDialog extends StatelessWidget {
                 color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Информация о треке',
             style: TextStyle(
               color: AppTheme.textPrimary,
@@ -79,7 +79,7 @@ class TrackInfoDialog extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -88,7 +88,7 @@ class TrackInfoDialog extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -96,7 +96,7 @@ class TrackInfoDialog extends StatelessWidget {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          const Divider(color: AppTheme.cardBorder, height: 12),
+          Divider(color: AppTheme.cardBorder, height: 12),
         ],
       ),
     );

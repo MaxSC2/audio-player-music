@@ -17,9 +17,9 @@ class PlaylistPickerSheet extends StatelessWidget {
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppTheme.cardBorder),
+          side: BorderSide(color: AppTheme.cardBorder),
         ),
-        title: const Text(
+        title: Text(
           'Новый плейлист',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -29,10 +29,10 @@ class PlaylistPickerSheet extends StatelessWidget {
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: AppTheme.textPrimary),
+          style: TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             hintText: 'Название плейлиста',
-            hintStyle: const TextStyle(color: AppTheme.textMuted),
+            hintStyle: TextStyle(color: AppTheme.textMuted),
             filled: true,
             fillColor: AppTheme.surfaceLight,
             border: OutlineInputBorder(
@@ -44,7 +44,7 @@ class PlaylistPickerSheet extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
+            child: Text(
               'Отмена',
               style: TextStyle(color: AppTheme.textSecondary),
             ),
@@ -90,7 +90,7 @@ class PlaylistPickerSheet extends StatelessWidget {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
@@ -123,7 +123,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Добавить «${track.title}» в плейлист',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -133,7 +133,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded,
+                  icon: Icon(Icons.close_rounded,
                       color: AppTheme.textSecondary),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -142,7 +142,7 @@ class PlaylistPickerSheet extends StatelessWidget {
             const SizedBox(height: 8),
 
             if (playlists.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Text(
                   'Плейлистов пока нет',
@@ -173,7 +173,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                         ),
                         title: Text(
                           playlist.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
@@ -189,7 +189,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                         trailing: contains
                             ? Icon(Icons.check_rounded,
                                 color: AppTheme.accentGreen)
-                            : const Icon(Icons.add_rounded,
+                            : Icon(Icons.add_rounded,
                                 color: AppTheme.textSecondary),
                         onTap: () {
                           if (contains) {

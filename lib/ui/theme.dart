@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Backgrounds & Surfaces
+  // Backgrounds & Surfaces (dynamic — переключаются режимом/палитрой)
   static Color background = const Color(0xFF0B0C14);
-  static const Color surface = Color(0xFF141622);
-  static const Color surfaceLight = Color(0xFF1F2235);
-  static const Color card = Color(0xFF1A1C2B);
-  static const Color cardBorder = Color(0x1FFFFFFF);
+  static Color surface = const Color(0xFF141622);
+  static Color surfaceLight = const Color(0xFF1F2235);
+  static Color card = const Color(0xFF1A1C2B);
+  static Color cardBorder = const Color(0x1FFFFFFF);
 
   // Neon Accents (dynamic — переключаются палитрой)
-  static Color accent = const Color(0xFFA855F7); // Electric Violet
+  static Color accent = const Color(0xFFA855F7);
   static Color accentLight = const Color(0xFFC084FC);
-  static Color accentCyan = const Color(0xFF06B6D4); // Neon Cyan
-  static Color accentPink = const Color(0xFFEC4899); // Hot Pink
-  static Color accentGreen = const Color(0xFF10B981); // Emerald
+  static Color accentCyan = const Color(0xFF06B6D4);
+  static Color accentPink = const Color(0xFFEC4899);
+  static Color accentGreen = const Color(0xFF10B981);
   static Color accentAmber = const Color(0xFFF59E0B);
 
-  // Text Colors
-  static const Color textPrimary = Color(0xFFF8FAFC);
-  static const Color textSecondary = Color(0xFF94A3B8);
-  static const Color textMuted = Color(0xFF64748B);
+  // Text Colors (dynamic — переключаются режимом)
+  static Color textPrimary = const Color(0xFFF8FAFC);
+  static Color textSecondary = const Color(0xFF94A3B8);
+  static Color textMuted = const Color(0xFF64748B);
 
-  // Gradients (динамические — пересобираются из акцентов)
+  // Gradients (динамические)
   static LinearGradient primaryGradient = const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -40,21 +40,20 @@ class AppTheme {
     colors: [Color(0xFF06B6D4), Color(0xFF10B981)],
   );
 
-  static const LinearGradient cardGradient = LinearGradient(
+  static LinearGradient cardGradient = const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [Color(0xFF1D2032), Color(0xFF141624)],
   );
 
-  static const LinearGradient miniPlayerGradient = LinearGradient(
+  static LinearGradient miniPlayerGradient = const LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [Color(0xE61E2135), Color(0xF5131522)],
   );
 
-  /// Применяет палитру ко всем стилям приложения.
-  static void applyPalette({
-    required Color background,
+  /// Применяет акцентные цвета палитры.
+  static void applyAccents({
     required Color accent,
     required Color accentLight,
     required Color accentCyan,
@@ -62,7 +61,6 @@ class AppTheme {
     required Color accentGreen,
     required Color accentAmber,
   }) {
-    AppTheme.background = background;
     AppTheme.accent = accent;
     AppTheme.accentLight = accentLight;
     AppTheme.accentCyan = accentCyan;
@@ -86,10 +84,61 @@ class AppTheme {
     );
   }
 
+  /// Применяет фоновый цвет (слот палитры «Фон»; только для тёмного режима).
+  static void applyBackground(Color color) {
+    AppTheme.background = color;
+  }
+
+  static bool _light = false;
+  static bool get lightMode => _light;
+
+  /// Переключает режим: тёмный (default) или светлый.
+  static void applyMode({required bool light}) {
+    _light = light;
+    if (light) {
+      background = const Color(0xFFF2F4FA);
+      surface = const Color(0xFFFFFFFF);
+      surfaceLight = const Color(0xFFE7EBF3);
+      card = const Color(0xFFFFFFFF);
+      cardBorder = const Color(0x140B1020);
+      textPrimary = const Color(0xFF0F172A);
+      textSecondary = const Color(0xFF475569);
+      textMuted = const Color(0xFF94A3B8);
+      cardGradient = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFFFFFFF), Color(0xFFEFF2F8)],
+      );
+      miniPlayerGradient = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFFFFFF), Color(0xFFE6EAF2)],
+      );
+    } else {
+      background = const Color(0xFF0B0C14);
+      surface = const Color(0xFF141622);
+      surfaceLight = const Color(0xFF1F2235);
+      card = const Color(0xFF1A1C2B);
+      cardBorder = const Color(0x1FFFFFFF);
+      textPrimary = const Color(0xFFF8FAFC);
+      textSecondary = const Color(0xFF94A3B8);
+      textMuted = const Color(0xFF64748B);
+      cardGradient = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF1D2032), Color(0xFF141624)],
+      );
+      miniPlayerGradient = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xE61E2135), Color(0xF5131522)],
+      );
+    }
+  }
+
   /// Возвращает палитру по умолчанию.
   static void resetPalette() {
-    applyPalette(
-      background: const Color(0xFF0B0C14),
+    applyAccents(
       accent: const Color(0xFFA855F7),
       accentLight: const Color(0xFFC084FC),
       accentCyan: const Color(0xFF06B6D4),
@@ -101,16 +150,23 @@ class AppTheme {
 
   // ThemeData
   static ThemeData get dark => ThemeData(
-        brightness: Brightness.dark,
+        brightness: lightMode ? Brightness.light : Brightness.dark,
         scaffoldBackgroundColor: background,
         primaryColor: accent,
         canvasColor: background,
-        colorScheme: ColorScheme.dark(
-          primary: accent,
-          secondary: accentCyan,
-          surface: card,
-          error: accentPink,
-        ),
+        colorScheme: lightMode
+            ? ColorScheme.light(
+                primary: accent,
+                secondary: accentCyan,
+                surface: card,
+                error: accentPink,
+              )
+            : ColorScheme.dark(
+                primary: accent,
+                secondary: accentCyan,
+                surface: card,
+                error: accentPink,
+              ),
         appBarTheme: AppBarTheme(
           backgroundColor: background,
           elevation: 0,
@@ -123,16 +179,17 @@ class AppTheme {
           ),
           iconTheme: IconThemeData(color: textPrimary),
         ),
-        cardTheme: CardThemeData(
+cardTheme: CardThemeData(
           color: card,
           elevation: 0,
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: cardBorder, width: 0.8),
+            side: BorderSide(color: cardBorder, width: 0.8),
           ),
         ),
-        textTheme: const TextTheme(
+        ),
+        textTheme: TextTheme(
           titleLarge: TextStyle(
             color: textPrimary,
             fontSize: 20,
@@ -161,6 +218,6 @@ class AppTheme {
           overlayColor: accent.withOpacity(0.25),
           overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
         ),
-        iconTheme: const IconThemeData(color: textPrimary),
+        iconTheme: IconThemeData(color: textPrimary),
       );
 }

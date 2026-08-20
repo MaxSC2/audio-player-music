@@ -54,7 +54,7 @@ class ExplainSheet extends StatelessWidget {
                 track.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 13,
                 ),
@@ -62,7 +62,7 @@ class ExplainSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (breakdown.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
                   'Пока без явных причин — трек попал через случайный отбор. Слушай и ставь избранное, чтобы DJ учился.',
@@ -100,7 +100,7 @@ class ExplainSheet extends StatelessWidget {
                           Expanded(
                             child: Text(
                               e.key,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textPrimary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,

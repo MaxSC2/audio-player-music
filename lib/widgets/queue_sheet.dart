@@ -4,6 +4,7 @@ import '../models/queue_snapshot.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'animated_waveform.dart';
+import 'numpad_sheet.dart';
 
 class QueueSheet extends StatelessWidget {
   const QueueSheet({super.key});
@@ -15,7 +16,7 @@ class QueueSheet extends StatelessWidget {
     final currentIndex = player.currentIndex;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -52,7 +53,7 @@ class QueueSheet extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     'Очередь воспроизведения (${queue.length})',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -61,7 +62,23 @@ class QueueSheet extends StatelessWidget {
                 ],
               ),
               IconButton(
-                icon: const Icon(Icons.bookmark_add_outlined,
+                icon: Icon(Icons.pin_rounded, color: AppTheme.textSecondary),
+                onPressed: () {
+                  if (queue.isEmpty) return;
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: AppTheme.surface,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    ),
+                    builder: (_) => const NumpadSheet(),
+                  );
+                },
+                tooltip: 'Перейти к треку по номеру',
+              ),
+              IconButton(
+                icon: Icon(Icons.bookmark_add_outlined,
                     color: AppTheme.textSecondary),
                 onPressed: () {
                   if (queue.isEmpty) return;
@@ -81,13 +98,13 @@ class QueueSheet extends StatelessWidget {
                 tooltip: 'Сохранить очередь',
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded,
+                icon: Icon(Icons.close_rounded,
                     color: AppTheme.textSecondary),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
-          const Divider(color: AppTheme.cardBorder),
+          Divider(color: AppTheme.cardBorder),
 
           // Saved queue snapshots
           if (player.queueSnapshots.isNotEmpty) ...[
@@ -137,7 +154,7 @@ class QueueSheet extends StatelessWidget {
                                 const SizedBox(width: 6),
                                 Text(
                                   s.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppTheme.textPrimary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -146,7 +163,7 @@ class QueueSheet extends StatelessWidget {
                                 const SizedBox(width: 6),
                                 Text(
                                   '${s.trackIds.length}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       color: AppTheme.textMuted,
                                       fontSize: 11),
                                 ),
@@ -166,7 +183,7 @@ class QueueSheet extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: const Icon(Icons.close_rounded,
+                            child: Icon(Icons.close_rounded,
                                 color: AppTheme.textMuted, size: 15),
                           ),
                         ],
@@ -176,12 +193,12 @@ class QueueSheet extends StatelessWidget {
                 }).toList(),
               ),
             ),
-            const Divider(color: AppTheme.cardBorder),
+            Divider(color: AppTheme.cardBorder),
           ],
 
           // Queue List
           if (queue.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(32.0),
               child: Text(
                 'Очередь пуста',
@@ -235,7 +252,7 @@ class QueueSheet extends StatelessWidget {
                                 )
                               : Text(
                                   '${index + 1}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppTheme.textMuted,
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -258,7 +275,7 @@ class QueueSheet extends StatelessWidget {
                       ),
                       subtitle: Text(
                         track.artist,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 12,
                         ),
@@ -267,7 +284,7 @@ class QueueSheet extends StatelessWidget {
                       ),
                       trailing: Text(
                         track.formattedDuration,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppTheme.textMuted,
                           fontSize: 12,
                         ),

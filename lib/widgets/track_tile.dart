@@ -152,7 +152,7 @@ class TrackTile extends StatelessWidget {
                           Expanded(
                             child: Text(
                               track.artist,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.textSecondary,
                               ),
@@ -162,7 +162,7 @@ class TrackTile extends StatelessWidget {
                           ),
                           Text(
                             ' • ${track.formattedDuration}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               color: AppTheme.textMuted,
                             ),
@@ -190,12 +190,12 @@ class TrackTile extends StatelessWidget {
 
                 // More Options Menu
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert_rounded,
+                  icon: Icon(Icons.more_vert_rounded,
                       color: AppTheme.textMuted, size: 20),
                   color: AppTheme.surfaceLight,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
-                    side: const BorderSide(color: AppTheme.cardBorder),
+                    side: BorderSide(color: AppTheme.cardBorder),
                   ),
                   onSelected: (value) {
                     if (value == 'play_next') {
@@ -297,7 +297,7 @@ class TrackTile extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'info',
                       child: Row(
                         children: [

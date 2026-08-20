@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../../providers/player_provider.dart';
 import '../../state/palette_controller.dart';
@@ -30,7 +32,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsCard(
             child: ListTile(
               leading: _TileIcon(Icons.notifications_active_rounded),
-              title: const Text(
+              title: Text(
                 'Медиа-сервис (шторка/локскрин)',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
@@ -88,7 +90,7 @@ class SettingsScreen extends StatelessWidget {
                         selectedForegroundColor: Colors.white,
                         backgroundColor: AppTheme.surfaceLight,
                         foregroundColor: AppTheme.textSecondary,
-                        side: const BorderSide(color: AppTheme.cardBorder),
+                        side: BorderSide(color: AppTheme.cardBorder),
                         visualDensity: VisualDensity.compact,
                       ),
                       onSelectionChanged: (sel) =>
@@ -96,7 +98,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Долгое нажатие на мини-плеер — быстрый переключатель.',
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                   ),
@@ -149,6 +151,36 @@ class SettingsScreen extends StatelessWidget {
                       },
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(
+                          value: false,
+                          label: Text('Тёмная'),
+                          icon: Icon(Icons.dark_mode_outlined, size: 18),
+                        ),
+                        ButtonSegment(
+                          value: true,
+                          label: Text('Светлая'),
+                          icon: Icon(Icons.light_mode_outlined, size: 18),
+                        ),
+                      ],
+                      selected: {palette.light},
+                      showSelectedIcon: false,
+                      style: SegmentedButton.styleFrom(
+                        selectedBackgroundColor: AppTheme.accent,
+                        selectedForegroundColor: Colors.white,
+                        backgroundColor: AppTheme.surfaceLight,
+                        foregroundColor: AppTheme.textSecondary,
+                        side: BorderSide(color: AppTheme.cardBorder),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onSelectionChanged: (sel) =>
+                          palette.setMode(sel.first),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -199,7 +231,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsCard(
             child: ListTile(
               leading: _TileIcon(Icons.graphic_eq_rounded),
-              title: const Text(
+              title: Text(
                 'Эквалайзер',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
@@ -209,12 +241,12 @@ class SettingsScreen extends StatelessWidget {
               ),
               subtitle: Text(
                 player.equalizerPreset,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textMuted,
                   fontSize: 13,
                 ),
               ),
-              trailing: const Icon(Icons.chevron_right_rounded,
+              trailing: Icon(Icons.chevron_right_rounded,
                   color: AppTheme.textMuted),
               onTap: () {
                 showDialog(
@@ -229,7 +261,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsCard(
             child: SwitchListTile(
               secondary: _TileIcon(Icons.play_circle_outline_rounded),
-              title: const Text(
+              title: Text(
                 'Продолжать воспроизведение',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
@@ -253,7 +285,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsCard(
             child: ListTile(
               leading: _TileIcon(Icons.link_rounded),
-              title: const Text(
+              title: Text(
                 'Воспроизвести по ссылке',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
@@ -261,11 +293,11 @@ class SettingsScreen extends StatelessWidget {
                   fontSize: 15,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Вставьте прямую ссылку на аудиофайл',
                 style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
               ),
-              trailing: const Icon(Icons.chevron_right_rounded,
+              trailing: Icon(Icons.chevron_right_rounded,
                   color: AppTheme.textMuted),
               onTap: () => _showUrlDialog(context, player),
             ),
@@ -277,7 +309,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsCard(
             child: ListTile(
               leading: _TileIcon(Icons.sort_rounded),
-              title: const Text(
+              title: Text(
                 'Сортировка по умолчанию',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
@@ -287,12 +319,12 @@ class SettingsScreen extends StatelessWidget {
               ),
               subtitle: Text(
                 _sortLabel(player.sortOrder),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textMuted,
                   fontSize: 13,
                 ),
               ),
-              trailing: const Icon(Icons.chevron_right_rounded,
+              trailing: Icon(Icons.chevron_right_rounded,
                   color: AppTheme.textMuted),
               onTap: () {
                 showModalBottomSheet(
@@ -343,7 +375,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsCard(
             child: SwitchListTile(
               secondary: _TileIcon(Icons.person_off_rounded),
-              title: const Text(
+              title: Text(
                 'Скрывать "Unknown Artist"',
                 style: TextStyle(
                   color: AppTheme.textPrimary,
@@ -358,6 +390,29 @@ class SettingsScreen extends StatelessWidget {
               value: player.hideUnknownArtist,
               activeTrackColor: AppTheme.accent,
               onChanged: player.setHideUnknownArtist,
+            ),
+          ),
+
+          const _SectionHeader('Статистика'),
+
+          _SettingsCard(
+            child: ListTile(
+              leading: _TileIcon(Icons.bar_chart_rounded),
+              title: Text(
+                'Экспорт статистики',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle: Text(
+                'Сформировать отчёт о прослушивании',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded,
+                  color: AppTheme.textMuted),
+              onTap: () => _showExportDialog(context, player),
             ),
           ),
 
@@ -400,7 +455,7 @@ class SettingsScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     player.mediaDiagnostics,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 12,
                       fontFamily: 'monospace',
@@ -409,7 +464,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     'Журнал публикации состояния (последние записи сверху):',
@@ -423,7 +478,7 @@ class SettingsScreen extends StatelessWidget {
                             horizontal: 16, vertical: 1),
                         child: Text(
                           line,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppTheme.textMuted,
                             fontSize: 11,
                             fontFamily: 'monospace',
@@ -438,7 +493,7 @@ class SettingsScreen extends StatelessWidget {
 
           const _SectionHeader('О приложении'),
 
-          const _SettingsCard(
+          _SettingsCard(
             child: Column(
               children: [
                 ListTile(
@@ -486,7 +541,7 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text(
+        title: Text(
           'Воспроизвести по ссылке',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -513,7 +568,7 @@ class SettingsScreen extends StatelessWidget {
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
               ),
-              style: const TextStyle(color: AppTheme.textPrimary),
+              style: TextStyle(color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -528,14 +583,14 @@ class SettingsScreen extends StatelessWidget {
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
               ),
-              style: const TextStyle(color: AppTheme.textPrimary),
+              style: TextStyle(color: AppTheme.textPrimary),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Отмена',
+            child: Text('Отмена',
                 style: TextStyle(color: AppTheme.textSecondary)),
           ),
           FilledButton(
@@ -568,6 +623,133 @@ class SettingsScreen extends StatelessWidget {
     });
   }
 
+  void _showExportDialog(BuildContext context, PlayerProvider player) {
+    final now = DateTime.now();
+    final profile = player.listeningTimeProfile;
+    final total = player.totalListeningTime;
+    final sb = StringBuffer()
+      ..writeln('NeonWave — статистика прослушивания')
+      ..writeln('Дата отчёта: ${now.day}.${now.month}.${now.year} ${now.hour}:${now.minute}')
+      ..writeln()
+      ..writeln('Всего прослушиваний: ${player.totalPlays}')
+      ..writeln('Уникальных треков: ${player.uniqueTracksListened}')
+      ..writeln(
+          'Время прослушивания: ${total.inHours} ч ${total.inMinutes % 60} мин')
+      ..writeln(
+          'Профиль: утро ${profile.morning} · день ${profile.day} · вечер ${profile.evening}')
+      ..writeln()
+      ..writeln('ТОП-10 треков:');
+    for (final t in player.topTracks(limit: 10)) {
+      sb.writeln('  ${t.track.artist} — ${t.track.title} (${t.plays})');
+    }
+    sb.writeln();
+    sb.writeln('ТОП-10 исполнителей:');
+    for (final a in player.topArtists(limit: 10)) {
+      sb.writeln('  ${a.artist} (${a.plays})');
+    }
+    final history = player.historyEntries.take(25).toList();
+    if (history.isNotEmpty) {
+      sb.writeln();
+      sb.writeln('Последние 25 из истории:');
+      for (final e in history) {
+        final t = e.time;
+        sb.writeln(
+            '  ${t.day.toString().padLeft(2, '0')}.${t.month.toString().padLeft(2, '0')} '
+            '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} — '
+            '${e.track.artist} — ${e.track.title}');
+      }
+    }
+
+    final report = sb.toString();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Статистика',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 340,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              report,
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontFamily: 'monospace',
+                height: 1.5,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: report));
+              if (dialogContext.mounted) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Отчёт скопирован'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: Text('Копировать',
+                style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () async {
+              try {
+                final dir = await getApplicationDocumentsDirectory();
+                final stamp = '${now.year}${now.month.toString().padLeft(2, '0')}'
+                    '${now.day.toString().padLeft(2, '0')}_'
+                    '${now.hour.toString().padLeft(2, '0')}'
+                    '${now.minute.toString().padLeft(2, '0')}';
+                final file = File('${dir.path}/neonwave_stats_$stamp.txt');
+                await file.writeAsString(report);
+                if (dialogContext.mounted) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(
+                      content: Text('Сохранено: ${file.path}'),
+                      duration: const Duration(seconds: 4),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (dialogContext.mounted) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(
+                      content: Text('Не удалось сохранить: $e'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accent,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Сохранить файл',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCustomPalette(BuildContext context, PaletteController palette) {
     showModalBottomSheet(
       context: context,
@@ -586,7 +768,7 @@ class SettingsScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Своя палитра',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
@@ -595,7 +777,7 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Нажмите на цвет, чтобы изменить его',
                       style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                     ),
@@ -654,9 +836,9 @@ class SettingsScreen extends StatelessWidget {
                         palette.resetCustom();
                         Navigator.of(ctx).pop();
                       },
-                      icon: const Icon(Icons.restart_alt_rounded,
+                      icon: Icon(Icons.restart_alt_rounded,
                           color: AppTheme.textMuted, size: 18),
-                      label: const Text(
+                      label: Text(
                         'Сбросить к Neon',
                         style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                       ),
@@ -771,7 +953,7 @@ class _TileTitle extends StatelessWidget {
         const SizedBox(width: 12),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.w600,
             fontSize: 15,
@@ -869,14 +1051,14 @@ class _ColorSlot extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 color: AppTheme.textMuted),
           ],
         ),
