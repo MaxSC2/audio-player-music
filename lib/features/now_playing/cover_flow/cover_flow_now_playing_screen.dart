@@ -7,6 +7,7 @@ import '../../../widgets/three_d_visualizer.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
+import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/three_d_background.dart';
 
 class CoverFlowNowPlayingScreen extends StatefulWidget {
@@ -335,6 +336,12 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                     AlwaysStoppedAnimation<Color>(AppTheme.accent),
                 borderRadius: BorderRadius.circular(4),
               ),
+            ),
+
+            // Feature Actions Row (те же функции, что и в простом интерфейсе)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: PlayerFeatureRow(track: track),
             ),
           ],
         ),

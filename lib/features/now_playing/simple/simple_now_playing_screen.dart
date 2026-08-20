@@ -9,6 +9,7 @@ import '../../../widgets/artwork_backdrop.dart';
 import '../../../widgets/equalizer_dialog.dart';
 import '../../../widgets/explain_sheet.dart';
 import '../../../widgets/marquee_text.dart';
+import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/queue_sheet.dart';
 import '../../../widgets/sleep_timer_dialog.dart';
 import '../../../widgets/spinning_vinyl.dart';
@@ -373,158 +374,10 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                   ),
                 ),
 
-                // Feature Actions Row
+                // Feature Actions Row (общий для всех интерфейсов)
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        // Favorite
-                        _AnimatedFavoriteButton(
-                          isFavorite: track.isFavorite,
-                          onTap: () => player.toggleFavorite(track),
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Music Bookmarks
-                        GestureDetector(
-                          onLongPress: () =>
-                              _showTrackBookmarks(context, player, track),
-                          child: _FeatureButton(
-                            icon: player.bookmarksFor(track.id).isEmpty
-                                ? Icons.bookmark_add_outlined
-                                : Icons.bookmark_rounded,
-                            color: player.bookmarksFor(track.id).isEmpty
-                                ? AppTheme.textSecondary
-                                : AppTheme.accentLight,
-                            onTap: () {
-                              final pos = player.position.inMilliseconds;
-                              player.toggleBookmark(track.id, pos);
-                              final has =
-                                  player.bookmarksFor(track.id).contains(pos);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(has
-                                      ? 'Закладка: ${AudioTrack.formatDuration(pos)}'
-                                      : 'Закладка убрана'),
-                                  duration: const Duration(milliseconds: 900),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        SizedBox(width: 14),
-
-                        // X-Boost (Loudness Enhancer)
-                        _FeatureButton(
-                          icon: Icons.bolt_rounded,
-                          color: player.xBoost
-                              ? AppTheme.accentAmber
-                              : AppTheme.textSecondary,
-                          onTap: player.toggleXBoost,
-                        ),
-                        SizedBox(width: 14),
-
-                        // Repeat A-B
-                        _FeatureButton(
-                          icon: Icons.compare_arrows_rounded,
-                          color: player.repeatABActive
-                              ? AppTheme.accentCyan
-                              : AppTheme.textSecondary,
-                          onTap: player.tapRepeatAB,
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Speed
-                        _SpeedBadge(
-                          speed: player.speed,
-                          onTap: player.cycleSpeed,
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Sleep Timer
-                        _FeatureButton(
-                          icon: player.sleepTimerMinutes > 0
-                              ? Icons.nightlight_round
-                              : Icons.nightlight_outlined,
-                          color: player.sleepTimerMinutes > 0
-                              ? AppTheme.accentAmber
-                              : AppTheme.textSecondary,
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => const SleepTimerDialog(),
-                            );
-                          },
-                        ),
-                        SizedBox(width: 14),
-
-                        // Equalizer Presets
-                        _FeatureButton(
-                          icon: Icons.graphic_eq_rounded,
-                          color: player.equalizerPreset != 'Flat (Стандарт)'
-                              ? AppTheme.accentGreen
-                              : AppTheme.textSecondary,
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => const EqualizerDialog(),
-                            );
-                          },
-                        ),
-                        SizedBox(width: 14),
-
-                        // Explain Recommendation
-                        _FeatureButton(
-                          icon: Icons.psychology_outlined,
-                          color: AppTheme.accentLight,
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              backgroundColor: AppTheme.surface,
-                              isScrollControlled: true,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(24)),
-                              ),
-                              builder: (_) => ExplainSheet(track: track),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Queue
-                        _FeatureButton(
-                          icon: Icons.queue_music_rounded,
-                          color: AppTheme.textSecondary,
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              backgroundColor: AppTheme.surface,
-                              isScrollControlled: true,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(24)),
-                              ),
-                              builder: (_) => const QueueSheet(),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Delete Track
-                        _FeatureButton(
-                          icon: Icons.delete_outline_rounded,
-                          color: AppTheme.textSecondary,
-                          onTap: () =>
-                              _confirmDeleteTrack(context, player, track),
-                        ),
-                      ],
-                    ),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: PlayerFeatureRow(track: track),
                 ),
               ],
             ),
