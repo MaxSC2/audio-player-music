@@ -1,12 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/ui_style.dart';
 import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
-import '../../../widgets/animated_sound_dome.dart';
+import '../../../widgets/three_d_visualizer.dart';
 import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
@@ -219,19 +217,17 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     final cardH = (cardW * 1.28)
                         .clamp(0.0, constraints.maxHeight - 12)
                         .toDouble();
-                    final barsW =
-                        math.min(cardW + 160, constraints.maxWidth - 16);
+                    final barsW = constraints.maxWidth;
                     return Stack(
                       alignment: Alignment.center,
                       children: [
                         IgnorePointer(
                           child: Center(
-                            child: AnimatedSoundDome(
+                            child: ThreeDVisualizer(
                               isPlaying: player.isPlaying,
                               width: barsW,
-                              height: math.min(
-                                  constraints.maxHeight - 20, 300.0),
-                              barCount: 20,
+                              height: constraints.maxHeight,
+                              barCount: 19,
                             ),
                           ),
                         ),
