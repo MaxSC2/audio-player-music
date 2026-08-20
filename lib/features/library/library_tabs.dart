@@ -944,6 +944,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     return ListView(
       padding: const EdgeInsets.only(bottom: 16),
       children: [
+        _buildJourneyCard(player, entries),
         ...children,
         Center(
           child: TextButton.icon(
@@ -957,6 +958,143 @@ class _LibraryTabsState extends State<LibraryTabs>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildJourneyCard(
+      PlayerProvider player, List<({AudioTrack track, DateTime time})> all) {
+    if (all.isEmpty) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final today = all.where((e) => e.time.isAfter(todayStart)).toList();
+
+    final playsToday = today.length;
+    final uniqueToday = today.map((e) => e.track.id).toSet().length;
+    final topArtistToday = <String, int>{};
+    for (final e in today) {
+      final a = e.track.artist;
+      topArtistToday[a] = (topArtistToday[a] ?? 0) + 1;
+    }
+    final topArtist = topArtistToday.entries.isEmpty
+        ? null
+        : topArtistToday.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    final totalPlays = all.length;
+
+    String fmt(int n) {
+      if (n >= 60) return '${(n / 60).floor()}ч ${n % 60}м';
+      return '$n м';
+    }
+
+    Widget stat(String label, String value, IconData icon, Color color) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: const TextStyle(
+                    color: AppTheme.textMuted, fontSize: 10),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.accent.withOpacity(0.16),
+            AppTheme.accentLight.withOpacity(0.12),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.accent.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.insights_rounded, color: AppTheme.accentLight, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Сегодня',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              stat(
+                'Треков',
+                '$playsToday',
+                Icons.play_arrow_rounded,
+                AppTheme.accentCyan,
+              ),
+              const SizedBox(width: 8),
+              stat(
+                'Уникальных',
+                '$uniqueToday',
+                Icons.music_note_rounded,
+                AppTheme.accentGreen,
+              ),
+              const SizedBox(width: 8),
+              stat(
+                'Топ',
+                topArtist ?? '—',
+                Icons.person_rounded,
+                AppTheme.accentPink,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Всего прослушиваний: $totalPlays',
+                style: const TextStyle(
+                    color: AppTheme.textMuted, fontSize: 11),
+              ),
+              Text(
+                '${fmt(today.length)} сегодня',
+                style: const TextStyle(
+                    color: AppTheme.textMuted, fontSize: 11),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

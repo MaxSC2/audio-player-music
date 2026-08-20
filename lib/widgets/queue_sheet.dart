@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/queue_snapshot.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'animated_waveform.dart';
@@ -60,6 +61,26 @@ class QueueSheet extends StatelessWidget {
                 ],
               ),
               IconButton(
+                icon: const Icon(Icons.bookmark_add_outlined,
+                    color: AppTheme.textSecondary),
+                onPressed: () {
+                  if (queue.isEmpty) return;
+                  final now = DateTime.now();
+                  final name =
+                      'Очередь ${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')} '
+                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+                  player.saveQueueSnapshot(name);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Очередь сохранена как «$name»'),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                tooltip: 'Сохранить очередь',
+              ),
+              IconButton(
                 icon: const Icon(Icons.close_rounded,
                     color: AppTheme.textSecondary),
                 onPressed: () => Navigator.pop(context),
@@ -67,6 +88,96 @@ class QueueSheet extends StatelessWidget {
             ],
           ),
           const Divider(color: AppTheme.cardBorder),
+
+          // Saved queue snapshots
+          if (player.queueSnapshots.isNotEmpty) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 6),
+                child: Text(
+                  'Сохранённые очереди',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 42,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: player.queueSnapshots.map((QueueSnapshot s) {
+                  final t = DateTime.fromMillisecondsSinceEpoch(s.createdAt);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accent.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: AppTheme.accent.withOpacity(0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              player.applyQueueSnapshot(s);
+                              Navigator.pop(context);
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.queue_music_rounded,
+                                    color: AppTheme.accentLight, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  s.name,
+                                  style: const TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${s.trackIds.length}',
+                                  style: const TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () {
+                              player.deleteQueueSnapshot(s.name);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content:
+                                      Text('Очередь «${s.name}» удалена'),
+                                  duration: const Duration(seconds: 1),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: const Icon(Icons.close_rounded,
+                                color: AppTheme.textMuted, size: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const Divider(color: AppTheme.cardBorder),
+          ],
 
           // Queue List
           if (queue.isEmpty)

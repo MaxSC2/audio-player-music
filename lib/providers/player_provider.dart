@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
+import '../models/queue_snapshot.dart';
 import '../services/audio_handler.dart';
 
 enum PlayerRepeatMode { off, all, one }
@@ -29,6 +30,7 @@ class PlayerProvider extends ChangeNotifier {
   List<Map<String, int>> _historyRaw = [];
   List<Map<String, int>> _notNowRaw = [];
   ListeningContext _listeningContext = ListeningContext.balanced;
+  List<QueueSnapshot> _queueSnapshots = [];
 
   double _defaultSpeed = 1.0;
   bool _hideUnknownArtist = false;
@@ -261,6 +263,18 @@ class PlayerProvider extends ChangeNotifier {
         (c) => c.name == savedContext,
         orElse: () => ListeningContext.balanced,
       );
+    }
+
+    final savedSnapshots = prefs.getString('queue_snapshots');
+    if (savedSnapshots != null) {
+      try {
+        _queueSnapshots = (jsonDecode(savedSnapshots) as List)
+            .whereType<Map>()
+            .map((e) => QueueSnapshot.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      } catch (_) {
+        _queueSnapshots = [];
+      }
     }
 
     final savedSort = prefs.getString('sort_order');
@@ -676,6 +690,51 @@ class PlayerProvider extends ChangeNotifier {
     final queue = buildSmartQueue(count: count);
     if (queue.isEmpty) return;
     await playFromPlaylist(queue, 0);
+  }
+
+  // ─── Queue Snapshots ───────────────────────────────────────────────
+  List<QueueSnapshot> get queueSnapshots =>
+      List.unmodifiable(_queueSnapshots);
+
+  void _persistSnapshots() {
+    _prefs?.setString(
+      'queue_snapshots',
+      jsonEncode(_queueSnapshots.map((s) => s.toJson()).toList()),
+    );
+  }
+
+  void saveQueueSnapshot(String name) {
+    if (_playlist.isEmpty) return;
+    _queueSnapshots.removeWhere((s) => s.name == name);
+    _queueSnapshots.insert(
+      0,
+      QueueSnapshot(
+        name: name,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        trackIds: _playlist.map((t) => t.id).toList(),
+      ),
+    );
+    if (_queueSnapshots.length > 20) {
+      _queueSnapshots.removeRange(20, _queueSnapshots.length);
+    }
+    _persistSnapshots();
+    notifyListeners();
+  }
+
+  void deleteQueueSnapshot(String name) {
+    _queueSnapshots.removeWhere((s) => s.name == name);
+    _persistSnapshots();
+    notifyListeners();
+  }
+
+  Future<void> applyQueueSnapshot(QueueSnapshot snapshot) async {
+    final tracks = <AudioTrack>[];
+    for (final id in snapshot.trackIds) {
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index >= 0) tracks.add(_allTracks[index]);
+    }
+    if (tracks.isEmpty) return;
+    await playFromPlaylist(tracks, 0);
   }
 
   SortOrder _sortOrder = SortOrder.title;
