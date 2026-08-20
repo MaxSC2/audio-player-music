@@ -179,7 +179,7 @@ class AppTheme {
           ),
           iconTheme: IconThemeData(color: textPrimary),
         ),
-cardTheme: CardThemeData(
+        cardTheme: CardThemeData(
           color: card,
           elevation: 0,
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -187,7 +187,6 @@ cardTheme: CardThemeData(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: cardBorder, width: 0.8),
           ),
-        ),
         ),
         textTheme: TextTheme(
           titleLarge: TextStyle(
