@@ -816,7 +816,7 @@ class PlayerProvider extends ChangeNotifier {
     return set.length;
   }
 
-  ({int morning, int day, int evening}) listeningTimeProfile {
+  ({int morning, int day, int evening}) get listeningTimeProfile {
     var morning = 0, day = 0, evening = 0;
     for (final e in _historyRaw) {
       final ts = e['ts'];
@@ -899,7 +899,7 @@ class PlayerProvider extends ChangeNotifier {
 
     final skips = _skipCount[t.id] ?? 0;
     if (skips > 0) {
-      out['Скипали'] = -math.min(30.0, skips * 12);
+      out['Скипали'] = -math.min(30.0, (skips * 12).toDouble());
     }
 
     if (currentTrack != null &&
