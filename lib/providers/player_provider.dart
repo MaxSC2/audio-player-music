@@ -1000,6 +1000,30 @@ class PlayerProvider extends ChangeNotifier {
     _allTracks = sortTracks(_allTracks, _sortOrder);
     notifyListeners();
     await _maybeResume();
+    await _prepareInitialPlaylist();
+  }
+
+  Future<void> _prepareInitialPlaylist() async {
+    if (_playlist.isNotEmpty) return;
+    if (_allTracks.isEmpty) return;
+
+    List<AudioTrack> initial;
+    final firstAlbum = _allTracks.first.album;
+    if (firstAlbum != null) {
+      initial = _allTracks.where((t) => t.album == firstAlbum).toList();
+    } else {
+      initial = List<AudioTrack>.from(_allTracks);
+    }
+    if (initial.isEmpty) return;
+
+    _playlist = initial;
+    _currentIndex = 0;
+    await _audioPlayer.setAudioSources(
+      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+    );
+    await _audioPlayer.seek(Duration.zero, index: 0);
+    _audioHandler?.setQueue(_playlist);
+    notifyListeners();
   }
 
   Future<void> playTrack(AudioTrack track) async {
