@@ -89,7 +89,7 @@ class MusicDnaTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
                   Icon(Icons.fingerprint_rounded,
                       color: AppTheme.accentLight, size: 20),
@@ -104,15 +104,15 @@ class MusicDnaTab extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Row(
                 children: [
                   _stat('Прослушано', '$hours ч $minutes м',
                       Icons.timer_outlined, AppTheme.accentCyan),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   _stat('Треков', '${player.totalPlays}',
                       Icons.play_arrow_rounded, AppTheme.accentGreen),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   _stat('Уникальных', '${player.uniqueTracksListened}',
                       Icons.music_note_rounded, AppTheme.accentPink),
                 ],
@@ -126,7 +126,7 @@ class MusicDnaTab extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -151,7 +151,7 @@ class MusicDnaTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
                   Icon(Icons.history_toggle_off_rounded,
                       color: AppTheme.accentLight, size: 18),
@@ -176,7 +176,7 @@ class MusicDnaTab extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () => _pickDay(context, player),
-                  icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                  icon: Icon(Icons.calendar_month_rounded, size: 18),
                   label: const Text('Выбрать день'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppTheme.accent,
@@ -226,10 +226,10 @@ class MusicDnaTab extends StatelessWidget {
               ),
               subtitle: Text(
                 '${item.plays} ${_plural(item.plays)}',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textMuted, fontSize: 12),
               ),
-              trailing: const Icon(Icons.play_circle_outline_rounded,
+              trailing: Icon(Icons.play_circle_outline_rounded,
                   color: AppTheme.accentLight, size: 22),
               onTap: () {
                 final tracks = player.visibleTracks
@@ -261,7 +261,7 @@ class MusicDnaTab extends StatelessWidget {
                 child: Center(
                   child: Text(
                     '$rank',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.accentLight,
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
@@ -283,10 +283,10 @@ class MusicDnaTab extends StatelessWidget {
                 '${item.track.artist} • ${item.plays} ${_plural(item.plays)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textMuted, fontSize: 12),
               ),
-              trailing: const Icon(Icons.play_circle_outline_rounded,
+              trailing: Icon(Icons.play_circle_outline_rounded,
                   color: AppTheme.accentLight, size: 22),
               onTap: () => player.playTrack(item.track),
             );
@@ -310,7 +310,7 @@ class MusicDnaTab extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 6),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppTheme.accentLight,
           fontSize: 13,
           fontWeight: FontWeight.w700,
@@ -493,7 +493,7 @@ class MusicDnaTab extends StatelessWidget {
                     player.playFromPlaylist(list, 0);
                     Navigator.of(ctx).pop();
                   },
-                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                  icon: Icon(Icons.play_arrow_rounded, size: 20),
                   label: const Text('Прожить этот день снова',
                       style: TextStyle(fontWeight: FontWeight.w700)),
                   style: FilledButton.styleFrom(

@@ -62,7 +62,7 @@ class PlaylistDetailScreen extends StatelessWidget {
                 }
               }
             },
-            itemBuilder: (context) => const [
+            itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'rename',
                 child: Row(
@@ -103,7 +103,7 @@ class PlaylistDetailScreen extends StatelessWidget {
                 Container(
                   width: 72,
                   height: 72,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: AppTheme.pinkPurpleGradient,
                   ),
@@ -228,7 +228,7 @@ class PlaylistDetailScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Сохранить',
+            child: Text('Сохранить',
                 style: TextStyle(
                     color: AppTheme.accentLight, fontWeight: FontWeight.bold)),
           ),
@@ -268,7 +268,7 @@ class PlaylistDetailScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
+            child: Text(
               'Удалить',
               style: TextStyle(color: AppTheme.accentPink),
             ),

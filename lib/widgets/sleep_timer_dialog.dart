@@ -74,7 +74,7 @@ class SleepTimerDialog extends StatelessWidget {
                   ),
                 ),
                 trailing: isSelected
-                    ? const Icon(Icons.check_circle_rounded, color: AppTheme.accent)
+                    ? Icon(Icons.check_circle_rounded, color: AppTheme.accent)
                     : null,
                 onTap: () {
                   if (minutes == 0) {

@@ -81,7 +81,7 @@ class _SpinningVinylState extends State<SpinningVinyl>
               height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF0F1017),
+                color: Color(0xFF0F1017),
                 boxShadow: [
                   BoxShadow(
                     color: widget.isPlaying
@@ -114,7 +114,7 @@ class _SpinningVinylState extends State<SpinningVinyl>
                   Container(
                     width: artworkSize,
                     height: artworkSize,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: AppTheme.primaryGradient,
                     ),
@@ -176,7 +176,7 @@ class _SpinningVinylState extends State<SpinningVinyl>
 
   Widget _buildFallbackArtwork(double artworkSize) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: AppTheme.pinkPurpleGradient,
       ),

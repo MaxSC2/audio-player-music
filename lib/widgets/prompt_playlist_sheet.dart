@@ -104,10 +104,10 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                 decoration: InputDecoration(
                   hintText: 'Например: энергичная музыка для пробежки',
                   hintStyle:
-                      const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                      TextStyle(color: AppTheme.textMuted, fontSize: 13),
                   filled: true,
                   fillColor: AppTheme.surfaceLight,
-                  prefixIcon: const Icon(Icons.auto_awesome_rounded,
+                  prefixIcon: Icon(Icons.auto_awesome_rounded,
                       color: AppTheme.accentLight, size: 18),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -135,7 +135,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () => _generate(player),
-              icon: const Icon(Icons.psychology_rounded, size: 18),
+              icon: Icon(Icons.psychology_rounded, size: 18),
               label: const Text('Собрать',
                   style: TextStyle(fontWeight: FontWeight.w700)),
               style: FilledButton.styleFrom(
@@ -228,7 +228,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                         player.playFromPlaylist(result, 0);
                         Navigator.of(context).pop();
                       },
-                      icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                      icon: Icon(Icons.play_arrow_rounded, size: 18),
                       label: const Text('Играть'),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.accent,

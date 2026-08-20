@@ -59,7 +59,7 @@ class TrackInfoDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(
+          child: Text(
             'Закрыть',
             style: TextStyle(
               color: AppTheme.accentLight,

@@ -8,6 +8,7 @@ import 'core/ui_style.dart';
 import 'features/home/home_screen.dart';
 import 'providers/player_provider.dart';
 import 'services/audio_handler.dart';
+import 'state/palette_controller.dart';
 import 'ui/theme.dart';
 
 Future<void> main() async {
@@ -24,7 +25,9 @@ Future<void> main() async {
   ));
   final playerProvider = PlayerProvider();
   final uiStyle = UiStyleController();
+  final palette = PaletteController();
 
+  await palette.init();
   await uiStyle.init();
 
   final handlerFuture = AudioService.init(
@@ -63,8 +66,12 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => playerProvider),
         ChangeNotifierProvider(create: (_) => uiStyle),
+        ChangeNotifierProvider(create: (_) => palette),
       ],
-      child: const NeonWaveApp(),
+      child: ListenableBuilder(
+        listenable: palette,
+        builder: (_, __) => const NeonWaveApp(),
+      ),
     ),
   );
 }

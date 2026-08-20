@@ -121,9 +121,9 @@ class EqualizerDialog extends StatelessWidget {
                         );
                       }).toList(),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     if (isSelected)
-                      const Icon(Icons.check_circle_rounded,
+                      Icon(Icons.check_circle_rounded,
                           color: AppTheme.accent, size: 20),
                   ],
                 ),

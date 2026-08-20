@@ -31,7 +31,7 @@ class ExplainSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.psychology_rounded,
@@ -134,10 +134,10 @@ class ExplainSheet extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: Row(
                 children: [
-                  const Spacer(),
+                  Spacer(),
                   Text(
                     'Итог: ${total.toStringAsFixed(1)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.accentLight,
                       fontSize: 14,
                       fontWeight: FontWeight.w800,

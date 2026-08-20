@@ -111,11 +111,11 @@ class SimpleMiniPlayer extends StatelessWidget {
                       // Play/Pause Button
                       InkWell(
                         onTap: player.togglePlay,
-                        customBorder: const CircleBorder(),
+                        customBorder: CircleBorder(),
                         child: Container(
                           width: 42,
                           height: 42,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: AppTheme.primaryGradient,
                           ),
@@ -155,7 +155,7 @@ class SimpleMiniPlayer extends StatelessWidget {
 
                 // Progress Line
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
+                  duration: Duration(milliseconds: 300),
                   height: 3,
                   margin: const EdgeInsets.only(top: 2),
                   decoration: BoxDecoration(
@@ -170,7 +170,7 @@ class SimpleMiniPlayer extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     widthFactor: progress,
                     child: Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: AppTheme.primaryGradient,
                         borderRadius: BorderRadius.only(
                           bottomLeft: Radius.circular(20),

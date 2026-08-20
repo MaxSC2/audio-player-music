@@ -51,7 +51,7 @@ class PlaylistPickerSheet extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text(
+            child: Text(
               'Создать',
               style: TextStyle(
                 color: AppTheme.accentLight,
@@ -107,7 +107,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(
               children: [
                 Container(
@@ -167,7 +167,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.queue_music_rounded,
                           color: AppTheme.accentCyan,
                         ),
@@ -183,11 +183,11 @@ class PlaylistPickerSheet extends StatelessWidget {
                         ),
                         subtitle: Text(
                           '${playlist.trackIds.length} треков',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppTheme.textMuted, fontSize: 12),
                         ),
                         trailing: contains
-                            ? const Icon(Icons.check_rounded,
+                            ? Icon(Icons.check_rounded,
                                 color: AppTheme.accentGreen)
                             : const Icon(Icons.add_rounded,
                                 color: AppTheme.textSecondary),
@@ -213,7 +213,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                 ),
               ),
 
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             ElevatedButton.icon(
               onPressed: () => _createPlaylist(context),
               style: ElevatedButton.styleFrom(

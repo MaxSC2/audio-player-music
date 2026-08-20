@@ -231,7 +231,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                       activeTrackColor: AppTheme.accent,
                       inactiveTrackColor: AppTheme.surfaceLight,
                       thumbColor: AppTheme.accentLight,
-                      thumbShape: const RoundSliderThumbShape(
+                      thumbShape: RoundSliderThumbShape(
                           enabledThumbRadius: 7),
                       overlayColor: AppTheme.accent.withOpacity(0.15),
                     ),
@@ -270,7 +270,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.shuffle_rounded),
+                    icon: Icon(Icons.shuffle_rounded),
                     color: player.shuffleMode
                         ? AppTheme.accentCyan
                         : AppTheme.textSecondary,
@@ -286,7 +286,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                     onPressed: player.previous,
                     tooltip: 'Предыдущий',
                   ),
-                  const SizedBox(width: 20),
+                  SizedBox(width: 20),
                   IconButton(
                     icon: Icon(
                       player.isPlaying

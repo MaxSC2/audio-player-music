@@ -239,7 +239,7 @@ class TrackTile extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'play_next',
                       child: Row(
                         children: [
@@ -268,7 +268,7 @@ class TrackTile extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'playlist',
                       child: Row(
                         children: [

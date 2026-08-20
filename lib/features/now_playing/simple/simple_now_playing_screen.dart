@@ -65,7 +65,7 @@ void _showTrackBookmarks(
                 itemBuilder: (ctx, index) {
                   final ms = bookmarks[index];
                   return ListTile(
-                    leading: const Icon(Icons.bookmark_rounded,
+                    leading: Icon(Icons.bookmark_rounded,
                         color: AppTheme.accentLight, size: 20),
                     title: Text(
                       AudioTrack.formatDuration(ms),
@@ -139,7 +139,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
             child: Container(
               decoration: BoxDecoration(
                 gradient: RadialGradient(
-                  center: const Alignment(0, -0.8),
+                  center: Alignment(0, -0.8),
                   radius: 1.2,
                   colors: [
                     AppTheme.accent.withOpacity(0.18),
@@ -416,7 +416,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: 14),
 
                         // X-Boost (Loudness Enhancer)
                         _FeatureButton(
@@ -426,7 +426,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                               : AppTheme.textSecondary,
                           onTap: player.toggleXBoost,
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: 14),
 
                         // Repeat A-B
                         _FeatureButton(
@@ -460,7 +460,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                             );
                           },
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: 14),
 
                         // Equalizer Presets
                         _FeatureButton(
@@ -475,7 +475,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                             );
                           },
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: 14),
 
                         // Explain Recommendation
                         _FeatureButton(

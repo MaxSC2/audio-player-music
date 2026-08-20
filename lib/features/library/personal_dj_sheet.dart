@@ -65,7 +65,7 @@ class PersonalDJSheet extends StatelessWidget {
                 return GestureDetector(
                   onTap: () => player.toggleContext(e.key),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
+                    duration: Duration(milliseconds: 180),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
@@ -126,7 +126,7 @@ class PersonalDJSheet extends StatelessWidget {
                       GestureDetector(
                         onTap: () => player.setDeepCuts(!player.deepCuts),
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
+                          duration: Duration(milliseconds: 180),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
@@ -188,7 +188,7 @@ class PersonalDJSheet extends StatelessWidget {
                         child: GestureDetector(
                           onTap: () => player.setDiscoveryLevel(d),
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
+                            duration: Duration(milliseconds: 180),
                             margin: const EdgeInsets.symmetric(horizontal: 2),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
@@ -296,7 +296,7 @@ class PersonalDJSheet extends StatelessWidget {
                             borderRadius: BorderRadius.vertical(
                                 top: Radius.circular(24)),
                           ),
-                          builder: (_) => const PromptPlaylistSheet(),
+                          builder: (_) => PromptPlaylistSheet(),
                         );
                       },
                       icon: const Icon(Icons.text_fields_rounded, size: 18),
@@ -316,7 +316,7 @@ class PersonalDJSheet extends StatelessWidget {
                 player.launchPersonalDJ();
                 Navigator.of(context).pop();
               },
-              icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+              icon: Icon(Icons.auto_awesome_rounded, size: 20),
               label: const Text('Запустить DJ',
                   style: TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w700)),
@@ -369,11 +369,11 @@ class PersonalDJSheet extends StatelessWidget {
                         t.artist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.textMuted, fontSize: 12),
                       ),
                       trailing: IconButton(
-                        icon: const Icon(Icons.undo_rounded,
+                        icon: Icon(Icons.undo_rounded,
                             color: AppTheme.accentLight, size: 20),
                         onPressed: () => player.toggleNotNow(t),
                         tooltip: 'Вернуть',

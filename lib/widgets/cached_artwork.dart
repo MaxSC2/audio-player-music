@@ -103,7 +103,7 @@ class _CachedArtworkState extends State<CachedArtwork> {
 
   Widget _buildFallback() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: AppTheme.pinkPurpleGradient,
       ),
       child: const Center(

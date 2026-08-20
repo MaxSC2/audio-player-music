@@ -127,27 +127,27 @@ class _LibraryTabsState extends State<LibraryTabs>
           children: [
             Text(
               '${_selectedIds.length} выбрано',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.accentLight,
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
             ),
-            const Spacer(),
+            Spacer(),
             IconButton(
-              icon: const Icon(Icons.playlist_add_rounded,
+              icon: Icon(Icons.playlist_add_rounded,
                   color: AppTheme.accentGreen),
               onPressed: _pickPlaylistForSelected,
               tooltip: 'В плейлист',
             ),
             IconButton(
-              icon: const Icon(Icons.favorite_rounded,
+              icon: Icon(Icons.favorite_rounded,
                   color: AppTheme.accentPink),
               onPressed: _addSelectedToFavorites,
               tooltip: 'В избранное',
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline_rounded,
+              icon: Icon(Icons.delete_outline_rounded,
                   color: AppTheme.accentPink),
               onPressed: _confirmDeleteSelected,
               tooltip: 'Удалить',
@@ -262,7 +262,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildLoading() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -311,7 +311,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _requestPermission,
               style: ElevatedButton.styleFrom(
@@ -456,7 +456,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             leading: Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppTheme.cyanGreenGradient,
               ),
@@ -475,10 +475,10 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             subtitle: Text(
               '$trackCount ${_pluralTracks(trackCount)}',
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.play_circle_fill_rounded,
+              icon: Icon(Icons.play_circle_fill_rounded,
                   color: AppTheme.accent),
               onPressed: () {
                 final tracks = player.tracksOfPlaylist(playlist);
@@ -517,13 +517,13 @@ class _LibraryTabsState extends State<LibraryTabs>
         leading: Container(
           width: 44,
           height: 44,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: AppTheme.primaryGradient,
           ),
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
+          child: Icon(Icons.add_rounded, color: Colors.white, size: 26),
         ),
-        title: const Text(
+        title: Text(
           'Создать плейлист',
           style: TextStyle(
             color: AppTheme.accentLight,
@@ -580,7 +580,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Создать',
+            child: Text('Создать',
                 style: TextStyle(
                     color: AppTheme.accentLight,
                     fontWeight: FontWeight.bold)),
@@ -636,7 +636,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             leading: Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppTheme.primaryGradient,
               ),
@@ -698,7 +698,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             leading: Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: AppTheme.cyanGreenGradient,
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
@@ -717,10 +717,10 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
             subtitle: Text(
               '${tracks.length} ${_pluralTracks(tracks.length)}',
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.play_circle_fill_rounded,
+              icon: Icon(Icons.play_circle_fill_rounded,
                   color: AppTheme.accent),
               onPressed: () {
                 if (tracks.isNotEmpty) {
@@ -797,7 +797,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             leading: Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: AppTheme.pinkPurpleGradient,
                 borderRadius: BorderRadius.all(Radius.circular(10)),
               ),
@@ -945,7 +945,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.accentLight,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -998,7 +998,15 @@ class _LibraryTabsState extends State<LibraryTabs>
       children.add(header('Вчера', yesterdayItems, player, 0));
     }
     if (earlierItems.isNotEmpty) {
-      children.add(header('Ранее', earlierItems, player, 0));
+      final byDay = <DateTime, List<({AudioTrack track, DateTime time})>>{};
+      for (final e in earlierItems) {
+        final d = DateTime(e.time.year, e.time.month, e.time.day);
+        byDay.putIfAbsent(d, () => []).add(e);
+      }
+      final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
+      for (final d in days) {
+        children.add(header(_dayLabel(d), byDay[d]!, player, 0));
+      }
     }
 
     return ListView(
@@ -1022,6 +1030,19 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
   }
 
+  String _dayLabel(DateTime d) {
+    const months = [
+      'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+    ];
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(d).inDays;
+    if (diff == 2) return 'Позавчера';
+    if (d.year == now.year) return '${d.day} ${months[d.month - 1]}';
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
   Widget _buildMomentsCard(PlayerProvider player) {
     final bookmarks = player.allBookmarks;
     if (bookmarks.isEmpty) return const SizedBox.shrink();
@@ -1037,7 +1058,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.bookmark_rounded,
                   color: AppTheme.accentLight, size: 18),
@@ -1052,12 +1073,12 @@ class _LibraryTabsState extends State<LibraryTabs>
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           ...bookmarks.take(10).map((b) {
             return ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.bookmark_outline_rounded,
+              leading: Icon(Icons.bookmark_outline_rounded,
                   color: AppTheme.accentLight, size: 18),
               title: Text(
                 b.track.title,
@@ -1071,11 +1092,11 @@ class _LibraryTabsState extends State<LibraryTabs>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style:
-                    const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                    TextStyle(color: AppTheme.textMuted, fontSize: 11),
               ),
               trailing: Text(
                 AudioTrack.formatDuration(b.positionMs),
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.accentLight,
                     fontSize: 12,
                     fontWeight: FontWeight.w700),
@@ -1170,7 +1191,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.insights_rounded, color: AppTheme.accentLight, size: 18),
               SizedBox(width: 8),
@@ -1193,14 +1214,14 @@ class _LibraryTabsState extends State<LibraryTabs>
                 Icons.play_arrow_rounded,
                 AppTheme.accentCyan,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               stat(
                 'Уникальных',
                 '$uniqueToday',
                 Icons.music_note_rounded,
                 AppTheme.accentGreen,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               stat(
                 'Топ',
                 topArtist ?? '—',
@@ -1299,7 +1320,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Удалить',
+            child: Text('Удалить',
                 style: TextStyle(
                     color: AppTheme.accentPink,
                     fontWeight: FontWeight.bold)),
@@ -1361,7 +1382,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                 children: [
                   for (final p in player.playlists)
                     ListTile(
-                      leading: const Icon(Icons.queue_music_rounded,
+                      leading: Icon(Icons.queue_music_rounded,
                           color: AppTheme.accentCyan),
                       title: Text(
                         p.name,
@@ -1369,12 +1390,12 @@ class _LibraryTabsState extends State<LibraryTabs>
                       ),
                       trailing: Text(
                         '${p.trackIds.length}',
-                        style: const TextStyle(color: AppTheme.textMuted),
+                        style: TextStyle(color: AppTheme.textMuted),
                       ),
                       onTap: () => Navigator.pop(sheetCtx, p.id),
                     ),
                   ListTile(
-                    leading: const Icon(Icons.add_rounded,
+                    leading: Icon(Icons.add_rounded,
                         color: AppTheme.accentGreen),
                     title: const Text(
                       'Новый плейлист',
@@ -1454,7 +1475,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, controller.text.trim()),
-            child: const Text('Создать',
+            child: Text('Создать',
                 style: TextStyle(
                     color: AppTheme.accentLight,
                     fontWeight: FontWeight.bold)),

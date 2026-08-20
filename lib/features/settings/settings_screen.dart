@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/player_provider.dart';
+import '../../state/palette_controller.dart';
 import '../../ui/theme.dart';
+import '../../widgets/color_picker_dialog.dart';
 import '../../widgets/equalizer_dialog.dart';
 import '../../core/ui_style.dart';
 
@@ -13,6 +15,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
     final uiStyle = context.watch<UiStyleController>();
+    final palette = context.watch<PaletteController>();
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -102,6 +105,55 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          const _SectionHeader('Оформление'),
+
+          // Пресеты палитр
+          _SettingsCard(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _TileTitle(
+                    icon: Icons.palette_outlined,
+                    title: 'Палитра',
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 92,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: PaletteController.presets.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (context, i) {
+                        if (i == PaletteController.presets.length) {
+                          final selected = palette.isCustom;
+                          return _PaletteCard(
+                            gradientColors: [
+                              palette.active.accent,
+                              palette.active.accentCyan,
+                            ],
+                            name: 'Своя',
+                            selected: selected,
+                            onTap: () => _showCustomPalette(context, palette),
+                          );
+                        }
+                        final p = PaletteController.presets[i];
+                        final selected = !palette.isCustom && palette.index == i;
+                        return _PaletteCard(
+                          gradientColors: [p.accent, p.accentCyan],
+                          name: PaletteController.presetNames[i],
+                          selected: selected,
+                          onTap: () => palette.select(i),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           const _SectionHeader('Воспроизведение'),
 
           // Default speed
@@ -185,7 +237,7 @@ class SettingsScreen extends StatelessWidget {
                   fontSize: 15,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Возобновлять последний трек с места остановки',
                 style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
               ),
@@ -299,7 +351,7 @@ class SettingsScreen extends StatelessWidget {
                   fontSize: 15,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Не показывать треки без исполнителя',
                 style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
               ),
@@ -334,7 +386,7 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.copy_rounded, size: 16),
+                      icon: Icon(Icons.copy_rounded, size: 16),
                       label: const Text('Копировать'),
                       style: TextButton.styleFrom(
                         foregroundColor: AppTheme.accent,
@@ -449,7 +501,7 @@ class SettingsScreen extends StatelessWidget {
               controller: urlController,
               autofocus: true,
               keyboardType: TextInputType.url,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Ссылка на аудио (mp3/m4a/ogg...)',
                 labelStyle: TextStyle(color: AppTheme.textMuted),
                 hintText: 'https://...',
@@ -466,7 +518,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 14),
             TextField(
               controller: titleController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Название (необязательно)',
                 labelStyle: TextStyle(color: AppTheme.textMuted),
                 enabledBorder: UnderlineInputBorder(
@@ -516,6 +568,119 @@ class SettingsScreen extends StatelessWidget {
     });
   }
 
+  void _showCustomPalette(BuildContext context, PaletteController palette) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            final active = palette.active;
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Своя палитра',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Нажмите на цвет, чтобы изменить его',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 16),
+                    _ColorSlot(
+                      label: 'Основной',
+                      color: active.accent,
+                      onTap: () => _pickColor(ctx, active.accent, (c) {
+                        palette.editSlot(accent: c);
+                        setState(() {});
+                      }),
+                    ),
+                    _ColorSlot(
+                      label: 'Бирюзовый',
+                      color: active.accentCyan,
+                      onTap: () => _pickColor(ctx, active.accentCyan, (c) {
+                        palette.editSlot(accentCyan: c);
+                        setState(() {});
+                      }),
+                    ),
+                    _ColorSlot(
+                      label: 'Розовый',
+                      color: active.accentPink,
+                      onTap: () => _pickColor(ctx, active.accentPink, (c) {
+                        palette.editSlot(accentPink: c);
+                        setState(() {});
+                      }),
+                    ),
+                    _ColorSlot(
+                      label: 'Зелёный',
+                      color: active.accentGreen,
+                      onTap: () => _pickColor(ctx, active.accentGreen, (c) {
+                        palette.editSlot(accentGreen: c);
+                        setState(() {});
+                      }),
+                    ),
+                    _ColorSlot(
+                      label: 'Янтарный',
+                      color: active.accentAmber,
+                      onTap: () => _pickColor(ctx, active.accentAmber, (c) {
+                        palette.editSlot(accentAmber: c);
+                        setState(() {});
+                      }),
+                    ),
+                    _ColorSlot(
+                      label: 'Фон',
+                      color: active.background,
+                      onTap: () => _pickColor(ctx, active.background, (c) {
+                        palette.editSlot(background: c);
+                        setState(() {});
+                      }),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () {
+                        palette.resetCustom();
+                        Navigator.of(ctx).pop();
+                      },
+                      icon: const Icon(Icons.restart_alt_rounded,
+                          color: AppTheme.textMuted, size: 18),
+                      label: const Text(
+                        'Сбросить к Neon',
+                        style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _pickColor(BuildContext sheetCtx, Color initial,
+      ValueChanged<Color> onPick) {
+    showDialog<Color>(
+      context: sheetCtx,
+      builder: (_) => ColorPickerDialog(initial: initial),
+    ).then((c) {
+      if (c != null) onPick(c);
+    });
+  }
+
   String _sortLabel(SortOrder order) {
     switch (order) {
       case SortOrder.title:
@@ -543,7 +708,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           color: AppTheme.accentCyan,
           fontSize: 12,
           fontWeight: FontWeight.w700,
@@ -613,6 +778,109 @@ class _TileTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PaletteCard extends StatelessWidget {
+  final List<Color> gradientColors;
+  final String name;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PaletteCard({
+    required this.gradientColors,
+    required this.name,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: gradientColors,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? AppTheme.accentLight : AppTheme.cardBorder,
+                width: selected ? 2.5 : 1,
+              ),
+            ),
+            child: selected
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 24)
+                : null,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            name,
+            style: TextStyle(
+              color: selected ? AppTheme.textPrimary : AppTheme.textMuted,
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColorSlot extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ColorSlot({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppTheme.textMuted),
+          ],
+        ),
+      ),
     );
   }
 }

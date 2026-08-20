@@ -190,7 +190,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const CircularProgressIndicator(
+                            CircularProgressIndicator(
                                 color: AppTheme.accent),
                             const SizedBox(height: 16),
                             const Text(
@@ -198,12 +198,12 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                               style:
                                   TextStyle(color: AppTheme.textSecondary),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12),
                             TextButton.icon(
                               onPressed: () => context
                                   .read<PlayerProvider>()
                                   .requestPermission(),
-                              icon: const Icon(Icons.folder_open_rounded,
+                              icon: Icon(Icons.folder_open_rounded,
                                   color: AppTheme.accentLight, size: 18),
                               label: const Text('Запросить доступ'),
                             ),
@@ -328,7 +328,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         inactiveTrackColor: AppTheme.surfaceLight,
                         thumbColor: AppTheme.accentLight,
                         thumbShape:
-                            const RoundSliderThumbShape(enabledThumbRadius: 7),
+                            RoundSliderThumbShape(enabledThumbRadius: 7),
                         overlayColor: AppTheme.accent.withOpacity(0.15),
                       ),
                       child: Slider(
@@ -367,7 +367,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.shuffle_rounded),
+                      icon: Icon(Icons.shuffle_rounded),
                       color: player.shuffleMode
                           ? AppTheme.accentCyan
                           : AppTheme.textSecondary,
@@ -383,7 +383,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                       onPressed: player.previous,
                       tooltip: 'Предыдущий',
                     ),
-                    const SizedBox(width: 14),
+                    SizedBox(width: 14),
                     IconButton(
                       icon: Icon(
                         player.isPlaying
@@ -445,7 +445,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: AppTheme.accent.withOpacity(0.4)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.auto_awesome_rounded,

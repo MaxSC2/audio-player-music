@@ -132,7 +132,7 @@ class QueueSheet extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.queue_music_rounded,
+                                Icon(Icons.queue_music_rounded,
                                     color: AppTheme.accentLight, size: 16),
                                 const SizedBox(width: 6),
                                 Text(
