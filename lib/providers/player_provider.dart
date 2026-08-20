@@ -760,6 +760,188 @@ class PlayerProvider extends ChangeNotifier {
     return result;
   }
 
+  // ─── Music DNA ─────────────────────────────────────────────────────
+  List<({AudioTrack track, int plays})> topTracks({int limit = 5}) {
+    final counts = <int, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id != null) counts[id] = (counts[id] ?? 0) + 1;
+    }
+    final ranked = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final result = <({AudioTrack track, int plays})>[];
+    for (final e in ranked) {
+      final index = _allTracks.indexWhere((t) => t.id == e.key);
+      if (index < 0) continue;
+      result.add((track: _allTracks[index], plays: e.value));
+      if (result.length >= limit) break;
+    }
+    return result;
+  }
+
+  List<({String artist, int plays})> topArtists({int limit = 5}) {
+    final counts = <String, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index < 0) continue;
+      final artist = _allTracks[index].artist;
+      counts[artist] = (counts[artist] ?? 0) + 1;
+    }
+    final ranked = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return ranked.take(limit).map((e) => (artist: e.key, plays: e.value)).toList();
+  }
+
+  int get totalPlays => _historyRaw.length;
+
+  Duration get totalListeningTime {
+    var ms = 0;
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index >= 0) ms += _allTracks[index].duration;
+    }
+    return Duration(milliseconds: ms);
+  }
+
+  int get uniqueTracksListened {
+    final set = <int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id != null) set.add(id);
+    }
+    return set.length;
+  }
+
+  ({int morning, int day, int evening}) listeningTimeProfile {
+    var morning = 0, day = 0, evening = 0;
+    for (final e in _historyRaw) {
+      final ts = e['ts'];
+      if (ts == null) continue;
+      final h = DateTime.fromMillisecondsSinceEpoch(ts).hour;
+      if (h < 12) {
+        morning++;
+      } else if (h < 18) {
+        day++;
+      } else {
+        evening++;
+      }
+    }
+    return (morning: morning, day: day, evening: evening);
+  }
+
+  // ─── Music Time Machine ────────────────────────────────────────────
+  List<({AudioTrack track, DateTime time})> tracksForDay(DateTime day) {
+    final result = <({AudioTrack track, DateTime time})>[];
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      final ts = e['ts'];
+      if (id == null || ts == null) continue;
+      final dt = DateTime.fromMillisecondsSinceEpoch(ts);
+      if (dt.year != day.year || dt.month != day.month || dt.day != day.day) {
+        continue;
+      }
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index < 0) continue;
+      result.add((track: _allTracks[index], time: dt));
+    }
+    result.sort((a, b) => a.time.compareTo(b.time));
+    return result;
+  }
+
+  // ─── Explain Recommendation ────────────────────────────────────────
+  Map<String, double> trackScoreBreakdown(AudioTrack t) {
+    final out = <String, double>{};
+
+    final hasEnergy = _activeContexts.any(
+        (c) => c == ListeningContext.energy || c == ListeningContext.party);
+    final hasCalm = _activeContexts
+        .any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
+    final favWeight = hasEnergy ? 1.6 : (hasCalm ? 1.25 : 1.0);
+
+    final n = _historyRaw.length;
+    final favSet = _favoriteIds.toSet();
+
+    if (favSet.contains(t.id)) {
+      out['Избранное'] = 45 * favWeight;
+    }
+
+    if (t.artist == currentTrack?.artist) {
+      out['Похоже на текущего'] = 18;
+    }
+
+    var affinity = 0.0;
+    var lastSeen = -1;
+    for (var i = 0; i < n; i++) {
+      final id = _historyRaw[i]['id'];
+      if (id == null) continue;
+      if (id == t.id) lastSeen = i;
+      final index = _allTracks.indexWhere((tt) => tt.id == id);
+      if (index < 0) continue;
+      final artist = _allTracks[index].artist;
+      if (artist == t.artist) {
+        affinity += math.pow(0.88, i).toDouble();
+      }
+    }
+    if (affinity > 0) {
+      out['Любимый исполнитель'] = math.min(16.0, affinity) * 1.3;
+    }
+
+    if (lastSeen >= 0) {
+      final since = n - 1 - lastSeen;
+      if (since < 10) {
+        out['Играл недавно'] = -45 * math.exp(-since / 2.2);
+      }
+    }
+
+    final skips = _skipCount[t.id] ?? 0;
+    if (skips > 0) {
+      out['Скипали'] = -math.min(30.0, skips * 12);
+    }
+
+    if (currentTrack != null &&
+        t.album == currentTrack!.album &&
+        t.id != currentTrack!.id) {
+      out['С альбома текущего'] = 10;
+    }
+
+    var playCount = 0;
+    for (final e in _historyRaw) {
+      if (e['id'] == t.id) playCount++;
+    }
+    if (_deepCuts) {
+      out['Deep Cuts'] = (1 - math.min(1.0, playCount / 8)) * 30;
+    }
+
+    var artistPlays = 0;
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      final index = _allTracks.indexWhere((tt) => tt.id == id);
+      if (index >= 0 && _allTracks[index].artist == t.artist) artistPlays++;
+    }
+    final known = math.min(1.0, artistPlays / 10);
+    final discoveryF = _discoveryLevel.factor;
+    if (discoveryF < 0.5) {
+      if (known > 0) out['Знакомый стиль'] = known * (1 - discoveryF) * 20;
+    } else {
+      if (known < 1) out['Новый для тебя'] = (1 - known) * discoveryF * 20;
+    }
+
+    if (hasEnergy && t.duration > 0 && t.duration < 3 * 60 * 1000) {
+      out['Короткий, под энергию'] = 12;
+    }
+    if (hasCalm && t.duration >= 3 * 60 * 1000) {
+      out['Длинный, для спокойствия'] = 12;
+    }
+
+    out.removeWhere((_, v) => v == 0);
+    return out;
+  }
+
   // ─── Personal DJ / Smart Queue ─────────────────────────────────────
   List<AudioTrack> buildSmartQueue({int count = 60}) {
     _expireNotNow();

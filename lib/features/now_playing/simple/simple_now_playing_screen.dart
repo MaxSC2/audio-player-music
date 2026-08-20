@@ -7,6 +7,7 @@ import '../../../ui/theme.dart';
 import '../../../widgets/animated_waveform.dart';
 import '../../../widgets/artwork_backdrop.dart';
 import '../../../widgets/equalizer_dialog.dart';
+import '../../../widgets/explain_sheet.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/queue_sheet.dart';
 import '../../../widgets/sleep_timer_dialog.dart';
@@ -471,6 +472,25 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                             showDialog(
                               context: context,
                               builder: (_) => const EqualizerDialog(),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Explain Recommendation
+                        _FeatureButton(
+                          icon: Icons.psychology_outlined,
+                          color: AppTheme.accentLight,
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: AppTheme.surface,
+                              isScrollControlled: true,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(24)),
+                              ),
+                              builder: (_) => ExplainSheet(track: track),
                             );
                           },
                         ),

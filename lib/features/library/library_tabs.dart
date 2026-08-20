@@ -7,6 +7,7 @@ import '../../ui/theme.dart';
 import '../../widgets/cached_artwork.dart';
 import '../../widgets/swipe_reveal.dart';
 import '../../widgets/track_tile.dart';
+import 'music_dna_tab.dart';
 
 /// Shared library content: search, 6 tabs (tracks, playlists, albums,
 /// artists, folders, favorites), sort, grid toggle, multi-select.
@@ -33,7 +34,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
@@ -90,6 +91,9 @@ class _LibraryTabsState extends State<LibraryTabs>
             Tab(
                 text: 'История',
                 icon: Icon(Icons.history_rounded, size: 18)),
+            Tab(
+                text: 'DNA',
+                icon: Icon(Icons.fingerprint_rounded, size: 18)),
           ],
         ),
         Expanded(
@@ -107,6 +111,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                         _buildFolderList(player),
                         _buildFavoriteList(player),
                         _buildHistoryList(player),
+                        const MusicDnaTab(),
                       ],
                     ),
         ),
