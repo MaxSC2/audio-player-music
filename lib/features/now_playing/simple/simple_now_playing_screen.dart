@@ -12,6 +12,91 @@ import '../../../widgets/queue_sheet.dart';
 import '../../../widgets/sleep_timer_dialog.dart';
 import '../../../widgets/spinning_vinyl.dart';
 
+void _showTrackBookmarks(
+    BuildContext context, PlayerProvider player, AudioTrack track) {
+  final bookmarks = player.bookmarksFor(track.id);
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppTheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) => SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(top: 12, bottom: 14),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Text(
+            'Закладки — ${track.title}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (bookmarks.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Нет закладок. Нажмите на иконку закладки во время трека.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+            )
+          else
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                itemCount: bookmarks.length,
+                itemBuilder: (ctx, index) {
+                  final ms = bookmarks[index];
+                  return ListTile(
+                    leading: const Icon(Icons.bookmark_rounded,
+                        color: AppTheme.accentLight, size: 20),
+                    title: Text(
+                      AudioTrack.formatDuration(ms),
+                      style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: AppTheme.textMuted, size: 20),
+                      onPressed: () {
+                        player.removeBookmark(track.id, ms);
+                      },
+                      tooltip: 'Удалить закладку',
+                    ),
+                    onTap: () {
+                      player.playTrack(track);
+                      player.seek(Duration(milliseconds: ms));
+                      Navigator.of(ctx).pop();
+                    },
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    ),
+  );
+}
+
 class SimpleNowPlayingScreen extends StatefulWidget {
   const SimpleNowPlayingScreen({super.key});
 
@@ -299,6 +384,36 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                         _AnimatedFavoriteButton(
                           isFavorite: track.isFavorite,
                           onTap: () => player.toggleFavorite(track),
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Music Bookmarks
+                        GestureDetector(
+                          onLongPress: () =>
+                              _showTrackBookmarks(context, player, track),
+                          child: _FeatureButton(
+                            icon: player.bookmarksFor(track.id).isEmpty
+                                ? Icons.bookmark_add_outlined
+                                : Icons.bookmark_rounded,
+                            color: player.bookmarksFor(track.id).isEmpty
+                                ? AppTheme.textSecondary
+                                : AppTheme.accentLight,
+                            onTap: () {
+                              final pos = player.position.inMilliseconds;
+                              player.toggleBookmark(track.id, pos);
+                              final has =
+                                  player.bookmarksFor(track.id).contains(pos);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(has
+                                      ? 'Закладка: ${AudioTrack.formatDuration(pos)}'
+                                      : 'Закладка убрана'),
+                                  duration: const Duration(milliseconds: 900),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
                         ),
                         const SizedBox(width: 14),
 

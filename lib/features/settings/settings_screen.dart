@@ -195,6 +195,30 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          const _SectionHeader('Стриминг'),
+
+          // Play from URL
+          _SettingsCard(
+            child: ListTile(
+              leading: _TileIcon(Icons.link_rounded),
+              title: const Text(
+                'Воспроизвести по ссылке',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle: const Text(
+                'Вставьте прямую ссылку на аудиофайл',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded,
+                  color: AppTheme.textMuted),
+              onTap: () => _showUrlDialog(context, player),
+            ),
+          ),
+
           const _SectionHeader('Библиотека'),
 
           // Default sort order
@@ -400,6 +424,96 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showUrlDialog(BuildContext context, PlayerProvider player) {
+    final urlController = TextEditingController();
+    final titleController = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text(
+          'Воспроизвести по ссылке',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: urlController,
+              autofocus: true,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'Ссылка на аудио (mp3/m4a/ogg...)',
+                labelStyle: TextStyle(color: AppTheme.textMuted),
+                hintText: 'https://...',
+                hintStyle: TextStyle(color: AppTheme.textMuted),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.cardBorder),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.accent),
+                ),
+              ),
+              style: const TextStyle(color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: 'Название (необязательно)',
+                labelStyle: TextStyle(color: AppTheme.textMuted),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.cardBorder),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.accent),
+                ),
+              ),
+              style: const TextStyle(color: AppTheme.textPrimary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Отмена',
+                style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () {
+              final url = urlController.text.trim();
+              if (url.isEmpty) return;
+              final title = titleController.text.trim();
+              player.playUrl(url, title: title);
+              Navigator.of(dialogContext).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Воспроизведение по ссылке...'),
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accent,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Играть',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    ).then((_) {
+      urlController.dispose();
+      titleController.dispose();
+    });
   }
 
   String _sortLabel(SortOrder order) {

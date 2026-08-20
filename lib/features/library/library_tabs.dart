@@ -5,6 +5,7 @@ import '../../providers/player_provider.dart';
 import '../../screens/playlist_detail_screen.dart';
 import '../../ui/theme.dart';
 import '../../widgets/cached_artwork.dart';
+import '../../widgets/swipe_reveal.dart';
 import '../../widgets/track_tile.dart';
 
 /// Shared library content: search, 6 tabs (tracks, playlists, albums,
@@ -326,6 +327,47 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
   }
 
+  List<SwipeAction> _quickActions(PlayerProvider player, AudioTrack track) {
+    void snack(String msg) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    return [
+      SwipeAction(
+        icon: Icons.playlist_play_rounded,
+        color: AppTheme.accentCyan,
+        tooltip: 'Играть следующим',
+        onTap: () {
+          player.addToQueueNext(track);
+          snack('В очередь: ${track.title}');
+        },
+      ),
+      SwipeAction(
+        icon: player.isFavorite(track.id)
+            ? Icons.favorite_rounded
+            : Icons.favorite_border_rounded,
+        color: AppTheme.accentPink,
+        tooltip: 'В избранное',
+        onTap: () => player.toggleFavorite(track),
+      ),
+      SwipeAction(
+        icon: Icons.do_not_disturb_on_rounded,
+        color: AppTheme.accentGreen,
+        tooltip: 'Не хочу сейчас',
+        onTap: () {
+          player.toggleNotNow(track);
+          snack('Скрыто на неделю: ${track.title}');
+        },
+      ),
+    ];
+  }
+
   Widget _buildTrackList(PlayerProvider player) {
     final query = _searchQuery;
     final tracks = player.searchTracks(query);
@@ -342,31 +384,35 @@ class _LibraryTabsState extends State<LibraryTabs>
         final track = tracks[index];
         final isCurrent = player.currentTrack?.id == track.id;
 
-        return TrackTile(
-          track: track,
-          isPlaying: isCurrent && player.isPlaying,
-          isCurrent: isCurrent,
-          selected: _selectedIds.contains(track.id),
-          threeD: widget.threeD,
-          onTap: () {
-            if (_selectionMode) {
-              _toggleSelection(track);
-            } else if (playlist.length > 1) {
-              player.playFromPlaylist(playlist, index);
-            } else {
-              player.playTrack(track);
-            }
-          },
-          onLongPress: () {
-            if (_selectionMode) {
-              _toggleSelection(track);
-            } else {
-              setState(() {
-                _selectionMode = true;
-                _selectedIds.add(track.id);
-              });
-            }
-          },
+        return SwipeReveal(
+          actions:
+              _selectionMode ? const [] : _quickActions(player, track),
+          child: TrackTile(
+            track: track,
+            isPlaying: isCurrent && player.isPlaying,
+            isCurrent: isCurrent,
+            selected: _selectedIds.contains(track.id),
+            threeD: widget.threeD,
+            onTap: () {
+              if (_selectionMode) {
+                _toggleSelection(track);
+              } else if (playlist.length > 1) {
+                player.playFromPlaylist(playlist, index);
+              } else {
+                player.playTrack(track);
+              }
+            },
+            onLongPress: () {
+              if (_selectionMode) {
+                _toggleSelection(track);
+              } else {
+                setState(() {
+                  _selectionMode = true;
+                  _selectedIds.add(track.id);
+                });
+              }
+            },
+          ),
         );
       },
     );
@@ -831,19 +877,22 @@ class _LibraryTabsState extends State<LibraryTabs>
         final track = favs[index];
         final isCurrent = player.currentTrack?.id == track.id;
 
-        return TrackTile(
-          track: track,
-          isPlaying: isCurrent && player.isPlaying,
-          isCurrent: isCurrent,
-          threeD: widget.threeD,
-          onTap: () {
-            if (favs.length > 1) {
-              player.playFromPlaylist(favs, index);
-            } else {
-              player.playTrack(track);
-            }
-          },
-          onLongPress: () => _showTrackActions(context, player, track),
+        return SwipeReveal(
+          actions: _quickActions(player, track),
+          child: TrackTile(
+            track: track,
+            isPlaying: isCurrent && player.isPlaying,
+            isCurrent: isCurrent,
+            threeD: widget.threeD,
+            onTap: () {
+              if (favs.length > 1) {
+                player.playFromPlaylist(favs, index);
+              } else {
+                player.playTrack(track);
+              }
+            },
+            onLongPress: () => _showTrackActions(context, player, track),
+          ),
         );
       },
     );
@@ -899,22 +948,25 @@ class _LibraryTabsState extends State<LibraryTabs>
           ...List.generate(items.length, (i) {
             final track = items[i].track;
             final isCurrent = p.currentTrack?.id == track.id;
-            return TrackTile(
-              track: track,
-              isPlaying: isCurrent && p.isPlaying,
-              isCurrent: isCurrent,
-              threeD: widget.threeD,
-              onTap: () {
-                final ids = items.map((e) => e.track.id).toList();
-                final idx = ids.indexOf(track.id);
-                final list = items.map((e) => e.track).toList();
-                if (list.length > 1) {
-                  p.playFromPlaylist(list, idx);
-                } else {
-                  p.playTrack(track);
-                }
-              },
-              onLongPress: () => _showTrackActions(context, p, track),
+            return SwipeReveal(
+              actions: _quickActions(p, track),
+              child: TrackTile(
+                track: track,
+                isPlaying: isCurrent && p.isPlaying,
+                isCurrent: isCurrent,
+                threeD: widget.threeD,
+                onTap: () {
+                  final ids = items.map((e) => e.track.id).toList();
+                  final idx = ids.indexOf(track.id);
+                  final list = items.map((e) => e.track).toList();
+                  if (list.length > 1) {
+                    p.playFromPlaylist(list, idx);
+                  } else {
+                    p.playTrack(track);
+                  }
+                },
+                onLongPress: () => _showTrackActions(context, p, track),
+              ),
             );
           }),
         ],
@@ -945,6 +997,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       padding: const EdgeInsets.only(bottom: 16),
       children: [
         _buildJourneyCard(player, entries),
+        _buildMomentsCard(player),
         ...children,
         Center(
           child: TextButton.icon(
@@ -958,6 +1011,77 @@ class _LibraryTabsState extends State<LibraryTabs>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMomentsCard(PlayerProvider player) {
+    final bookmarks = player.allBookmarks;
+    if (bookmarks.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.bookmark_rounded,
+                  color: AppTheme.accentLight, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Мои моменты',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...bookmarks.take(10).map((b) {
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.bookmark_outline_rounded,
+                  color: AppTheme.accentLight, size: 18),
+              title: Text(
+                b.track.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: AppTheme.textPrimary, fontSize: 13),
+              ),
+              subtitle: Text(
+                b.track.artist,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+              ),
+              trailing: Text(
+                AudioTrack.formatDuration(b.positionMs),
+                style: const TextStyle(
+                    color: AppTheme.accentLight,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700),
+              ),
+              onTap: () {
+                player.playTrack(b.track);
+                player.seek(Duration(milliseconds: b.positionMs));
+              },
+              onLongPress: () =>
+                  player.removeBookmark(b.track.id, b.positionMs),
+            );
+          }),
+        ],
+      ),
     );
   }
 

@@ -100,6 +100,148 @@ class PersonalDJSheet extends StatelessWidget {
               }).toList(),
             ),
             const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.tune_rounded,
+                          color: AppTheme.textSecondary, size: 16),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Настройки подбора',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => player.setDeepCuts(!player.deepCuts),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: player.deepCuts
+                                ? AppTheme.accentGreen.withOpacity(0.22)
+                                : Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: player.deepCuts
+                                  ? AppTheme.accentGreen
+                                  : Colors.white10,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                player.deepCuts
+                                    ? Icons.explore_rounded
+                                    : Icons.explore_outlined,
+                                color: player.deepCuts
+                                    ? AppTheme.accentGreen
+                                    : AppTheme.textSecondary,
+                                size: 15,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Deep Cuts',
+                                style: TextStyle(
+                                  color: player.deepCuts
+                                      ? AppTheme.textPrimary
+                                      : AppTheme.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (player.deepCuts) ...[
+                    const SizedBox(height: 2),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Тянет малоигранные треки',
+                        style: TextStyle(
+                            color: AppTheme.textMuted, fontSize: 11),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: DiscoveryLevel.values.map((d) {
+                      final selected = player.discoveryLevel == d;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => player.setDiscoveryLevel(d),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppTheme.accent.withOpacity(0.22)
+                                  : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selected
+                                    ? AppTheme.accent
+                                    : Colors.white10,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  d.label,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: selected
+                                        ? AppTheme.textPrimary
+                                        : AppTheme.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  switch (d) {
+                                    DiscoveryLevel.familiar =>
+                                      'знакомые исполнители',
+                                    DiscoveryLevel.balanced => 'микс знакомых',
+                                    DiscoveryLevel.discovery =>
+                                      'новые имена',
+                                    DiscoveryLevel.experimental =>
+                                      'случайные открытия',
+                                  },
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 9),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             FilledButton.icon(
               onPressed: () {
                 player.launchPersonalDJ();

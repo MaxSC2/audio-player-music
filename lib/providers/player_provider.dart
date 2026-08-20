@@ -17,6 +17,24 @@ enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 enum ListeningContext { balanced, energy, calm, party, focus }
 
+enum DiscoveryLevel { familiar, balanced, discovery, experimental }
+
+extension DiscoveryLevelX on DiscoveryLevel {
+  double get factor => switch (this) {
+        DiscoveryLevel.familiar => 0.0,
+        DiscoveryLevel.balanced => 0.35,
+        DiscoveryLevel.discovery => 0.7,
+        DiscoveryLevel.experimental => 1.0,
+      };
+
+  String get label => switch (this) {
+        DiscoveryLevel.familiar => 'Привычное',
+        DiscoveryLevel.balanced => 'Баланс',
+        DiscoveryLevel.discovery => 'Открытия',
+        DiscoveryLevel.experimental => 'Эксперимент',
+      };
+}
+
 class PlayerProvider extends ChangeNotifier {
   late final AudioPlayer _audioPlayer;
   late final AndroidEqualizer _equalizer;
@@ -30,7 +48,10 @@ class PlayerProvider extends ChangeNotifier {
   List<Map<String, int>> _historyRaw = [];
   List<Map<String, int>> _notNowRaw = [];
   ListeningContext _listeningContext = ListeningContext.balanced;
+  bool _deepCuts = false;
+  DiscoveryLevel _discoveryLevel = DiscoveryLevel.balanced;
   List<QueueSnapshot> _queueSnapshots = [];
+  Map<int, List<int>> _bookmarks = {};
 
   double _defaultSpeed = 1.0;
   bool _hideUnknownArtist = false;
@@ -263,6 +284,30 @@ class PlayerProvider extends ChangeNotifier {
         (c) => c.name == savedContext,
         orElse: () => ListeningContext.balanced,
       );
+    }
+
+    _deepCuts = prefs.getBool('dj_deep_cuts') ?? false;
+    final savedDiscovery = prefs.getString('dj_discovery');
+    if (savedDiscovery != null) {
+      _discoveryLevel = DiscoveryLevel.values.firstWhere(
+        (d) => d.name == savedDiscovery,
+        orElse: () => DiscoveryLevel.balanced,
+      );
+    }
+
+    final savedBookmarks = prefs.getString('bookmarks');
+    if (savedBookmarks != null) {
+      try {
+        final raw = jsonDecode(savedBookmarks) as Map;
+        raw.forEach((k, v) {
+          final id = int.tryParse(k.toString());
+          if (id != null) {
+            _bookmarks[id] = (v as List).cast<int>();
+          }
+        });
+      } catch (_) {
+        _bookmarks = {};
+      }
     }
 
     final savedSnapshots = prefs.getString('queue_snapshots');
@@ -594,6 +639,79 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ─── DJ Options ────────────────────────────────────────────────────
+  bool get deepCuts => _deepCuts;
+
+  void setDeepCuts(bool value) {
+    _deepCuts = value;
+    _prefs?.setBool('dj_deep_cuts', value);
+    notifyListeners();
+  }
+
+  DiscoveryLevel get discoveryLevel => _discoveryLevel;
+
+  void setDiscoveryLevel(DiscoveryLevel value) {
+    _discoveryLevel = value;
+    _prefs?.setString('dj_discovery', value.name);
+    notifyListeners();
+  }
+
+  // ─── Music Bookmarks (закладки внутри трека) ──────────────────────
+  List<int> bookmarksFor(int trackId) {
+    final list = _bookmarks[trackId];
+    if (list == null) return const [];
+    final copy = List<int>.from(list);
+    copy.sort();
+    return copy;
+  }
+
+  void toggleBookmark(int trackId, int positionMs) {
+    final list = _bookmarks[trackId] ??= [];
+    if (list.contains(positionMs)) {
+      list.remove(positionMs);
+    } else {
+      list.add(positionMs);
+    }
+    if (list.isEmpty) {
+      _bookmarks.remove(trackId);
+    }
+    _persistBookmarks();
+    notifyListeners();
+  }
+
+  void removeBookmark(int trackId, int positionMs) {
+    final list = _bookmarks[trackId];
+    if (list == null) return;
+    list.remove(positionMs);
+    if (list.isEmpty) {
+      _bookmarks.remove(trackId);
+    }
+    _persistBookmarks();
+    notifyListeners();
+  }
+
+  void _persistBookmarks() {
+    final map = <String, dynamic>{};
+    _bookmarks.forEach((id, list) {
+      map[id.toString()] = list;
+    });
+    _prefs?.setString('bookmarks', jsonEncode(map));
+  }
+
+  List<({AudioTrack track, int positionMs})> get allBookmarks {
+    final result = <({AudioTrack track, int positionMs})>[];
+    _bookmarks.forEach((id, list) {
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index < 0) return;
+      final track = _allTracks[index];
+      for (final ms in list) {
+        result.add((track: track, positionMs: ms));
+      }
+    });
+    result.sort((a, b) => b.positionMs - a.positionMs);
+    return result;
+  }
+
   // ─── Personal DJ / Smart Queue ─────────────────────────────────────
   List<AudioTrack> buildSmartQueue({int count = 60}) {
     _expireNotNow();
@@ -601,6 +719,19 @@ class PlayerProvider extends ChangeNotifier {
         .where((t) => !isNotNow(t.id))
         .toList();
     if (pool.isEmpty) return const [];
+
+    final playCount = <int, int>{};
+    final artistPlayCount = <String, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      playCount[id] = (playCount[id] ?? 0) + 1;
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index >= 0) {
+        final artist = _allTracks[index].artist;
+        artistPlayCount[artist] = (artistPlayCount[artist] ?? 0) + 1;
+      }
+    }
 
     final recentIndex = <int, int>{};
     for (var i = 0; i < _historyRaw.length; i++) {
@@ -622,6 +753,8 @@ class PlayerProvider extends ChangeNotifier {
       ListeningContext.calm || ListeningContext.focus => 1.25,
       ListeningContext.balanced => 1.0,
     };
+
+    final discoveryF = _discoveryLevel.factor;
 
     int _nextRand() {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -655,6 +788,19 @@ class PlayerProvider extends ChangeNotifier {
 
         if (t.isFavorite) score += 8;
         if (t.id == currentTrack?.id) score -= 50;
+
+        final pc = playCount[t.id] ?? 0;
+        if (_deepCuts) {
+          score += (1 - math.min(1.0, pc / 8)) * 30;
+        }
+
+        final apc = artistPlayCount[t.artist] ?? 0;
+        final known = math.min(1.0, apc / 10);
+        if (discoveryF < 0.5) {
+          score += known * (1 - discoveryF) * 20;
+        } else {
+          score += (1 - known) * discoveryF * 20;
+        }
 
         switch (_listeningContext) {
           case ListeningContext.energy || ListeningContext.party:
@@ -863,6 +1009,24 @@ class PlayerProvider extends ChangeNotifier {
     } else {
       await playFromPlaylist([track], 0);
     }
+  }
+
+  int _urlCounter = 0;
+
+  Future<void> playUrl(String url, {String? title}) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+    _urlCounter += 1;
+    final track = AudioTrack(
+      id: -(_urlCounter),
+      title: (title == null || title.isEmpty)
+          ? trimmed.split('/').last
+          : title,
+      artist: 'Stream',
+      uri: trimmed,
+      duration: 0,
+    );
+    await playFromPlaylist([track], 0);
   }
 
   Future<void> playFromPlaylist(List<AudioTrack> tracks, int startIndex) async {
