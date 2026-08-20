@@ -17,7 +17,6 @@ class PersonalDJSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
-    final ctx = player.listeningContext;
     final notNow = player.notNowTracks;
 
     return Padding(
@@ -49,6 +48,11 @@ class PersonalDJSheet extends StatelessWidget {
               'Плеер сам соберёт очередь под настроение',
               style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
             ),
+            const SizedBox(height: 4),
+            const Text(
+              'Можно выбрать несколько настроений разом',
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+            ),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
@@ -56,9 +60,9 @@ class PersonalDJSheet extends StatelessWidget {
               alignment: WrapAlignment.center,
               children: _contexts.entries.map((e) {
                 final (label, icon) = e.value;
-                final selected = ctx == e.key;
+                final selected = player.isContextActive(e.key);
                 return GestureDetector(
-                  onTap: () => player.setListeningContext(e.key),
+                  onTap: () => player.toggleContext(e.key),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     padding: const EdgeInsets.symmetric(

@@ -47,7 +47,8 @@ class PlayerProvider extends ChangeNotifier {
   List<CustomPlaylist> _playlists = [];
   List<Map<String, int>> _historyRaw = [];
   List<Map<String, int>> _notNowRaw = [];
-  ListeningContext _listeningContext = ListeningContext.balanced;
+  Set<ListeningContext> _activeContexts = {ListeningContext.balanced};
+  Map<int, int> _skipCount = {};
   bool _deepCuts = false;
   DiscoveryLevel _discoveryLevel = DiscoveryLevel.balanced;
   List<QueueSnapshot> _queueSnapshots = [];
@@ -279,11 +280,32 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     final savedContext = prefs.getString('listening_context');
-    if (savedContext != null) {
-      _listeningContext = ListeningContext.values.firstWhere(
-        (c) => c.name == savedContext,
-        orElse: () => ListeningContext.balanced,
-      );
+    if (savedContext != null && savedContext.isNotEmpty) {
+      final names = savedContext.split(',');
+      final parsed = names
+          .map((n) => ListeningContext.values.firstWhere(
+                (c) => c.name == n,
+                orElse: () => ListeningContext.balanced,
+              ))
+          .toSet();
+      _activeContexts = parsed.isEmpty
+          ? {ListeningContext.balanced}
+          : parsed;
+    }
+
+    final savedSkips = prefs.getString('skip_counts');
+    if (savedSkips != null) {
+      try {
+        final raw = jsonDecode(savedSkips) as Map;
+        raw.forEach((k, v) {
+          final id = int.tryParse(k.toString());
+          if (id != null) {
+            _skipCount[id] = v as int;
+          }
+        });
+      } catch (_) {
+        _skipCount = {};
+      }
     }
 
     _deepCuts = prefs.getBool('dj_deep_cuts') ?? false;
@@ -631,12 +653,38 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Listening Context ─────────────────────────────────────────────
-  ListeningContext get listeningContext => _listeningContext;
+  Set<ListeningContext> get activeContexts => Set.unmodifiable(_activeContexts);
 
-  void setListeningContext(ListeningContext value) {
-    _listeningContext = value;
-    _prefs?.setString('listening_context', value.name);
+  bool isContextActive(ListeningContext c) => _activeContexts.contains(c);
+
+  void toggleContext(ListeningContext value) {
+    if (value == ListeningContext.balanced) {
+      _activeContexts = {ListeningContext.balanced};
+    } else {
+      _activeContexts.remove(ListeningContext.balanced);
+      if (!_activeContexts.remove(value)) {
+        _activeContexts.add(value);
+      }
+      if (_activeContexts.isEmpty) {
+        _activeContexts.add(ListeningContext.balanced);
+      }
+    }
+    _prefs?.setString(
+      'listening_context',
+      _activeContexts.map((e) => e.name).join(','),
+    );
     notifyListeners();
+  }
+
+  // ─── Skip learning ─────────────────────────────────────────────────
+  int skipCountFor(int id) => _skipCount[id] ?? 0;
+
+  void _recordSkip(int id) {
+    _skipCount[id] = (_skipCount[id] ?? 0) + 1;
+    _prefs?.setString(
+      'skip_counts',
+      jsonEncode(_skipCount.map((k, v) => MapEntry('$k', v))),
+    );
   }
 
   // ─── DJ Options ────────────────────────────────────────────────────
@@ -733,12 +781,19 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
 
-    final recentIndex = <int, int>{};
-    for (var i = 0; i < _historyRaw.length; i++) {
+    final n = _historyRaw.length;
+    final lastSeen = <int, int>{};
+    final artistAffinity = <String, double>{};
+    for (var i = 0; i < n; i++) {
       final id = _historyRaw[i]['id'];
-      if (id != null && !recentIndex.containsKey(id)) {
-        recentIndex[id] = i;
-      }
+      if (id == null) continue;
+      lastSeen[id] = i;
+      final index = _allTracks.indexWhere((t) => t.id == id);
+      if (index < 0) continue;
+      final artist = _allTracks[index].artist;
+      final age = i; // 0 = самый свежий
+      final w = math.pow(0.88, age).toDouble();
+      artistAffinity[artist] = (artistAffinity[artist] ?? 0) + w;
     }
 
     final currentArtist = currentTrack?.artist;
@@ -748,11 +803,11 @@ class PlayerProvider extends ChangeNotifier {
     final usedArtistCount = <String, int>{};
     int seed = DateTime.now().millisecondsSinceEpoch;
 
-    final favWeight = switch (_listeningContext) {
-      ListeningContext.energy || ListeningContext.party => 1.6,
-      ListeningContext.calm || ListeningContext.focus => 1.25,
-      ListeningContext.balanced => 1.0,
-    };
+    final hasEnergy = _activeContexts.any(
+        (c) => c == ListeningContext.energy || c == ListeningContext.party);
+    final hasCalm = _activeContexts
+        .any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
+    final favWeight = hasEnergy ? 1.6 : (hasCalm ? 1.25 : 1.0);
 
     final discoveryF = _discoveryLevel.factor;
 
@@ -772,10 +827,18 @@ class PlayerProvider extends ChangeNotifier {
         if (favSet.contains(t.id)) score += 45 * favWeight;
         if (t.artist == currentArtist) score += 18;
 
-        final rec = recentIndex[t.id];
-        if (rec != null) {
-          score -= math.max(0, 55 - rec);
+        final affinity = artistAffinity[t.artist] ?? 0;
+        score += math.min(16.0, affinity) * 1.3;
+
+        final lastI = lastSeen[t.id];
+        if (lastI != null) {
+          final since = n - 1 - lastI; // сколько треков назад играл
+          if (since < 10) {
+            score -= 45 * math.exp(-since / 2.2);
+          }
         }
+
+        score -= math.min(30.0, (_skipCount[t.id] ?? 0) * 12);
 
         final artistCount = usedArtistCount[t.artist] ?? 0;
         score -= artistCount * 34;
@@ -802,17 +865,13 @@ class PlayerProvider extends ChangeNotifier {
           score += (1 - known) * discoveryF * 20;
         }
 
-        switch (_listeningContext) {
-          case ListeningContext.energy || ListeningContext.party:
-            if (t.duration > 0 && t.duration < 3 * 60 * 1000) {
-              score += 12;
-            }
-          case ListeningContext.calm || ListeningContext.focus:
-            if (t.duration >= 3 * 60 * 1000) {
-              score += 12;
-            }
-          case ListeningContext.balanced:
-            break;
+        if (hasEnergy &&
+            t.duration > 0 &&
+            t.duration < 3 * 60 * 1000) {
+          score += 12;
+        }
+        if (hasCalm && t.duration >= 3 * 60 * 1000) {
+          score += 12;
         }
 
         score += (_nextRand() % 400) / 100.0;
@@ -1102,6 +1161,11 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
 
+    final cur = currentTrack;
+    if (cur != null && _isPlaying && _position.inMilliseconds < 25000) {
+      _recordSkip(cur.id);
+    }
+
     if (_shuffleMode) {
       await _playRandom();
       return;
@@ -1125,6 +1189,11 @@ class PlayerProvider extends ChangeNotifier {
     if (_position.inSeconds > 3) {
       await _audioPlayer.seek(Duration.zero);
       return;
+    }
+
+    final cur = currentTrack;
+    if (cur != null && _isPlaying && _position.inMilliseconds < 25000) {
+      _recordSkip(cur.id);
     }
 
     final prevIndex = _currentIndex - 1;
