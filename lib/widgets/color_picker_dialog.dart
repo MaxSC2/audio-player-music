@@ -72,7 +72,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
             _HsvSlider(
               label: 'Насыщенность',
               value: _hsl.saturation,
-              color: HSLColor.fromHue(_hsl.hue).toColor(),
+              color: HSLColor.fromAHSL(1, _hsl.hue, 1.0, 0.5).toColor(),
               onChanged: (v) =>
                   setState(() => _hsl = _hsl.withSaturation(v)),
             ),
@@ -80,8 +80,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
             _HsvSlider(
               label: 'Яркость',
               value: _hsl.lightness,
-              color: HSLColor.fromHue(_hsl.hue)
-                  .withSaturation(_hsl.saturation)
+              color: HSLColor.fromAHSL(1, _hsl.hue, _hsl.saturation, 0.5)
                   .toColor(),
               onChanged: (v) => setState(() => _hsl = _hsl.withLightness(v)),
             ),

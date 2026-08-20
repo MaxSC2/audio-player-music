@@ -332,7 +332,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                 minHeight: 3,
                 backgroundColor: AppTheme.surfaceLight,
                 valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                    AlwaysStoppedAnimation<Color>(AppTheme.accent),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
