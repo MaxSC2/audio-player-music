@@ -29,7 +29,7 @@ object WidgetBridge {
         if (ch != null) {
             ch.invokeMethod("widgetAction", action, object : MethodChannel.Result {
                 override fun success(result: Any?) {}
-                override fun error(errorCode: String?, message: String?, details: Any?) {
+                override fun error(errorCode: String, message: String?, details: Any?) {
                     openApp(context)
                 }
                 override fun notImplemented() { openApp(context) }
