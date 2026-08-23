@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui' show ImageFilter;
 
-import '../../providers/player_provider.dart';
-import '../../ui/theme.dart';
-import '../../widgets/three_d_visualizer.dart';
-import '../../widgets/cover_flow_card.dart';
-import '../../widgets/cover_flow_carousel.dart';
-import '../../widgets/marquee_text.dart';
-import '../../widgets/player_feature_row.dart';
+import '../../../providers/player_provider.dart';
+import '../../../ui/theme.dart';
+import '../../../widgets/three_d_visualizer.dart';
+import '../../../widgets/cover_flow_card.dart';
+import '../../../widgets/cover_flow_carousel.dart';
+import '../../../widgets/marquee_text.dart';
+import '../../../widgets/player_feature_row.dart';
 
 /// Полупрозрачная всплывающая панель плеера для 3D-режима.
 /// Домашний экран остаётся главным плеером — панель лишь раскрывает

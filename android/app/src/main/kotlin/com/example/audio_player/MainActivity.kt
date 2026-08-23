@@ -1,10 +1,16 @@
 package com.example.audio_player
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.ContentUris
 import android.content.IntentSender
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.provider.MediaStore
 import com.ryanheise.audioservice.AudioServiceActivity
+import com.example.audio_player.widget.WidgetState
+import com.example.audio_player.widget.LargeWidgetProvider
+import com.example.audio_player.widget.SmallWidgetProvider
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -22,6 +28,28 @@ class MainActivity : AudioServiceActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "update" -> {
+                        WidgetState.title = call.argument<String>("title") ?: "NeonWave"
+                        WidgetState.artist = call.argument<String>("artist") ?: ""
+                        WidgetState.playing = call.argument<Boolean>("playing") ?: false
+                        val art = call.argument<ByteArray>("artBytes")
+                        if (art != null && art.isNotEmpty()) {
+                            BitmapFactory.decodeByteArray(art, 0, art.size)
+                                ?.let { WidgetState.artBytes = art }
+                        }
+                        pushWidgets()
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun pushWidgets() {
+        WidgetState.pushAll(this)
     }
 
     private fun requestDelete(path: String): Boolean {
@@ -71,6 +99,7 @@ class MainActivity : AudioServiceActivity() {
 
     companion object {
         private const val DELETE_CHANNEL = "neonwave/deletion"
+        private const val WIDGET_CHANNEL = "neonwave/widgets"
         private const val DELETE_REQUEST_CODE = 4831
     }
 }

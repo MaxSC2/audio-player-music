@@ -11,6 +11,7 @@ import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../models/queue_snapshot.dart';
 import '../services/audio_handler.dart';
+import '../services/widget_service.dart';
 
 enum PlayerRepeatMode { off, all, one }
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
@@ -248,7 +249,10 @@ class PlayerProvider extends ChangeNotifier {
           _recordHistory(t);
         }
       }
-      if (indexChanged) notifyListeners();
+      if (indexChanged) {
+        notifyListeners();
+        WidgetService.playerChanged(this);
+      }
     });
 
     _audioPlayer.setSpeed(_speed);
