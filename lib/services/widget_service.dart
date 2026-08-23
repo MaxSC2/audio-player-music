@@ -36,7 +36,7 @@ class WidgetService {
           case 'neonwave.widget.FAVORITE':
             player.toggleFavoriteCurrent();
           case 'neonwave.widget.SHUFFLE':
-            await player.toggleShuffle();
+            player.toggleShuffle();
           case 'neonwave.widget.REPEAT':
             player.toggleRepeat();
         }
