@@ -32,12 +32,20 @@ jobs:
           cp pubspec.yaml pubspec_backup.yaml
           mkdir -p mainactivity_backup
           cp -r android/app/src/main/kotlin mainactivity_backup/
+          [ -d android/app/src/main/res/layout ] && cp -r android/app/src/main/res/layout mainactivity_backup/
+          [ -d android/app/src/main/res/xml ] && cp -r android/app/src/main/res/xml mainactivity_backup/
+          [ -f android/app/src/main/res/drawable/widget_bg.xml ] && cp android/app/src/main/res/drawable/widget_bg.xml mainactivity_backup/
+          [ -f android/app/src/main/res/values/strings.xml ] && cp android/app/src/main/res/values/strings.xml mainactivity_backup/
           flutter create --org com.example --project-name audio_player app_temp
           cp -r app_temp/. .
           rm -rf lib
           cp -r lib_backup lib
           cp pubspec_backup.yaml pubspec.yaml
           cp -r mainactivity_backup/kotlin android/app/src/main/
+          [ -d mainactivity_backup/layout ] && cp -r mainactivity_backup/layout android/app/src/main/res/
+          [ -d mainactivity_backup/xml ] && cp -r mainactivity_backup/xml android/app/src/main/res/
+          [ -f mainactivity_backup/widget_bg.xml ] && cp mainactivity_backup/widget_bg.xml android/app/src/main/res/drawable/
+          [ -f mainactivity_backup/strings.xml ] && cp mainactivity_backup/strings.xml android/app/src/main/res/values/
           rm -f android/settings.gradle android/build.gradle android/app/build.gradle
           rm -rf app_temp lib_backup pubspec_backup.yaml mainactivity_backup
 
@@ -84,6 +92,28 @@ jobs:
                   <meta-data
                       android:name="flutterEmbedding"
                       android:value="2"/>
+                  <receiver
+                      android:name=".widget.SmallWidgetProvider"
+                      android:exported="true"
+                      android:label="NeonWave — компактный">
+                      <intent-filter>
+                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.appwidget.provider"
+                          android:resource="@xml/small_widget_info"/>
+                  </receiver>
+                  <receiver
+                      android:name=".widget.LargeWidgetProvider"
+                      android:exported="true"
+                      android:label="NeonWave — расширенный">
+                      <intent-filter>
+                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.appwidget.provider"
+                          android:resource="@xml/large_widget_info"/>
+                  </receiver>
                   <service
                       android:name="com.ryanheise.audioservice.AudioService"
                       android:foregroundServiceType="mediaPlayback"
