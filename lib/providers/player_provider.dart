@@ -1302,6 +1302,12 @@ class PlayerProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Лёгкий запрос только разрешения на уведомления (для медиа-карточки),
+  /// вызывается при каждом старте независимо от состояния библиотеки.
+  Future<void> ensureNotificationPermission() async {
+    await _requestNotificationPermission();
+  }
+
   Future<void> _requestNotificationPermission() async {
     try {
       await Permission.notification.request();

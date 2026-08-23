@@ -22,9 +22,11 @@
         </activity>
         <receiver
             android:name=".widget.SmallWidgetProvider"
-            android:exported="false">
+            android:exported="true"
+            android:label="NeonWave — компактный">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                <action android:name="neonwave.WIDGET_KICK"/>
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -32,9 +34,11 @@
         </receiver>
         <receiver
             android:name=".widget.LargeWidgetProvider"
-            android:exported="false">
+            android:exported="true"
+            android:label="NeonWave — расширенный">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                <action android:name="neonwave.WIDGET_KICK"/>
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

@@ -125,9 +125,10 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final player = context.read<PlayerProvider>();
+      await player.ensureNotificationPermission();
       if (!player.hasLibrary) player.requestPermission();
     });
   }

@@ -50,6 +50,7 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Future<void> _requestPermission() async {
     final player = context.read<PlayerProvider>();
+    await player.ensureNotificationPermission();
     if (!player.hasLibrary) {
       await player.requestPermission();
     }
