@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -186,7 +187,31 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          const _SectionHeader('Воспроизведение'),
+          const _SectionHeader('Уведомления'),
+            SwitchListTile(
+              secondary: Icon(Icons.tune_rounded, color: AppTheme.accentCyan),
+              title: Text('Кастомные кнопки в шторке',
+                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 15)),
+              subtitle: Text(
+                'Избранное / перемешать / повтор на медиа-карточке. Отключите, если карточка не появляется (Android 16+)',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+              ),
+              value: player.notifCustomActions,
+              activeColor: AppTheme.accent,
+              onChanged: (v) => player.setNotifCustomActions(v),
+            ),
+            ListTile(
+              leading: Icon(Icons.notifications_active_outlined,
+                  color: AppTheme.accentAmber),
+              title: Text('Разрешение на уведомления',
+                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 15)),
+              subtitle: Text(
+                'Открыть системные настройки уведомлений приложения',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+              ),
+              onTap: openAppSettings,
+            ),
+            const _SectionHeader('Воспроизведение'),
 
           // Default speed
           _SettingsCard(

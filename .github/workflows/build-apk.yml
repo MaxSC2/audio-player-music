@@ -93,6 +93,9 @@ jobs:
                       android:name="flutterEmbedding"
                       android:value="2"/>
                   <receiver
+                      android:name=".widget.WidgetActionReceiver"
+                      android:exported="false"/>
+                  <receiver
                       android:name=".widget.SmallWidgetProvider"
                       android:exported="true"
                       android:label="NeonWave — компактный">

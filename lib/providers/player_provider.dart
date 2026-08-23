@@ -62,6 +62,7 @@ class PlayerProvider extends ChangeNotifier {
   int _currentIndex = -1;
   int _lastEventIndex = -2;
   int _lastHistoryTrackId = -1;
+  bool _notifCustomActions = true;
 
   bool _isPlaying = false;
   Duration _position = Duration.zero;
@@ -178,8 +179,18 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  bool get notifCustomActions => _notifCustomActions;
+
+  void setNotifCustomActions(bool v) {
+    _notifCustomActions = v;
+    _prefs?.setBool('notif_custom_actions', v);
+    _audioHandler?.setUseCustomActions(v);
+    notifyListeners();
+  }
+
   void attachAudioHandler(PlayerAudioHandler handler) {
     _audioHandler = handler;
+    handler.setUseCustomActions(_notifCustomActions);
     handler.setShuffleState(_shuffleMode);
     handler.setRepeatState(_repeatMode.index);
     final track = currentTrack;
@@ -265,6 +276,8 @@ class PlayerProvider extends ChangeNotifier {
     _defaultSpeed = prefs.getDouble('default_speed') ?? 1.0;
     _hideUnknownArtist = prefs.getBool('hide_unknown') ?? false;
     _resumePlayback = prefs.getBool('resume_playback') ?? false;
+    _notifCustomActions = prefs.getBool('notif_custom_actions') ?? true;
+    _audioHandler?.setUseCustomActions(_notifCustomActions);
     _speed = _defaultSpeed;
 
     final savedHistory = prefs.getString('history');
@@ -571,6 +584,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void toggleFavoriteCurrent() {
+    WidgetService.playerChanged(this);
     final track = currentTrack;
     if (track == null) return;
     toggleFavorite(track);
@@ -1521,12 +1535,14 @@ class PlayerProvider extends ChangeNotifier {
     }
     _audioHandler?.setRepeatState(_repeatMode.index);
     notifyListeners();
+    WidgetService.playerChanged(this);
   }
 
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
     _audioHandler?.setShuffleState(_shuffleMode);
     notifyListeners();
+    WidgetService.playerChanged(this);
   }
 
   Future<void> setSpeed(double speed) async {

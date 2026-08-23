@@ -8,6 +8,7 @@ import 'core/ui_style.dart';
 import 'features/home/home_screen.dart';
 import 'providers/player_provider.dart';
 import 'services/audio_handler.dart';
+import 'services/widget_service.dart';
 import 'state/palette_controller.dart';
 import 'ui/theme.dart';
 
@@ -29,6 +30,8 @@ Future<void> main() async {
 
   await palette.init();
   await uiStyle.init();
+
+  WidgetService.bind(playerProvider);
 
   final handlerFuture = AudioService.init(
     builder: () => PlayerAudioHandler(

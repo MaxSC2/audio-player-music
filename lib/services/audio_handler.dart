@@ -131,21 +131,30 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     playbackState.add(state);
   }
 
+  /// Кастомные кнопки (избранное/шаффл/повтор) в уведомлении.
+  /// Отключается в настройках для отладки на новых Android.
+  bool useCustomActions = true;
+
+  void setUseCustomActions(bool v) {
+    useCustomActions = v;
+    playbackState.add(_state.copyWith(controls: _buildControls(_state.playing)));
+  }
+
   List<MediaControl> _buildControls(bool playing) => [
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
         MediaControl.skipToNext,
-        MediaControl.custom(
+        if (useCustomActions) MediaControl.custom(
           androidIcon: _favoriteIcon,
           label: 'В избранное',
           name: 'favorite',
         ),
-        MediaControl.custom(
+        if (useCustomActions) MediaControl.custom(
           androidIcon: _shuffleIcon,
           label: 'Перемешать',
           name: 'shuffle',
         ),
-        MediaControl.custom(
+        if (useCustomActions) MediaControl.custom(
           androidIcon: _repeatIcon,
           label: 'Повтор',
           name: 'repeat',
