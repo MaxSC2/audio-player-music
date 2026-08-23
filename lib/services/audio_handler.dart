@@ -135,35 +135,22 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
         MediaControl.skipToNext,
-        MediaControl(
+        MediaControl.custom(
           androidIcon: _favoriteIcon,
           label: 'В избранное',
-          onPressed: () async => customAction('favorite'),
+          name: 'favorite',
         ),
-        MediaControl(
+        MediaControl.custom(
           androidIcon: _shuffleIcon,
           label: 'Перемешать',
-          onPressed: () async => customAction('shuffle'),
+          name: 'shuffle',
         ),
-        MediaControl(
+        MediaControl.custom(
           androidIcon: _repeatIcon,
           label: 'Повтор',
-          onPressed: () async => customAction('repeat'),
+          name: 'repeat',
         ),
       ];
-
-  static const _compactIndices = [0, 1, 2];
-
-  /// Акцентный цвет палитры — подсветка медиа-карточки в шторке.
-  static int? accentColorArgb;
-
-  void setAccentColor(int argb) {
-    accentColorArgb = argb;
-    final item = mediaItem.valueOrNull;
-    if (item != null) {
-      mediaItem.add(item.copyWith(color: argb));
-    }
-  }
 
   @override
   Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
@@ -196,7 +183,6 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       album: track.album,
       duration: Duration(milliseconds: track.duration),
       artUri: artPath != null ? Uri.file(artPath) : null,
-      color: accentColorArgb,
     );
   }
 
@@ -272,7 +258,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         playing: playing,
         controls: _buildControls(playing),
         systemActions: _systemActions,
-        androidCompactActionIndices: _compactIndices,
+        androidCompactActionIndices: const [0, 1, 2],
         processingState: _mapProcessing(player.processingState),
         updatePosition: player.position,
         bufferedPosition: player.bufferedPosition,

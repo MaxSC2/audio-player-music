@@ -48,11 +48,6 @@ Future<void> main() async {
   handlerFuture.then((handler) {
     if (handler is PlayerAudioHandler) {
       playerProvider.attachAudioHandler(handler);
-      void syncAccent() {
-        handler.setAccentColor(palette.active.accent.value);
-      }
-      syncAccent();
-      palette.addListener(syncAccent);
     }
   }, onError: (Object e) {
     playerProvider.setMediaServiceError('Ошибка: $e');
