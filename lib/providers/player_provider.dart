@@ -486,6 +486,7 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> _maybeResume() async {
     if (!_resumePlayback) return;
+    if (_playlist.isNotEmpty) return;
     final prefs = _prefs;
     if (prefs == null) return;
 
@@ -516,6 +517,8 @@ class PlayerProvider extends ChangeNotifier {
     _audioHandler?.setQueue(_playlist);
     notifyListeners();
   }
+
+  bool get hasLibrary => _allTracks.isNotEmpty;
 
   List<AudioTrack> get visibleTracks {
     if (!_hideUnknownArtist) return _allTracks;

@@ -50,7 +50,9 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Future<void> _requestPermission() async {
     final player = context.read<PlayerProvider>();
-    await player.requestPermission();
+    if (!player.hasLibrary) {
+      await player.requestPermission();
+    }
     if (!mounted) return;
     setState(() {
       _permissionDenied = player.allTracks.isEmpty;

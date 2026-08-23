@@ -11,6 +11,7 @@ import '../../../widgets/marquee_text.dart';
 import '../../../widgets/three_d_background.dart';
 import '../../library/library_tabs.dart';
 import '../../library/personal_dj_sheet.dart';
+import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
 
 class CoverFlowHomeScreen extends StatefulWidget {
@@ -126,7 +127,8 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<PlayerProvider>().requestPermission();
+      final player = context.read<PlayerProvider>();
+      if (!player.hasLibrary) player.requestPermission();
     });
   }
 
@@ -134,6 +136,26 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
   void dispose() {
     _controller?.dispose();
     super.dispose();
+  }
+
+  void _openFullPlayer(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const NowPlayingScreen(),
+        transitionsBuilder: (_, anim, __, child) {
+          return FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.4),
+                end: Offset.zero,
+              ).animate(anim),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -274,7 +296,9 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
               if (track != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 26),
-                  child: Row(
+                  child: GestureDetector(
+                    onTap: () => _openFullPlayer(context),
+                    child: Row(
                     children: [
                       Expanded(
                         child: Column(
@@ -302,6 +326,12 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         ),
                       ),
                       IconButton(
+                        icon: Icon(Icons.keyboard_arrow_up_rounded,
+                            color: AppTheme.textSecondary),
+                        onPressed: () => _openFullPlayer(context),
+                        tooltip: 'Открыть плеер',
+                      ),
+                      IconButton(
                         icon: Icon(
                           track.isFavorite
                               ? Icons.favorite_rounded
@@ -316,6 +346,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     ],
                   ),
                 ),
+              ),
               // Progress
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 26),
