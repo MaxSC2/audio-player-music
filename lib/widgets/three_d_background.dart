@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/theme.dart';
 
 class ThreeDBackground extends StatelessWidget {
   final Widget? child;
@@ -7,32 +8,46 @@ class ThreeDBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final base = AppTheme.background;
+    final light = AppTheme.lightMode;
+    final bottomColor = Color.lerp(
+      base,
+      light ? const Color(0xFFDCE4F2) : Colors.black,
+      0.45,
+    )!;
+    final blobOpacity = light ? 0.14 : 0.20;
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF0B0C14), Color(0xFF151228)],
+              colors: [base, bottomColor],
             ),
           ),
         ),
-        const Positioned(
+        Positioned(
           top: -80,
           left: -60,
-          child: GlowBlob(size: 260, color: Color(0x334433FF)),
+          child: GlowBlob(
+              size: 260, color: AppTheme.accent.withOpacity(blobOpacity)),
         ),
-        const Positioned(
+        Positioned(
           top: 90,
           right: -70,
-          child: GlowBlob(size: 220, color: Color(0x3306B6D4)),
+          child: GlowBlob(
+              size: 220,
+              color: AppTheme.accentCyan.withOpacity(blobOpacity)),
         ),
-        const Positioned(
+        Positioned(
           bottom: 60,
           right: -90,
-          child: GlowBlob(size: 320, color: Color(0x33A855F7)),
+          child: GlowBlob(
+              size: 320,
+              color: AppTheme.accentPink.withOpacity(blobOpacity)),
         ),
         if (child != null) child!,
       ],

@@ -59,11 +59,34 @@ class CoverFlowCard extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: CachedArtwork(
-                trackId: track.id,
-                width: width,
-                height: artHeight,
-                radius: 0,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedArtwork(
+                    trackId: track.id,
+                    width: width,
+                    height: artHeight,
+                    radius: 0,
+                  ),
+                  // Стеклянный блик для 3D-эффекта
+                  IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          stops: const [0.0, 0.35, 0.55, 1.0],
+                          colors: [
+                            Colors.white.withOpacity(0.14),
+                            Colors.white.withOpacity(0.04),
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

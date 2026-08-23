@@ -11,7 +11,7 @@ import '../../../widgets/marquee_text.dart';
 import '../../../widgets/three_d_background.dart';
 import '../../library/library_tabs.dart';
 import '../../library/personal_dj_sheet.dart';
-import '../../now_playing/now_playing_screen.dart';
+import 'cover_flow_player_sheet.dart';
 import '../../settings/settings_screen.dart';
 
 class CoverFlowHomeScreen extends StatefulWidget {
@@ -139,23 +139,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
   }
 
   void _openFullPlayer(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const NowPlayingScreen(),
-        transitionsBuilder: (_, anim, __, child) {
-          return FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.4),
-                end: Offset.zero,
-              ).animate(anim),
-              child: child,
-            ),
-          );
-        },
-      ),
-    );
+    CoverFlowPlayerSheet.show(context);
   }
 
   @override

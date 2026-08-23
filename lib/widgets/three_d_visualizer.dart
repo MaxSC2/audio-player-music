@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../ui/theme.dart';
 
 /// Symmetric 3D visualizer placed behind the album cover.
 ///
@@ -100,12 +101,12 @@ class _VisualizerPainter extends CustomPainter {
 
   _VisualizerPainter({required this.heights, required this.barCount});
 
-  static const _stops = <Color>[
-    Color(0xFF22D3EE), // cyan
-    Color(0xFF3B82F6), // blue
-    Color(0xFFA855F7), // purple
-    Color(0xFFEC4899), // magenta
-  ];
+  static List<Color> get _stops => <Color>[
+        AppTheme.accentCyan,
+        Color.lerp(AppTheme.accentCyan, AppTheme.accent, 0.5)!,
+        AppTheme.accent,
+        AppTheme.accentPink,
+      ];
 
   static Color _colorAt(double t) {
     final u = (t + 1) / 2;
@@ -330,9 +331,9 @@ class _VisualizerPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF22D3EE).withOpacity(0),
-          const Color(0xFF22D3EE).withOpacity(0.10),
-          const Color(0xFFA855F7).withOpacity(0.16),
+          AppTheme.accentCyan.withOpacity(0),
+          AppTheme.accentCyan.withOpacity(0.10),
+          AppTheme.accent.withOpacity(0.16),
         ],
       ).createShader(rect);
     canvas.drawRect(rect, g);

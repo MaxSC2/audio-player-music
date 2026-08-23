@@ -103,8 +103,11 @@ class TrackTile extends StatelessWidget {
                             barCount: 4,
                             height: 20,
                             width: 24,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF00F5D4), Color(0xFFBB86FC)],
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.accentCyan,
+                                AppTheme.accentLight
+                              ],
                             ),
                           ),
                         ),
@@ -322,10 +325,35 @@ class TrackTile extends StatelessWidget {
     return Transform(
       alignment: Alignment.center,
       transform: Matrix4.identity()
-        ..setEntry(3, 2, 0.0012)
-        ..rotateX(-0.028)
-        ..rotateZ(0.006),
-      child: tile,
+        ..setEntry(3, 2, 0.0016)
+        ..rotateX(-0.035)
+        ..rotateZ(0.008),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isCurrent
+              ? [
+                  BoxShadow(
+                    color: AppTheme.accent.withOpacity(0.38),
+                    blurRadius: 20,
+                    offset: const Offset(0, 5),
+                  ),
+                  BoxShadow(
+                    color: AppTheme.accentLight.withOpacity(0.18),
+                    blurRadius: 34,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.32),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+        ),
+        child: tile,
+      ),
     );
   }
 }
