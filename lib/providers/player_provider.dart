@@ -59,6 +59,8 @@ class PlayerProvider extends ChangeNotifier {
 
   List<AudioTrack> _playlist = [];
   int _currentIndex = -1;
+  int _lastEventIndex = -2;
+  int _lastHistoryTrackId = -1;
 
   bool _isPlaying = false;
   Duration _position = Duration.zero;
@@ -234,13 +236,19 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     _audioPlayer.playbackEventStream.listen((event) {
-      if (event.currentIndex != null) {
-        _currentIndex = event.currentIndex!;
-        if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
-          _recordHistory(_playlist[_currentIndex]);
+      final idx = event.currentIndex;
+      if (idx == null) return;
+      final indexChanged = idx != _lastEventIndex;
+      _lastEventIndex = idx;
+      _currentIndex = idx;
+      if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+        final t = _playlist[_currentIndex];
+        if (t.id != _lastHistoryTrackId) {
+          _lastHistoryTrackId = t.id;
+          _recordHistory(t);
         }
-        notifyListeners();
       }
+      if (indexChanged) notifyListeners();
     });
 
     _audioPlayer.setSpeed(_speed);
@@ -1423,11 +1431,6 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> next() async {
     if (_playlist.isEmpty) return;
-    if (_repeatMode == PlayerRepeatMode.one) {
-      await _audioPlayer.seek(Duration.zero);
-      await _audioPlayer.play();
-      return;
-    }
 
     final cur = currentTrack;
     if (cur != null && _isPlaying && _position.inMilliseconds < 25000) {
@@ -1489,6 +1492,11 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _onTrackComplete() async {
+    if (_repeatMode == PlayerRepeatMode.one) {
+      await _audioPlayer.seek(Duration.zero);
+      await _audioPlayer.play();
+      return;
+    }
     await next();
   }
 

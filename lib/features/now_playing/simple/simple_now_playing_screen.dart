@@ -1,103 +1,14 @@
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/animated_waveform.dart';
 import '../../../widgets/artwork_backdrop.dart';
-import '../../../widgets/equalizer_dialog.dart';
-import '../../../widgets/explain_sheet.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/queue_sheet.dart';
-import '../../../widgets/sleep_timer_dialog.dart';
 import '../../../widgets/spinning_vinyl.dart';
-
-void _showTrackBookmarks(
-    BuildContext context, PlayerProvider player, AudioTrack track) {
-  final bookmarks = player.bookmarksFor(track.id);
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: AppTheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (ctx) => SafeArea(
-      top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(top: 12, bottom: 14),
-            decoration: BoxDecoration(
-              color: AppTheme.cardBorder,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Text(
-            'Закладки — ${track.title}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (bookmarks.isEmpty)
-            Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Нет закладок. Нажмите на иконку закладки во время трека.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-              ),
-            )
-          else
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                itemCount: bookmarks.length,
-                itemBuilder: (ctx, index) {
-                  final ms = bookmarks[index];
-                  return ListTile(
-                    leading: Icon(Icons.bookmark_rounded,
-                        color: AppTheme.accentLight, size: 20),
-                    title: Text(
-                      AudioTrack.formatDuration(ms),
-                      style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600),
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.close_rounded,
-                          color: AppTheme.textMuted, size: 20),
-                      onPressed: () {
-                        player.removeBookmark(track.id, ms);
-                      },
-                      tooltip: 'Удалить закладку',
-                    ),
-                    onTap: () {
-                      player.playTrack(track);
-                      player.seek(Duration(milliseconds: ms));
-                      Navigator.of(ctx).pop();
-                    },
-                  );
-                },
-              ),
-            ),
-          const SizedBox(height: 12),
-        ],
-      ),
-    ),
-  );
-}
 
 class SimpleNowPlayingScreen extends StatefulWidget {
   const SimpleNowPlayingScreen({super.key});
@@ -428,41 +339,6 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
     return '$m:$s';
   }
 
-  Future<void> _confirmDeleteTrack(
-      BuildContext context, PlayerProvider player, AudioTrack track) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: Text('Удалить трек?',
-            style: TextStyle(color: AppTheme.textPrimary)),
-        content: Text(
-          'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
-          style: TextStyle(color: AppTheme.textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Удалить',
-                style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    final ok = await player.deleteTrack(track);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Трек удалён' : 'Не удалось удалить трек')),
-    );
-    if (ok && player.currentTrack == null) {
-      Navigator.pop(context);
-    }
-  }
 }
 
 class _ControlButton extends StatelessWidget {
@@ -518,102 +394,6 @@ class _PlayPauseButton extends StatelessWidget {
           isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
           color: Colors.white,
           size: 40,
-        ),
-      ),
-    );
-  }
-}
-
-class _FeatureButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _FeatureButton({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.cardBorder),
-        ),
-        child: Icon(icon, color: color, size: 20),
-      ),
-    );
-  }
-}
-
-class _AnimatedFavoriteButton extends StatelessWidget {
-  final bool isFavorite;
-  final VoidCallback onTap;
-
-  const _AnimatedFavoriteButton({
-    required this.isFavorite,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      key: ValueKey(isFavorite),
-      tween: Tween(begin: 0.5, end: 1.0),
-      duration: const Duration(milliseconds: 450),
-      curve: Curves.elasticOut,
-      builder: (context, scale, child) {
-        return Transform.scale(scale: scale, child: child);
-      },
-      child: _FeatureButton(
-        icon: isFavorite
-            ? Icons.favorite_rounded
-            : Icons.favorite_border_rounded,
-        color: isFavorite
-            ? AppTheme.accentPink
-            : AppTheme.textSecondary,
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _SpeedBadge extends StatelessWidget {
-  final double speed;
-  final VoidCallback onTap;
-
-  const _SpeedBadge({required this.speed, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final isCustom = speed != 1.0;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isCustom
-              ? AppTheme.accentCyan.withOpacity(0.15)
-              : AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isCustom ? AppTheme.accentCyan : AppTheme.cardBorder,
-          ),
-        ),
-        child: Text(
-          '${speed.toStringAsFixed(2)}x'.replaceFirst('.00', 'x'),
-          style: TextStyle(
-            color: isCustom ? AppTheme.accentCyan : AppTheme.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
         ),
       ),
     );
