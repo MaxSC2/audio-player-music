@@ -1399,6 +1399,14 @@ class PlayerProvider extends ChangeNotifier {
     final index = _playlist.indexWhere((t) => t.id == track.id);
     if (index >= 0) {
       await playAt(index);
+      return;
+    }
+    // Трек вне текущей очереди: строим очередь из всей библиотеки,
+    // иначе next/prev/repeat работают с очередью из одного трека.
+    final library = visibleTracks;
+    final libIndex = library.indexWhere((t) => t.id == track.id);
+    if (libIndex >= 0) {
+      await playFromPlaylist(library, libIndex);
     } else {
       await playFromPlaylist([track], 0);
     }
