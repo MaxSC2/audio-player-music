@@ -190,6 +190,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       AudioServiceRepeatMode.all => 1,
       AudioServiceRepeatMode.one => 2,
       AudioServiceRepeatMode.none => 0,
+      AudioServiceRepeatMode.group => 1,
     });
   }
 
