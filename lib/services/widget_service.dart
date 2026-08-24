@@ -66,7 +66,7 @@ class WidgetService {
       return;
     }
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 120), () {
+    _debounce = Timer(const Duration(milliseconds: 60), () {
       _push(p, track, playing, fav, shuffle, repeat);
     });
   }

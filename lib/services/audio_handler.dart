@@ -150,11 +150,6 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
           name: 'favorite',
         ),
         if (useCustomActions) MediaControl.custom(
-          androidIcon: _shuffleIcon,
-          label: 'Перемешать',
-          name: 'shuffle',
-        ),
-        if (useCustomActions) MediaControl.custom(
           androidIcon: _repeatIcon,
           label: 'Повтор',
           name: 'repeat',

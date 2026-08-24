@@ -142,10 +142,10 @@ object WidgetState {
             mediaButton(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE))
         views.setOnClickPendingIntent(R.id.w_next,
             mediaButton(context, KeyEvent.KEYCODE_MEDIA_NEXT))
-        views.setOnClickPendingIntent(R.id.w_fav, action(context, "neonwave.widget.FAVORITE"))
+        views.setOnClickPendingIntent(R.id.w_prev,
+            mediaButton(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS))
         if (fullControls) {
-            views.setOnClickPendingIntent(R.id.w_prev,
-                mediaButton(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS))
+            views.setOnClickPendingIntent(R.id.w_fav, action(context, "neonwave.widget.FAVORITE"))
             views.setOnClickPendingIntent(R.id.w_shuffle, action(context, "neonwave.widget.SHUFFLE"))
             views.setOnClickPendingIntent(R.id.w_repeat, action(context, "neonwave.widget.REPEAT"))
         }

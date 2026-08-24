@@ -35,6 +35,7 @@ jobs:
           [ -d android/app/src/main/res/layout ] && cp -r android/app/src/main/res/layout mainactivity_backup/
           [ -d android/app/src/main/res/xml ] && cp -r android/app/src/main/res/xml mainactivity_backup/
           [ -f android/app/src/main/res/drawable/widget_bg.xml ] && cp android/app/src/main/res/drawable/widget_bg.xml mainactivity_backup/
+          [ -d android/app/src/main/res/drawable-nodpi ] && cp -r android/app/src/main/res/drawable-nodpi mainactivity_backup/
           [ -f android/app/src/main/res/values/strings.xml ] && cp android/app/src/main/res/values/strings.xml mainactivity_backup/
           flutter create --org com.example --project-name audio_player app_temp
           cp -r app_temp/. .
@@ -45,6 +46,7 @@ jobs:
           [ -d mainactivity_backup/layout ] && cp -r mainactivity_backup/layout android/app/src/main/res/
           [ -d mainactivity_backup/xml ] && cp -r mainactivity_backup/xml android/app/src/main/res/
           [ -f mainactivity_backup/widget_bg.xml ] && cp mainactivity_backup/widget_bg.xml android/app/src/main/res/drawable/
+          [ -d mainactivity_backup/drawable-nodpi ] && cp -r mainactivity_backup/drawable-nodpi android/app/src/main/res/
           [ -f mainactivity_backup/strings.xml ] && cp mainactivity_backup/strings.xml android/app/src/main/res/values/
           rm -f android/settings.gradle android/build.gradle android/app/build.gradle
           rm -rf app_temp lib_backup pubspec_backup.yaml mainactivity_backup
