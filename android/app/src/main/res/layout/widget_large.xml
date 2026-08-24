@@ -59,9 +59,19 @@
         android:layout_marginTop="8dp">
 
         <ImageView
+            android:id="@+id/w_fav"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/widget_btn_bg"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_action_favorite_off"/>
+
+        <ImageView
             android:id="@+id/w_shuffle"
             android:layout_width="36dp"
             android:layout_height="36dp"
+            android:layout_marginStart="8dp"
             android:background="@drawable/widget_btn_bg"
             android:padding="8dp"
             android:scaleType="centerInside"
