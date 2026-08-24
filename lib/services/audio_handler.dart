@@ -12,6 +12,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final VoidCallback onToggleRepeat;
   final VoidCallback onToggleShuffle;
   final VoidCallback onToggleFavorite;
+  final Future<void> Function() onNext;
+  final Future<void> Function() onPrevious;
+  final Future<void> Function(int index) onPlayAt;
+  final Future<void> Function(bool on) onApplyShuffle;
+  final Future<void> Function(int mode) onApplyRepeat;
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
   bool _favoriteOn = false;
@@ -24,6 +29,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     required this.onToggleRepeat,
     required this.onToggleShuffle,
     required this.onToggleFavorite,
+    required this.onNext,
+    required this.onPrevious,
+    required this.onPlayAt,
+    required this.onApplyShuffle,
+    required this.onApplyRepeat,
   }) {
     _listen();
   }
@@ -170,12 +180,17 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
-    onToggleShuffle();
+    // Система присылает желаемое состояние, а не переключение.
+    await onApplyShuffle(shuffleMode == AudioServiceShuffleMode.all);
   }
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
-    onToggleRepeat();
+    await onApplyRepeat(switch (repeatMode) {
+      AudioServiceRepeatMode.all => 1,
+      AudioServiceRepeatMode.one => 2,
+      AudioServiceRepeatMode.none => 0,
+    });
   }
 
   MediaItem _toMediaItem(AudioTrack track) {
@@ -228,14 +243,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> seek(Duration position) => player.seek(position);
 
   @override
-  Future<void> skipToNext() => player.seekToNext();
+  Future<void> skipToNext() => onNext();
 
   @override
-  Future<void> skipToPrevious() => player.seekToPrevious();
+  Future<void> skipToPrevious() => onPrevious();
 
   @override
-  Future<void> skipToQueueItem(int index) =>
-      player.seek(Duration.zero, index: index);
+  Future<void> skipToQueueItem(int index) => onPlayAt(index);
 
   @override
   Future<void> stop() async {

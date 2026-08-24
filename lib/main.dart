@@ -39,6 +39,11 @@ Future<void> main() async {
       onToggleRepeat: playerProvider.toggleRepeat,
       onToggleShuffle: playerProvider.toggleShuffle,
       onToggleFavorite: playerProvider.toggleFavoriteCurrent,
+      onNext: playerProvider.next,
+      onPrevious: playerProvider.previous,
+      onPlayAt: (i) => playerProvider.playAt(i),
+      onApplyShuffle: playerProvider.applyShuffle,
+      onApplyRepeat: playerProvider.applyRepeatIndex,
     ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.audio_player.channel.audio',

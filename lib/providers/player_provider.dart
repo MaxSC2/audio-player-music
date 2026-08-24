@@ -1577,6 +1577,24 @@ class PlayerProvider extends ChangeNotifier {
     WidgetService.playerChanged(this);
   }
 
+  /// Установка состояния (не тогглинг) — для системных команд MediaSession.
+  Future<void> applyShuffle(bool on) async {
+    if (_shuffleMode == on) return;
+    _shuffleMode = on;
+    _audioHandler?.setShuffleState(on);
+    notifyListeners();
+    WidgetService.playerChanged(this);
+  }
+
+  /// 0 = выкл, 1 = все, 2 = один (индекс PlayerRepeatMode).
+  Future<void> applyRepeatIndex(int mode) async {
+    if (mode < 0 || mode > 2 || _repeatMode.index == mode) return;
+    _repeatMode = PlayerRepeatMode.values[mode];
+    _audioHandler?.setRepeatState(mode);
+    notifyListeners();
+    WidgetService.playerChanged(this);
+  }
+
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
     _audioHandler?.setShuffleState(_shuffleMode);
