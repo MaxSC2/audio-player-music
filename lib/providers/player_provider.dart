@@ -63,6 +63,7 @@ class PlayerProvider extends ChangeNotifier {
   int _lastEventIndex = -2;
   int _lastHistoryTrackId = -1;
   bool _notifCustomActions = true;
+  bool _switchingSource = false;
 
   bool _isPlaying = false;
   Duration _position = Duration.zero;
@@ -248,6 +249,7 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     _audioPlayer.playbackEventStream.listen((event) {
+      if (_switchingSource) return;
       final idx = event.currentIndex;
       if (idx == null) return;
       final indexChanged = idx != _lastEventIndex;
@@ -1411,23 +1413,45 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> playFromPlaylist(List<AudioTrack> tracks, int startIndex,
       {bool radio = false}) async {
-    _playlist = List<AudioTrack>.from(tracks);
-    if (_playlist.isEmpty) return;
+    if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
+      return;
+    }
+    var sameList = _playlist.length == tracks.length;
+    if (sameList) {
+      for (var i = 0; i < _playlist.length; i++) {
+        if (_playlist[i].id != tracks[i].id) {
+          sameList = false;
+          break;
+        }
+      }
+    }
     _radioMode = radio;
     if (!radio) _radioUsedIds.clear();
 
-    _prefs?.setStringList(
-      'last_playlist_ids',
-      _playlist.map((t) => t.id.toString()).toList(),
-    );
-    _prefs?.setInt('last_index', startIndex);
+    _switchingSource = true;
+    if (!sameList) {
+      _playlist = List<AudioTrack>.from(tracks);
+      _prefs?.setStringList(
+        'last_playlist_ids',
+        _playlist.map((t) => t.id.toString()).toList(),
+      );
+      _prefs?.setInt('last_index', startIndex);
+      await _audioPlayer.setAudioSources(
+        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+      );
+      _audioHandler?.setQueue(_playlist);
+    }
 
-    await _audioPlayer.setAudioSources(
-      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-    );
+    // Оптимистичный индекс: UI сразу показывает выбранный трек,
+    // без «мигания» первым элементом (событие index=0 подавлено).
+    _currentIndex = startIndex;
+    _lastEventIndex = startIndex;
+    _lastHistoryTrackId = tracks[startIndex].id;
+    notifyListeners();
 
-    _audioHandler?.setQueue(_playlist);
     await playAt(startIndex);
+    _switchingSource = false;
+    WidgetService.playerChanged(this);
   }
 
   Future<void> playAt(int index) async {

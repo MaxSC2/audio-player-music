@@ -31,9 +31,12 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
   void _onPageChanged(int index) {
     final player = context.read<PlayerProvider>();
     if (player.currentIndex == index) return;
+    final expected = player.currentIndex;
     Future.delayed(const Duration(milliseconds: 260), () {
       if (!mounted) return;
       final p = context.read<PlayerProvider>();
+      // Пока свайп доезжал, трек переключили иначе (тап/автопереход) — не мешаем.
+      if (p.currentIndex != expected) return;
       final settled =
           (_controller?.hasClients ?? false) ? _controller!.page!.round() : index;
       if (settled == index && p.currentIndex != index) {

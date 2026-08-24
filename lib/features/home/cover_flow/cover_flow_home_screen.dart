@@ -51,9 +51,12 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
       _programmatic = false;
       return;
     }
+    final expectedTrackId = context.read<PlayerProvider>().currentTrack?.id;
     Future.delayed(const Duration(milliseconds: 280), () {
       if (!mounted) return;
       final p = context.read<PlayerProvider>();
+      // Пользователь тапнул карточку/трек, пока свайп доезжал — не перебиваем.
+      if (p.currentTrack?.id != expectedTrackId) return;
       final settled = (_controller?.hasClients ?? false)
           ? _controller!.page!.round()
           : index;
