@@ -252,6 +252,15 @@ class PlayerProvider extends ChangeNotifier {
       if (_switchingSource) return;
       final idx = event.currentIndex;
       if (idx == null) return;
+      // Repeat-one: just_audio листает очередь нативно, минуя next().
+      // Ловим незапланированный автопереход и возвращаем трек в начало.
+      if (idx != _lastEventIndex &&
+          _repeatMode == PlayerRepeatMode.one &&
+          _lastEventIndex >= 0 &&
+          _lastEventIndex < _playlist.length) {
+        _audioPlayer.seek(Duration.zero, index: _lastEventIndex);
+        return;
+      }
       final indexChanged = idx != _lastEventIndex;
       _lastEventIndex = idx;
       _currentIndex = idx;
