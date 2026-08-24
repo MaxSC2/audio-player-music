@@ -583,6 +583,7 @@ class PlayerProvider extends ChangeNotifier {
     _refreshTrackFavoriteFlags();
     _audioHandler?.setFavoriteState(isFavorite(track.id));
     notifyListeners();
+    WidgetService.playerChanged(this);
   }
 
   void toggleFavoriteCurrent() {
@@ -1457,9 +1458,13 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> playAt(int index) async {
     if (index < 0 || index >= _playlist.length) return;
     _currentIndex = index;
+    _lastEventIndex = index;
+    _lastHistoryTrackId = _playlist[index].id;
     await _audioPlayer.seek(Duration.zero, index: index);
     await _audioPlayer.play();
+    _audioHandler?.setFavoriteState(isFavorite(_playlist[index].id));
     notifyListeners();
+    WidgetService.playerChanged(this);
   }
 
   Future<void> togglePlay() async {
