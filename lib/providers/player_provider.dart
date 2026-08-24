@@ -260,6 +260,7 @@ class PlayerProvider extends ChangeNotifier {
         if (t.id != _lastHistoryTrackId) {
           _lastHistoryTrackId = t.id;
           _recordHistory(t);
+          _audioHandler?.setFavoriteState(isFavorite(t.id));
         }
       }
       if (indexChanged) {

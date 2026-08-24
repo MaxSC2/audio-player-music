@@ -47,33 +47,12 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
   }
 
   void _onPageChanged(int index) {
+    // Свайп карусели — только просмотр. Воспроизведение — явный тап по карточке.
+    // Раньше здесь был отложенный автозапуск: программные события страниц
+    // протекали при быстрых переключениях и запускали «1-й трек альбома».
     if (_programmatic) {
       _programmatic = false;
-      return;
     }
-    final expectedTrackId = context.read<PlayerProvider>().currentTrack?.id;
-    Future.delayed(const Duration(milliseconds: 280), () {
-      if (!mounted) return;
-      final p = context.read<PlayerProvider>();
-      // Пользователь тапнул карточку/трек, пока свайп доезжал — не перебиваем.
-      if (p.currentTrack?.id != expectedTrackId) return;
-      final settled = (_controller?.hasClients ?? false)
-          ? _controller!.page!.round()
-          : index;
-      if (settled != index) return;
-      final albums = p.albums;
-      if (albums.isNotEmpty) {
-        if (index >= albums.length) return;
-        final album = albums[index];
-        final tracks =
-            p.allTracks.where((t) => t.album == album).toList();
-        if (tracks.isNotEmpty) p.playFromPlaylist(tracks, 0);
-      } else {
-        final tracks = p.visibleTracks;
-        if (index >= tracks.length) return;
-        p.playFromPlaylist(tracks, index);
-      }
-    });
   }
 
   void _openLibrary() {
