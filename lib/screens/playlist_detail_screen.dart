@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
@@ -74,11 +75,11 @@ class PlaylistDetailScreen extends StatelessWidget {
             ),
             onSelected: (value) async {
               if (value == 'rename') {
-                await _renamePlaylist(context, player, playlist);
+                await _renamePlaylist(context, player, playlist!);
               } else if (value == 'delete') {
                 final ok = await _confirmDelete(context);
                 if (ok == true && context.mounted) {
-                  player.deletePlaylist(playlist.id);
+                  player.deletePlaylist(playlist!.id);
                   if (context.mounted) Navigator.pop(context);
                 }
               }

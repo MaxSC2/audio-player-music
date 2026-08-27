@@ -1142,6 +1142,8 @@ class PlayerProvider extends ChangeNotifier {
   Map<String, double> trackScoreBreakdown(AudioTrack t) {
     final out = <String, double>{};
 
+    final hasEnergy = _activeContexts.any((c) => c == ListeningContext.energy || c == ListeningContext.party);
+    final hasCalm = _activeContexts.any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
     double favWeight = 1.0;
     for (final c in _activeContexts) {
       final w = _categoryWeights[c] ?? 1.0;
@@ -1280,6 +1282,8 @@ class PlayerProvider extends ChangeNotifier {
     final usedArtistCount = <String, int>{};
     int seed = DateTime.now().millisecondsSinceEpoch;
 
+    final hasEnergy = activeCtx.any((c) => c == ListeningContext.energy || c == ListeningContext.party);
+    final hasCalm = activeCtx.any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
     double favWeight = 1.0;
     for (final c in activeCtx) {
       final w = _categoryWeights[c] ?? 1.0;

@@ -6,6 +6,7 @@ import '../../screens/playlist_detail_screen.dart';
 import '../../ui/theme.dart';
 import '../../widgets/cached_artwork.dart';
 import '../../widgets/swipe_reveal.dart';
+import '../../models/custom_playlist.dart';
 import '../../widgets/track_tile.dart';
 import 'category_tab.dart';
 import 'music_dna_tab.dart';
