@@ -7,6 +7,7 @@ import '../../ui/theme.dart';
 import '../../widgets/cached_artwork.dart';
 import '../../widgets/swipe_reveal.dart';
 import '../../widgets/track_tile.dart';
+import 'category_tab.dart';
 import 'music_dna_tab.dart';
 
 /// Shared library content: search, 6 tabs (tracks, playlists, albums,
@@ -34,7 +35,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 9, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
@@ -97,6 +98,9 @@ class _LibraryTabsState extends State<LibraryTabs>
             Tab(
                 text: 'DNA',
                 icon: Icon(Icons.fingerprint_rounded, size: 18)),
+            Tab(
+                text: 'Категории',
+                icon: Icon(Icons.category_rounded, size: 18)),
           ],
         ),
         Expanded(
@@ -115,6 +119,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                         _buildFavoriteList(player),
                         _buildHistoryList(player),
                         const MusicDnaTab(),
+                        const CategoryTab(),
                       ],
                     ),
         ),
@@ -435,15 +440,78 @@ class _LibraryTabsState extends State<LibraryTabs>
         .where((p) => p.name.toLowerCase().contains(query))
         .toList();
 
+    final items = <_PlaylistItem>[];
+
+    if ('недавно добавленные'.contains(query)) {
+      items.add(_PlaylistItem(
+        id: 'smart_added',
+        name: 'Недавно добавленные',
+        count: player.smartRecentlyAdded.length,
+        icon: Icons.fiber_new_rounded,
+        gradient: AppTheme.cyanGreenGradient,
+        onPlay: () {
+          final t = player.smartRecentlyAdded;
+          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+        },
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaylistDetailScreen(playlistId: 'smart_added'))),
+      ));
+    }
+
+    if ('недавно сыгранные'.contains(query)) {
+      items.add(_PlaylistItem(
+        id: 'smart_played',
+        name: 'Недавно сыгранные',
+        count: player.smartRecentlyPlayed.length,
+        icon: Icons.history_toggle_off_rounded,
+        gradient: AppTheme.primaryGradient,
+        onPlay: () {
+          final t = player.smartRecentlyPlayed;
+          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+        },
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaylistDetailScreen(playlistId: 'smart_played'))),
+      ));
+    }
+
+    if ('часто прослушиваемые'.contains(query)) {
+      items.add(_PlaylistItem(
+        id: 'smart_most',
+        name: 'Часто прослушиваемые',
+        count: player.smartMostPlayed.length,
+        icon: Icons.auto_awesome_rounded,
+        gradient: AppTheme.pinkPurpleGradient,
+        onPlay: () {
+          final t = player.smartMostPlayed;
+          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+        },
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaylistDetailScreen(playlistId: 'smart_most'))),
+      ));
+    }
+
+    for (final p in playlists) {
+      items.add(_PlaylistItem(
+        id: p.id,
+        name: p.name,
+        count: p.trackIds.length,
+        icon: Icons.queue_music_rounded,
+        gradient: AppTheme.cyanGreenGradient,
+        onPlay: () {
+          final t = player.tracksOfPlaylist(p);
+          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+        },
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PlaylistDetailScreen(playlistId: p.id))),
+        isCustom: true,
+        custom: p,
+      ));
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 6, bottom: 16),
-      itemCount: playlists.length + 1,
+      itemCount: items.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
           return _buildCreatePlaylistTile();
         }
-        final playlist = playlists[index - 1];
-        final trackCount = playlist.trackIds.length;
+        final item = items[index - 1];
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -461,13 +529,12 @@ class _LibraryTabsState extends State<LibraryTabs>
               height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: AppTheme.cyanGreenGradient,
+                gradient: item.gradient,
               ),
-              child: const Icon(Icons.queue_music_rounded,
-                  color: Colors.white, size: 24),
+              child: Icon(item.icon, color: Colors.white, size: 22),
             ),
             title: Text(
-              playlist.name,
+              item.name,
               style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w600,
@@ -477,28 +544,15 @@ class _LibraryTabsState extends State<LibraryTabs>
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              '$trackCount ${_pluralTracks(trackCount)}',
+              '${item.count} ${_pluralTracks(item.count)}',
               style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             trailing: IconButton(
-              icon: Icon(Icons.play_circle_fill_rounded,
-                  color: AppTheme.accent),
-              onPressed: () {
-                final tracks = player.tracksOfPlaylist(playlist);
-                if (tracks.isNotEmpty) {
-                  player.playFromPlaylist(tracks, 0);
-                }
-              },
+              icon: Icon(Icons.play_circle_fill_rounded, color: AppTheme.accent),
+              onPressed: item.onPlay,
               tooltip: 'Слушать',
             ),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      PlaylistDetailScreen(playlistId: playlist.id),
-                ),
-              );
-            },
+            onTap: item.onTap,
           ),
         );
       },
@@ -1616,4 +1670,28 @@ class _LibraryTabsState extends State<LibraryTabs>
       ),
     );
   }
+}
+
+class _PlaylistItem {
+  final String id;
+  final String name;
+  final int count;
+  final IconData icon;
+  final LinearGradient gradient;
+  final VoidCallback onPlay;
+  final VoidCallback onTap;
+  final bool isCustom;
+  final CustomPlaylist? custom;
+
+  _PlaylistItem({
+    required this.id,
+    required this.name,
+    required this.count,
+    required this.icon,
+    required this.gradient,
+    required this.onPlay,
+    required this.onTap,
+    this.isCustom = false,
+    this.custom,
+  });
 }

@@ -12,6 +12,7 @@ import '../models/custom_playlist.dart';
 import '../models/queue_snapshot.dart';
 import '../services/audio_handler.dart';
 import '../services/widget_service.dart';
+import 'package:http/http.dart' as http;
 
 enum PlayerRepeatMode { off, all, one }
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
@@ -49,6 +50,17 @@ class PlayerProvider extends ChangeNotifier {
   List<Map<String, int>> _historyRaw = [];
   List<Map<String, int>> _notNowRaw = [];
   Set<ListeningContext> _activeContexts = {ListeningContext.balanced};
+  Map<ListeningContext, double> _categoryWeights = {
+    ListeningContext.balanced: 1.0,
+    ListeningContext.energy: 1.6,
+    ListeningContext.calm: 1.25,
+    ListeningContext.focus: 1.25,
+    ListeningContext.party: 1.6,
+  };
+  Map<int, Set<ListeningContext>> _manualCategories = {};
+  Map<int, String> _genreCache = {};
+  final Set<int> _genreFetching = {};
+  bool _genreBatchRunning = false;
   Map<int, int> _skipCount = {};
   bool _deepCuts = false;
   DiscoveryLevel _discoveryLevel = DiscoveryLevel.balanced;
@@ -328,6 +340,44 @@ class PlayerProvider extends ChangeNotifier {
       _activeContexts = parsed.isEmpty
           ? {ListeningContext.balanced}
           : parsed;
+    }
+
+    final savedWeights = prefs.getString('category_weights');
+    if (savedWeights != null) {
+      try {
+        final raw = jsonDecode(savedWeights) as Map;
+        raw.forEach((k, v) {
+          final ctx = ListeningContext.values.firstWhere((c) => c.name == k, orElse: () => ListeningContext.balanced);
+          final w = (v as num).toDouble();
+          if (w >= 0.5 && w <= 2.5) _categoryWeights[ctx] = w;
+        });
+      } catch (_) {}
+    }
+
+    final savedManual = prefs.getString('manual_categories');
+    if (savedManual != null) {
+      try {
+        final raw = jsonDecode(savedManual) as Map;
+        raw.forEach((k, v) {
+          final id = int.tryParse(k.toString());
+          if (id == null) return;
+          final list = (v as List).map((e) => ListeningContext.values.firstWhere((c) => c.name == e, orElse: () => ListeningContext.balanced)).toSet();
+          if (list.isNotEmpty) _manualCategories[id] = list;
+        });
+      } catch (_) {
+        _manualCategories = {};
+      }
+    }
+
+    final savedGenre = prefs.getString('genre_cache');
+    if (savedGenre != null) {
+      try {
+        final raw = jsonDecode(savedGenre) as Map;
+        raw.forEach((k, v) {
+          final id = int.tryParse(k.toString());
+          if (id != null) _genreCache[id] = v.toString();
+        });
+      } catch (_) {}
     }
 
     final savedSkips = prefs.getString('skip_counts');
@@ -617,6 +667,53 @@ class PlayerProvider extends ChangeNotifier {
     return sortTracks(fav, _sortOrder);
   }
 
+  /// Недавно добавленные (по дате добавления)
+  List<AudioTrack> get smartRecentlyAdded {
+    final list = List<AudioTrack>.from(visibleTracks);
+    list.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
+    return list.take(40).toList();
+  }
+
+  /// Недавно прослушанные (до 66 уникальных треков из истории в порядке воспроизведения)
+  List<AudioTrack> get smartRecentlyPlayed {
+    final ids = <int>{};
+    final list = <AudioTrack>[];
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      if (ids.contains(id)) continue;
+      final idx = visibleTracks.indexWhere((x) => x.id == id);
+      if (idx < 0) continue;
+      final t = visibleTracks[idx];
+      ids.add(id);
+      list.add(t);
+      if (list.length >= 66) break;
+    }
+    return list;
+  }
+
+  /// Часто прослушиваемые (по числу воспроизведений в истории)
+  List<AudioTrack> get smartMostPlayed {
+    final counts = <int, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+    final sortedIds = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+
+    final list = <AudioTrack>[];
+    for (final id in sortedIds) {
+      final idx = visibleTracks.indexWhere((x) => x.id == id);
+      if (idx < 0) continue;
+      final t = visibleTracks[idx];
+      list.add(t);
+      if (list.length >= 40) break;
+    }
+    return list;
+  }
+
   List<({AudioTrack track, DateTime time})> get historyEntries {
     final result = <({AudioTrack track, DateTime time})>[];
     if (_historyRaw.isEmpty) return result;
@@ -718,6 +815,151 @@ class PlayerProvider extends ChangeNotifier {
       _activeContexts.map((e) => e.name).join(','),
     );
     notifyListeners();
+  }
+
+  // ─── Category Weights & Manual Overrides ─────────────────────────────
+  Map<ListeningContext, double> get categoryWeights => Map.unmodifiable(_categoryWeights);
+
+  double categoryWeight(ListeningContext c) => _categoryWeights[c] ?? 1.0;
+
+  void setCategoryWeight(ListeningContext c, double w) {
+    final clamped = w.clamp(0.5, 2.5).toDouble();
+    _categoryWeights[c] = clamped;
+    _prefs?.setString('category_weights', jsonEncode(_categoryWeights.map((k, v) => MapEntry(k.name, v))));
+    notifyListeners();
+  }
+
+  Set<ListeningContext> categoriesForTrack(AudioTrack track) {
+    final manual = _manualCategories[track.id];
+    if (manual != null && manual.isNotEmpty) return Set.unmodifiable(manual);
+    return _inferCategories(track);
+  }
+
+  bool isManualCategory(int trackId) => _manualCategories.containsKey(trackId);
+
+  void toggleManualCategory(int trackId, ListeningContext ctx) {
+    final set = _manualCategories[trackId] ?? <ListeningContext>{};
+    if (set.contains(ctx)) {
+      set.remove(ctx);
+      if (set.isEmpty) {
+        _manualCategories.remove(trackId);
+      } else {
+        _manualCategories[trackId] = set;
+      }
+    } else {
+      // balanced is exclusive
+      if (ctx == ListeningContext.balanced) {
+        _manualCategories[trackId] = {ListeningContext.balanced};
+      } else {
+        set.remove(ListeningContext.balanced);
+        set.add(ctx);
+        _manualCategories[trackId] = set;
+      }
+    }
+    _persistManualCategories();
+    notifyListeners();
+  }
+
+  void clearManualCategory(int trackId) {
+    if (_manualCategories.remove(trackId) != null) {
+      _persistManualCategories();
+      notifyListeners();
+    }
+  }
+
+  // ─── Genre Cache (фоновая догрузка по названию) ─────────────────────
+  String? genreForTrack(int id) => _genreCache[id];
+
+  Future<String?> fetchGenreForTrack(AudioTrack track) async {
+    if (_genreCache.containsKey(track.id)) return _genreCache[track.id];
+    if (_genreFetching.contains(track.id)) return null;
+    _genreFetching.add(track.id);
+    try {
+      final term = Uri.encodeQueryComponent('${track.artist} ${track.title}'.trim());
+      if (term.isEmpty) return null;
+      final url = Uri.parse('https://itunes.apple.com/search?term=$term&media=music&limit=1');
+      final res = await http.get(url).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map;
+        if ((data['resultCount'] as int? ?? 0) > 0) {
+          final list = data['results'] as List;
+          final genre = (list.first['primaryGenreName'] as String?)?.trim();
+          if (genre != null && genre.isNotEmpty) {
+            _genreCache[track.id] = genre;
+            _prefs?.setString('genre_cache', jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))));
+            notifyListeners();
+            return genre;
+          }
+        }
+      }
+    } catch (_) {
+    } finally {
+      _genreFetching.remove(track.id);
+    }
+    return null;
+  }
+
+  Future<void> fetchGenresForVisible({int batchSize = 12}) async {
+    if (_genreBatchRunning) return;
+    _genreBatchRunning = true;
+    try {
+      final pending = visibleTracks.where((t) => !_genreCache.containsKey(t.id) && !_genreFetching.contains(t.id)).take(batchSize).toList();
+      for (final t in pending) {
+        await fetchGenreForTrack(t);
+        await Future.delayed(const Duration(milliseconds: 400));
+      }
+    } finally {
+      _genreBatchRunning = false;
+    }
+  }
+
+  void _persistManualCategories() {
+    _prefs?.setString('manual_categories',
+        jsonEncode(_manualCategories.map((k, v) => MapEntry('$k', v.map((e) => e.name).toList()))));
+  }
+
+  List<AudioTrack> tracksForCategory(ListeningContext ctx) {
+    return visibleTracks.where((t) => categoriesForTrack(t).contains(ctx)).toList();
+  }
+
+  String categoryCriteria(ListeningContext ctx) {
+    switch (ctx) {
+      case ListeningContext.energy:
+        return 'Ключевые слова: rock, dance, energy, power, beat, electro, synthwave, phonk, bass, hard + короткие треки <3:30';
+      case ListeningContext.calm:
+        return 'Ключевые слова: calm, chill, relax, ambient, sleep, piano, acoustic, soft, lofi, meditation + длинные треки >5:00';
+      case ListeningContext.focus:
+        return 'Ключевые слова: focus, study, concentration, instrumental, classical, jazz, chillhop + средняя длительность';
+      case ListeningContext.party:
+        return 'Ключевые слова: party, club, disco, pop, hit, festival, summer, funk, soul, house, edm';
+      case ListeningContext.balanced:
+        return 'Сбалансированная подборка — все треки без фильтрации';
+    }
+  }
+
+  Set<ListeningContext> _inferCategories(AudioTrack track) {
+    final title = '${track.title} ${track.artist}'.toLowerCase();
+    final genre = (_genreCache[track.id] ?? '').toLowerCase();
+    final combined = genre.isNotEmpty ? '$title $genre' : title;
+    final dur = track.duration;
+    final set = <ListeningContext>{};
+
+    bool has(List<String> kws) => kws.any((k) => combined.contains(k));
+
+    const energyKws = ['energy','power','hard','beat','rock','metal','punk','electro','synth','phonk','trap','drill','bass','gym','workout','run','rage'];
+    const calmKws = ['calm','chill','relax','ambient','sleep','lullaby','piano','acoustic','soft','ballad','lofi','meditation','yoga','spa','rain','nature'];
+    const focusKws = ['focus','study','concentration','instrumental','classical','jazz','chillhop','reading','work','concentration'];
+    const partyKws = ['party','club','disco','pop','hit','dance','festival','celebration','summer','vibe','funk','soul','house','edm'];
+
+    if (has(energyKws) || (dur > 0 && dur < 210000 && !has(calmKws))) set.add(ListeningContext.energy);
+    if (has(calmKws) || (dur > 300000)) set.add(ListeningContext.calm);
+    if (has(focusKws)) set.add(ListeningContext.focus);
+    if (has(partyKws)) set.add(ListeningContext.party);
+
+    if (set.isEmpty) set.add(ListeningContext.balanced);
+    // Если несколько категорий — оставляем, но balanced не смешиваем
+    if (set.length > 1) set.remove(ListeningContext.balanced);
+    return set;
   }
 
   // ─── Skip learning ─────────────────────────────────────────────────
@@ -900,11 +1142,11 @@ class PlayerProvider extends ChangeNotifier {
   Map<String, double> trackScoreBreakdown(AudioTrack t) {
     final out = <String, double>{};
 
-    final hasEnergy = _activeContexts.any(
-        (c) => c == ListeningContext.energy || c == ListeningContext.party);
-    final hasCalm = _activeContexts
-        .any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
-    final favWeight = hasEnergy ? 1.6 : (hasCalm ? 1.25 : 1.0);
+    double favWeight = 1.0;
+    for (final c in _activeContexts) {
+      final w = _categoryWeights[c] ?? 1.0;
+      if (w > favWeight) favWeight = w;
+    }
 
     final n = _historyRaw.length;
     final favSet = _favoriteIds.toSet();
@@ -1038,11 +1280,11 @@ class PlayerProvider extends ChangeNotifier {
     final usedArtistCount = <String, int>{};
     int seed = DateTime.now().millisecondsSinceEpoch;
 
-    final hasEnergy = activeCtx.any(
-        (c) => c == ListeningContext.energy || c == ListeningContext.party);
-    final hasCalm = activeCtx
-        .any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
-    final favWeight = hasEnergy ? 1.6 : (hasCalm ? 1.25 : 1.0);
+    double favWeight = 1.0;
+    for (final c in activeCtx) {
+      final w = _categoryWeights[c] ?? 1.0;
+      if (w > favWeight) favWeight = w;
+    }
 
     final discoveryF = (discovery ?? _discoveryLevel).factor;
 

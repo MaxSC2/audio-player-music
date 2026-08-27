@@ -7,6 +7,7 @@ import 'equalizer_dialog.dart';
 import 'explain_sheet.dart';
 import 'queue_sheet.dart';
 import 'sleep_timer_dialog.dart';
+import 'speed_selector_dialog.dart';
 
 /// Единый ряд функций плеера — доступен во всех интерфейсах (простой/3D),
 /// чтобы не нужно было переключаться между ними.
@@ -79,7 +80,15 @@ class PlayerFeatureRow extends StatelessWidget {
           const SizedBox(width: 14),
 
           // Speed
-          _SpeedBadge(speed: player.speed, onTap: player.cycleSpeed),
+          _SpeedBadge(
+            speed: player.speed,
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => const SpeedSelectorDialog(),
+              );
+            },
+          ),
           const SizedBox(width: 14),
 
           // Sleep Timer

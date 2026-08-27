@@ -13,9 +13,31 @@ class PlaylistDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
-    final index = player.playlists.indexWhere((p) => p.id == playlistId);
+    final isSmart = playlistId.startsWith('smart_');
 
-    if (index < 0) {
+    CustomPlaylist? playlist;
+    List<AudioTrack> tracks = [];
+
+    if (isSmart) {
+      if (playlistId == 'smart_added') {
+        playlist = CustomPlaylist(id: 'smart_added', name: 'Недавно добавленные', trackIds: const [], createdAt: 0);
+        tracks = player.smartRecentlyAdded;
+      } else if (playlistId == 'smart_played') {
+        playlist = CustomPlaylist(id: 'smart_played', name: 'Недавно сыгранные', trackIds: const [], createdAt: 0);
+        tracks = player.smartRecentlyPlayed;
+      } else if (playlistId == 'smart_most') {
+        playlist = CustomPlaylist(id: 'smart_most', name: 'Часто прослушиваемые', trackIds: const [], createdAt: 0);
+        tracks = player.smartMostPlayed;
+      }
+    } else {
+      final index = player.playlists.indexWhere((p) => p.id == playlistId);
+      if (index >= 0) {
+        playlist = player.playlists[index];
+        tracks = player.tracksOfPlaylist(playlist);
+      }
+    }
+
+    if (playlist == null) {
       return Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(title: const Text('Плейлист')),
@@ -28,9 +50,6 @@ class PlaylistDetailScreen extends StatelessWidget {
       );
     }
 
-    final playlist = player.playlists[index];
-    final tracks = player.tracksOfPlaylist(playlist);
-
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -42,8 +61,10 @@ class PlaylistDetailScreen extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          PopupMenuButton<String>(
+        actions: isSmart
+            ? null
+            : [
+                PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded,
                 color: AppTheme.textSecondary),
             color: AppTheme.surfaceLight,

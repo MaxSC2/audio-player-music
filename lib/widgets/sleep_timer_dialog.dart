@@ -2,28 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
+import 'circular_timer_dial.dart';
 
-class SleepTimerDialog extends StatelessWidget {
+class SleepTimerDialog extends StatefulWidget {
   const SleepTimerDialog({super.key});
+
+  @override
+  State<SleepTimerDialog> createState() => _SleepTimerDialogState();
+}
+
+class _SleepTimerDialogState extends State<SleepTimerDialog> {
+  late int _minutes;
+
+  @override
+  void initState() {
+    super.initState();
+    final player = context.read<PlayerProvider>();
+    _minutes = player.sleepTimerMinutes;
+  }
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
     final activeMinutes = player.sleepTimerMinutes;
 
-    final options = [
-      {'label': 'Выключен', 'minutes': 0},
-      {'label': '5 минут', 'minutes': 5},
-      {'label': '15 минут', 'minutes': 15},
-      {'label': '30 минут', 'minutes': 30},
-      {'label': '45 минут', 'minutes': 45},
-      {'label': '60 минут', 'minutes': 60},
-    ];
-
     return AlertDialog(
       backgroundColor: AppTheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         side: BorderSide(color: AppTheme.cardBorder),
       ),
       title: Row(
@@ -37,56 +43,73 @@ class SleepTimerDialog extends StatelessWidget {
             child: const Icon(Icons.nightlight_round, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
-          Text(
-            'Таймер сна',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Таймер сна',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (activeMinutes > 0)
+                Text(
+                  'Активен: $activeMinutes мин',
+                  style: TextStyle(color: AppTheme.accentLight, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+            ],
           ),
         ],
       ),
       content: SizedBox(
         width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: options.map((opt) {
-            final minutes = opt['minutes'] as int;
-            final isSelected = activeMinutes == minutes;
-
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected ? AppTheme.accent.withOpacity(0.15) : AppTheme.surfaceLight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? AppTheme.accent : Colors.transparent,
-                  width: 1.2,
-                ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularTimerDial(
+                initialMinutes: _minutes,
+                onChanged: (v) => setState(() => _minutes = v),
               ),
-              child: ListTile(
-                title: Text(
-                  opt['label'] as String,
-                  style: TextStyle(
-                    color: isSelected ? AppTheme.accentLight : AppTheme.textPrimary,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.textSecondary,
+                        side: BorderSide(color: AppTheme.cardBorder),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Отмена'),
+                    ),
                   ),
-                ),
-                trailing: isSelected
-                    ? Icon(Icons.check_circle_rounded, color: AppTheme.accent)
-                    : null,
-                onTap: () {
-                  if (minutes == 0) {
-                    player.cancelSleepTimer();
-                  } else {
-                    player.setSleepTimer(minutes);
-                  }
-                  Navigator.pop(context);
-                },
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (_minutes == 0) {
+                          player.cancelSleepTimer();
+                        } else {
+                          player.setSleepTimer(_minutes);
+                        }
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(_minutes == 0 ? 'Выключить' : 'Старт'),
+                    ),
+                  ),
+                ],
               ),
-            );
-          }).toList(),
+            ],
+          ),
         ),
       ),
     );
