@@ -61,6 +61,8 @@ class PlayerProvider extends ChangeNotifier {
   Map<int, String> _genreCache = {};
   final Set<int> _genreFetching = {};
   bool _genreBatchRunning = false;
+  List<String>? _foldersCache;
+  Map<String, List<AudioTrack>>? _folderTracksCache;
   Map<int, int> _skipCount = {};
   bool _deepCuts = false;
   DiscoveryLevel _discoveryLevel = DiscoveryLevel.balanced;
@@ -161,6 +163,7 @@ class PlayerProvider extends ChangeNotifier {
 
       final deletedId = track.id;
       _allTracks.removeWhere((t) => t.id == deletedId);
+      _invalidateFolderCache();
       _favoriteIds.removeWhere((id) => id == deletedId);
       for (var i = 0; i < _playlists.length; i++) {
         final ids = _playlists[i].trackIds
@@ -288,6 +291,35 @@ class PlayerProvider extends ChangeNotifier {
         notifyListeners();
         WidgetService.playerChanged(this);
       }
+    });
+
+    // Синхронизация через currentIndexStream — just_audio может листать очередь
+    // нативно без playbackEvent (особенно при setAudioSources). Этот слушатель
+    // гарантирует, что _currentIndex/виджеты/история всегда совпадают с
+    // реальным индексом плеера, а next()/prev() считают следующий трек верно.
+    _audioPlayer.currentIndexStream.listen((idx) {
+      if (idx == null || _switchingSource) return;
+      // Repeat-one: откатываем нативный автопереход
+      if (idx != _lastEventIndex &&
+          _repeatMode == PlayerRepeatMode.one &&
+          _lastEventIndex >= 0 &&
+          _lastEventIndex < _playlist.length) {
+        _audioPlayer.seek(Duration.zero, index: _lastEventIndex);
+        return;
+      }
+      if (idx == _currentIndex) return;
+      _currentIndex = idx;
+      _lastEventIndex = idx;
+      if (idx >= 0 && idx < _playlist.length) {
+        final t = _playlist[idx];
+        if (t.id != _lastHistoryTrackId) {
+          _lastHistoryTrackId = t.id;
+          _recordHistory(t);
+          _audioHandler?.setFavoriteState(isFavorite(t.id));
+        }
+      }
+      notifyListeners();
+      WidgetService.playerChanged(this);
     });
 
     _audioPlayer.setSpeed(_speed);
@@ -654,6 +686,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void _refreshTrackFavoriteFlags() {
+    _invalidateFolderCache();
     _allTracks = _allTracks
         .map((t) => t.copyWith(isFavorite: isFavorite(t.id)))
         .toList();
@@ -1551,16 +1584,29 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<String> get folders {
+    if (_foldersCache != null) return _foldersCache!;
     final set = <String>{};
     for (final t in visibleTracks) {
       final f = _folderPathOf(t);
       if (f != null) set.add(f);
     }
-    return set.toList()..sort();
+    final list = set.toList()..sort();
+    _foldersCache = list;
+    return list;
   }
 
-  List<AudioTrack> tracksInFolder(String folder) =>
-      visibleTracks.where((t) => _folderPathOf(t) == folder).toList();
+  List<AudioTrack> tracksInFolder(String folder) {
+    final cache = _folderTracksCache;
+    if (cache != null && cache.containsKey(folder)) return cache[folder]!;
+    final list = visibleTracks.where((t) => _folderPathOf(t) == folder).toList();
+    (_folderTracksCache ??= {})[folder] = list;
+    return list;
+  }
+
+  void _invalidateFolderCache() {
+    _foldersCache = null;
+    _folderTracksCache = null;
+  }
 
   Future<void> requestPermission() async {
     try {
@@ -1613,6 +1659,7 @@ class PlayerProvider extends ChangeNotifier {
         .toList();
 
     _allTracks = sortTracks(_allTracks, _sortOrder);
+    _invalidateFolderCache();
     notifyListeners();
     await _maybeResume();
     await _prepareInitialPlaylist();
