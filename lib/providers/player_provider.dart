@@ -104,11 +104,19 @@ class PlayerProvider extends ChangeNotifier {
 
   List<AudioTrack> get allTracks => _allTracks;
   List<AudioTrack> get playlist => _playlist;
-  int get currentIndex => _currentIndex;
-  AudioTrack? get currentTrack =>
-      (_currentIndex >= 0 && _currentIndex < _playlist.length)
-          ? _playlist[_currentIndex]
-          : null;
+  int get currentIndex {
+    final idx = _audioPlayer.currentIndex;
+    if (idx != null && idx >= 0 && idx < _playlist.length) return idx;
+    return _currentIndex;
+  }
+
+  AudioTrack? get currentTrack {
+    final idx = _audioPlayer.currentIndex;
+    if (idx != null && idx >= 0 && idx < _playlist.length) return _playlist[idx];
+    return (_currentIndex >= 0 && _currentIndex < _playlist.length)
+        ? _playlist[_currentIndex]
+        : null;
+  }
   bool get isPlaying => _isPlaying;
   Duration get position => _position;
   Duration get duration => _duration;

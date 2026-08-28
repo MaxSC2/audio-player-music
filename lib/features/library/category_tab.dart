@@ -75,9 +75,12 @@ class _CategoryTabState extends State<CategoryTab> {
     final tracks = player.tracksForCategory(_selected);
     final total = player.visibleTracks.length;
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 16),
-      children: [
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
         // Info header
         Container(
           margin: const EdgeInsets.fromLTRB(14, 8, 14, 10),
@@ -246,25 +249,33 @@ class _CategoryTabState extends State<CategoryTab> {
         ),
         const SizedBox(height: 8),
 
-        // Track list for selected category
-        ...tracks.isEmpty
-            ? [
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(_ctxIcon(_selected), size: 48, color: AppTheme.textMuted.withOpacity(0.5)),
-                        const SizedBox(height: 12),
-                        Text('Нет треков в категории "${_ctxLabel(_selected)}"', style: TextStyle(color: AppTheme.textMuted)),
-                        const SizedBox(height: 6),
-                        Text('Попробуйте изменить ключевые слова или добавить вручную', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textMuted.withOpacity(0.7), fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                )
-              ]
-            : tracks.map((track) {
+            ],
+          ),
+        ),
+        if (tracks.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(_ctxIcon(_selected), size: 48, color: AppTheme.textMuted.withOpacity(0.5)),
+                    const SizedBox(height: 12),
+                    Text('Нет треков в категории "${_ctxLabel(_selected)}"', style: TextStyle(color: AppTheme.textMuted)),
+                    const SizedBox(height: 6),
+                    Text('Попробуйте изменить ключевые слова или добавить вручную', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textMuted.withOpacity(0.7), fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.only(bottom: 16),
+            sliver: SliverList.builder(
+              itemCount: tracks.length,
+              itemBuilder: (context, index) {
+                final track = tracks[index];
                 final isCurrent = player.currentTrack?.id == track.id;
                 final manual = player.isManualCategory(track.id);
                 return GestureDetector(
@@ -276,8 +287,7 @@ class _CategoryTabState extends State<CategoryTab> {
                         isPlaying: isCurrent && player.isPlaying,
                         isCurrent: isCurrent,
                         onTap: () {
-                          final idx = tracks.indexWhere((t) => t.id == track.id);
-                          player.playFromPlaylist(tracks, idx >= 0 ? idx : 0);
+                          player.playFromPlaylist(tracks, index);
                         },
                       ),
                       if (manual)
@@ -306,7 +316,9 @@ class _CategoryTabState extends State<CategoryTab> {
                     ],
                   ),
                 );
-              }),
+              },
+            ),
+          ),
       ],
     );
   }
