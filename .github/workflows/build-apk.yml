@@ -37,6 +37,7 @@ jobs:
           [ -f android/app/src/main/res/drawable/widget_bg.xml ] && cp android/app/src/main/res/drawable/widget_bg.xml mainactivity_backup/
           [ -d android/app/src/main/res/drawable-nodpi ] && cp -r android/app/src/main/res/drawable-nodpi mainactivity_backup/
           [ -f android/app/src/main/res/values/strings.xml ] && cp android/app/src/main/res/values/strings.xml mainactivity_backup/
+          mkdir -p mainactivity_backup && for d in android/app/src/main/res/mipmap-*; do [ -d "$d" ] && cp -r "$d" mainactivity_backup/; done
           flutter create --org com.example --project-name audio_player app_temp
           cp -r app_temp/. .
           rm -rf lib
@@ -48,6 +49,7 @@ jobs:
           [ -f mainactivity_backup/widget_bg.xml ] && cp mainactivity_backup/widget_bg.xml android/app/src/main/res/drawable/
           [ -d mainactivity_backup/drawable-nodpi ] && cp -r mainactivity_backup/drawable-nodpi android/app/src/main/res/
           [ -f mainactivity_backup/strings.xml ] && cp mainactivity_backup/strings.xml android/app/src/main/res/values/
+          for d in mainactivity_backup/mipmap-*; do [ -d "$d" ] && cp -r "$d" android/app/src/main/res/; done
           rm -f android/settings.gradle android/build.gradle android/app/build.gradle
           rm -rf app_temp lib_backup pubspec_backup.yaml mainactivity_backup
 
@@ -78,7 +80,8 @@ jobs:
               <application
                   android:label="NeonWave"
                   android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher">
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"

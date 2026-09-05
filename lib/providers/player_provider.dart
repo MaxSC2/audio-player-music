@@ -19,6 +19,103 @@ enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 enum ListeningContext { balanced, energy, calm, party, focus }
 
+/// Таксономия жанров: у трека ОДИН основной жанр (несовместимые не смешиваются).
+/// Категории (настроение/контекст) при этом могут комбинироваться.
+class GenreTaxonomy {
+  static const List<String> all = [
+    'Rock', 'Pop', 'Hip-Hop', 'Electronic', 'Dance', 'Jazz', 'Classical',
+    'Metal', 'Punk', 'Alternative', 'Indie', 'R&B', 'Soul', 'Funk', 'Blues',
+    'Country', 'Folk', 'Latin', 'Reggae', 'K-Pop', 'Ambient', 'Lo-Fi', 'Phonk',
+    'Synthwave', 'House', 'Techno', 'Drum & Bass', 'Dubstep', 'Trap',
+    'Soundtrack', 'Chanson', 'Estrada',
+  ];
+
+  /// Нормализация онлайн-жанров (iTunes primaryGenreName) в таксономию.
+  /// null = неизвестно, не кэшируем как жанр.
+  static String? normalizeOnline(String raw) {
+    final g = raw.trim().toLowerCase();
+    const map = {
+      'rock': 'Rock', 'alternative': 'Alternative', 'indie': 'Indie',
+      'pop': 'Pop', 'vocal': 'Pop', 'pop/rock': 'Rock',
+      'hip-hop': 'Hip-Hop', 'hip-hop/rap': 'Hip-Hop', 'rap': 'Hip-Hop',
+      'r&b': 'R&B', 'r&b/soul': 'R&B', 'soul': 'Soul', 'funk': 'Funk',
+      'blues': 'Blues', 'country': 'Country', 'folk': 'Folk',
+      'singer/songwriter': 'Folk', 'latin': 'Latin', 'latino': 'Latin',
+      'reggae': 'Reggae', 'reggaeton': 'Latin', 'k-pop': 'K-Pop', 'j-pop': 'Pop',
+      'japanese': 'K-Pop', 'korean': 'K-Pop',
+      'electronic': 'Electronic', 'dance': 'Dance', 'house': 'House',
+      'techno': 'Techno', 'trance': 'Electronic', 'dubstep': 'Dubstep',
+      'drum & bass': 'Drum & Bass', "drum'n'bass": 'Drum & Bass', 'dnb': 'Drum & Bass',
+      'trap': 'Trap', 'phonk': 'Phonk', 'synthwave': 'Synthwave', 'synthpop': 'Synthwave',
+      'lo-fi': 'Lo-Fi', 'lofi': 'Lo-Fi', 'ambient': 'Ambient', 'new age': 'Ambient',
+      'jazz': 'Jazz', 'classical': 'Classical', 'opera': 'Classical',
+      'metal': 'Metal', 'punk': 'Punk', 'hard rock': 'Rock',
+      'soundtrack': 'Soundtrack', 'soundtracks': 'Soundtrack',
+      'chanson': 'Chanson', 'shanson': 'Chanson', 'шансон': 'Chanson',
+      'estrada': 'Estrada', 'эстрада': 'Estrada', 'попса': 'Estrada',
+    };
+    if (g in map) return map[g];
+    for (final t in all) {
+      if (g.contains(t.toLowerCase())) return t;
+    }
+    return null;
+  }
+
+  /// Ключевые слова (название+исполнитель+альбом) -> жанр. RU+EN.
+  static const Map<String, List<String>> keywords = {
+    'Rock': ['rock', 'рок', 'ac/dc', 'queen', 'nirvana', 'rhapsody', 'guitar', 'гитара'],
+    'Metal': ['metal', 'метал', 'rammstein', 'slipknot', 'iron maiden', 'death', 'black metal', 'doom'],
+    'Punk': ['punk', 'панк', 'sex pistols', 'ramones', 'offspring', 'green day'],
+    'Hip-Hop': ['hip-hop', 'hip hop', 'rap', 'рэп', 'хип-хоп', 'eminem', 'drake', 'kendrick', 'travis scott', 'oxxxymiron', 'оксимирон', 'basta', 'баста', 'morgenshtern', 'моргенштерн'],
+    'Pop': ['pop', 'поп', 'madonna', 'taylor swift', 'dua lipa', 'ариана', 'bts', 'one direction'],
+    'Electronic': ['electronic', 'электрон', 'depeche mode', 'kraftwerk', 'synth', 'синт', 'edm', 'avicii'],
+    'Dance': ['dance', 'танцевальн', 'eurodance', 'hands up', 'cascada'],
+    'House': ['house', 'хаус', 'deep house', 'david guetta', 'calvin harris', 'fisher'],
+    'Techno': ['techno', 'техно', 'charlotte de witte', 'amelie lens', 'boris brejcha'],
+    'Drum & Bass': ['drum and bass', 'drum & bass', 'dnb', 'драм', 'pendulum', 'netsky', 'sub focus'],
+    'Dubstep': ['dubstep', 'дабстеп', 'skrillex', 'excision'],
+    'Trap': ['trap', 'трэп', 'future ', 'metro boomin'],
+    'Phonk': ['phonk', 'фонк', 'drift phonk', 'ghostface playa', 'kaito shoma'],
+    'Synthwave': ['synthwave', 'синтвейв', 'retrowave', 'outrun', 'kavinsky', 'gunship', 'carpenter brut'],
+    'Lo-Fi': ['lo-fi', 'lofi', 'лофай', 'chillhop', 'lofi hip hop', 'jinsang', 'nujabes'],
+    'Ambient': ['ambient', 'эмбиент', 'brian eno', 'stars of the lid', 'meditation', 'медитац'],
+    'Jazz': ['jazz', 'джаз', 'miles davis', 'coltrane', 'sinatra', 'ella fitzgerald', 'bossa nova', 'босса'],
+    'Classical': ['classical', 'классика', 'mozart', 'beethoven', 'bach', 'vivaIdi', 'symphony', 'симфони', 'orchestra', 'оркестр', 'piano concerto'],
+    'Blues': ['blues', 'блюз', 'b.b. king', 'muddy waters'],
+    'Country': ['country', 'кантри', 'johnny cash', 'dolly parton'],
+    'Folk': ['folk', 'фолк', 'singer-songwriter', 'бард', 'высоцкий', 'окуджава'],
+    'Latin': ['latin', 'латино', 'reggaeton', 'реггетон', 'salsa', 'сальса', 'despacito', 'shakira', 'bad bunny'],
+    'Reggae': ['reggae', 'регги', 'bob marley', 'marley'],
+    'R&B': ['r&b', 'rnb', 'the weeknd', 'sza', 'usher', 'alicia keys'],
+    'Soul': ['soul', 'соул', 'aretha', 'marvin gaye', 'sam cooke'],
+    'Funk': ['funk', 'фанк', 'james brown', 'parliament'],
+    'K-Pop': ['k-pop', 'kpop', 'кей-поп', 'bts', 'blackpink', 'stray kids', 'twice', 'exo'],
+    'Soundtrack': ['soundtrack', 'саундтрек', 'ost ', 'score', 'hans zimmer', 'anime', 'аниме', 'amv'],
+    'Alternative': ['alternative', 'альтернатив', 'radiohead', 'arctic monkeys', 'placebo', 'muse'],
+    'Indie': ['indie', 'инди', 'tame impala', 'arctic monkeys', 'the strokes', 'vampire weekend'],
+    'Chanson': ['chanson', 'шансон', 'круг', 'михаил круг', 'лепс'],
+    'Estrada': ['эстрада', 'пугачева', 'киркоров', 'басков', 'аллегрова', 'леонтьев'],
+  };
+
+  static String guessFromText(String text) {
+    final t = text.toLowerCase();
+    String? best;
+    int bestLen = 0;
+    keywords.forEach((genre, kws) {
+      for (final k in kws) {
+        if (k.length >= bestLen && t.contains(k)) {
+          // более длинные совпадения точнее коротких
+          if (k.length > bestLen) {
+            best = genre;
+            bestLen = k.length;
+          }
+        }
+      }
+    });
+    return best ?? 'Прочее';
+  }
+}
+
 enum DiscoveryLevel { familiar, balanced, discovery, experimental }
 
 extension DiscoveryLevelX on DiscoveryLevel {
@@ -61,6 +158,12 @@ class PlayerProvider extends ChangeNotifier {
   Map<int, String> _genreCache = {};
   final Set<int> _genreFetching = {};
   bool _genreBatchRunning = false;
+  DateTime? _genreBatchLastRun;
+  Map<int, String> _manualGenre = {};
+  final Map<int, Set<ListeningContext>> _categoryCache = {};
+  final Map<ListeningContext, List<AudioTrack>> _categoryTracksCache = {};
+  final Map<int, String> _primaryGenreCache = {};
+  int _genreCachedCount = -1;
   List<String>? _foldersCache;
   Map<String, List<AudioTrack>>? _folderTracksCache;
   Map<int, int> _skipCount = {};
@@ -172,6 +275,7 @@ class PlayerProvider extends ChangeNotifier {
       final deletedId = track.id;
       _allTracks.removeWhere((t) => t.id == deletedId);
       _invalidateFolderCache();
+      _invalidateCategoryCache();
       _favoriteIds.removeWhere((id) => id == deletedId);
       for (var i = 0; i < _playlists.length; i++) {
         final ids = _playlists[i].trackIds
@@ -420,6 +524,18 @@ class PlayerProvider extends ChangeNotifier {
       } catch (_) {}
     }
 
+    final savedManualGenre = prefs.getString('manual_genre');
+    if (savedManualGenre != null) {
+      try {
+        final raw = jsonDecode(savedManualGenre) as Map;
+        raw.forEach((k, v) {
+          final id = int.tryParse(k.toString());
+          final g = v.toString().trim();
+          if (id != null && g.isNotEmpty) _manualGenre[id] = g;
+        });
+      } catch (_) {}
+    }
+
     final savedSkips = prefs.getString('skip_counts');
     if (savedSkips != null) {
       try {
@@ -588,6 +704,7 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> setHideUnknownArtist(bool value) async {
     _hideUnknownArtist = value;
+    _invalidateCategoryCache();
     await _prefs?.setBool('hide_unknown', value);
     notifyListeners();
   }
@@ -870,10 +987,21 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _invalidateCategoryCache() {
+    _categoryCache.clear();
+    _categoryTracksCache.clear();
+    _primaryGenreCache.clear();
+    _genreCachedCount = -1;
+  }
+
   Set<ListeningContext> categoriesForTrack(AudioTrack track) {
     final manual = _manualCategories[track.id];
     if (manual != null && manual.isNotEmpty) return Set.unmodifiable(manual);
-    return _inferCategories(track);
+    final cached = _categoryCache[track.id];
+    if (cached != null) return Set.unmodifiable(cached);
+    final inferred = _inferCategories(track);
+    _categoryCache[track.id] = inferred;
+    return Set.unmodifiable(inferred);
   }
 
   bool isManualCategory(int trackId) => _manualCategories.containsKey(trackId);
@@ -898,18 +1026,103 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
     _persistManualCategories();
+    _invalidateCategoryCache();
     notifyListeners();
   }
 
   void clearManualCategory(int trackId) {
     if (_manualCategories.remove(trackId) != null) {
       _persistManualCategories();
+      _invalidateCategoryCache();
       notifyListeners();
     }
   }
 
-  // ─── Genre Cache (фоновая догрузка по названию) ─────────────────────
+  // ─── Жанры (отдельно от категорий) ───────────────────────────────────
+  // У трека ОДИН основной жанр: ручной > онлайн > ключевые слова.
   String? genreForTrack(int id) => _genreCache[id];
+
+  String primaryGenre(AudioTrack t) {
+    final cached = _primaryGenreCache[t.id];
+    if (cached != null) return cached;
+    String g;
+    final manual = _manualGenre[t.id];
+    if (manual != null && manual.isNotEmpty) {
+      g = manual;
+    } else {
+      final online = _genreCache[t.id];
+      final norm = online == null ? null : GenreTaxonomy.normalizeOnline(online);
+      if (norm != null) {
+        g = norm;
+      } else {
+        g = GenreTaxonomy.guessFromText(
+            '${t.title} ${t.artist} ${t.album ?? ''}');
+      }
+    }
+    _primaryGenreCache[t.id] = g;
+    return g;
+  }
+
+  /// Источник жанра: manual / online / auto / none
+  String genreSource(AudioTrack t) {
+    if (_manualGenre.containsKey(t.id)) return 'manual';
+    final online = _genreCache[t.id];
+    if (online != null && GenreTaxonomy.normalizeOnline(online) != null) {
+      return 'online';
+    }
+    final guess = GenreTaxonomy.guessFromText(
+        '${t.title} ${t.artist} ${t.album ?? ''}');
+    return guess == 'Прочее' ? 'none' : 'auto';
+  }
+
+  void setManualGenre(int id, String genre) {
+    final g = genre.trim();
+    if (g.isEmpty || g.length > 32) return;
+    _manualGenre[id] = g[0].toUpperCase() + g.substring(1);
+    _prefs?.setString('manual_genre',
+        jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))));
+    _invalidateCategoryCache();
+    notifyListeners();
+  }
+
+  void clearManualGenre(int id) {
+    if (_manualGenre.remove(id) != null) {
+      _prefs?.setString('manual_genre',
+          jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))));
+      _invalidateCategoryCache();
+      notifyListeners();
+    }
+  }
+
+  /// Жанры, встречающиеся в библиотеке, с подсчётом (кэшируется).
+  Map<String, int> genreCounts() {
+    final map = <String, int>{};
+    for (final t in visibleTracks) {
+      final g = primaryGenre(t);
+      map[g] = (map[g] ?? 0) + 1;
+    }
+    final sorted = map.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return Map.fromEntries(sorted);
+  }
+
+  List<AudioTrack> tracksForGenre(String genre) {
+    return visibleTracks.where((t) => primaryGenre(t) == genre).toList();
+  }
+
+  int get genreProgressCached {
+    if (_genreCachedCount >= 0) return _genreCachedCount;
+    var n = 0;
+    for (final t in visibleTracks) {
+      if (_genreCache.containsKey(t.id)) n++;
+    }
+    _genreCachedCount = n;
+    return n;
+  }
+
+  int get genreProgressTotal => visibleTracks.length;
+
+  // ─── Genre Cache (фоновая догрузка по названию) ─────────────────────
 
   Future<String?> fetchGenreForTrack(AudioTrack track) async {
     if (_genreCache.containsKey(track.id)) return _genreCache[track.id];
@@ -928,6 +1141,7 @@ class PlayerProvider extends ChangeNotifier {
           if (genre != null && genre.isNotEmpty) {
             _genreCache[track.id] = genre;
             _prefs?.setString('genre_cache', jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))));
+            _invalidateCategoryCache();
             notifyListeners();
             return genre;
           }
@@ -940,8 +1154,15 @@ class PlayerProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<void> fetchGenresForVisible({int batchSize = 12}) async {
+  Future<void> fetchGenresForVisible({int batchSize = 12, bool force = false}) async {
     if (_genreBatchRunning) return;
+    final now = DateTime.now();
+    if (!force &&
+        _genreBatchLastRun != null &&
+        now.difference(_genreBatchLastRun!).inSeconds < 60) {
+      return;
+    }
+    _genreBatchLastRun = now;
     _genreBatchRunning = true;
     try {
       final pending = visibleTracks.where((t) => !_genreCache.containsKey(t.id) && !_genreFetching.contains(t.id)).take(batchSize).toList();
@@ -960,7 +1181,11 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<AudioTrack> tracksForCategory(ListeningContext ctx) {
-    return visibleTracks.where((t) => categoriesForTrack(t).contains(ctx)).toList();
+    final cached = _categoryTracksCache[ctx];
+    if (cached != null) return cached;
+    final list = visibleTracks.where((t) => categoriesForTrack(t).contains(ctx)).toList();
+    _categoryTracksCache[ctx] = list;
+    return list;
   }
 
   String categoryCriteria(ListeningContext ctx) {
@@ -1288,32 +1513,34 @@ class PlayerProvider extends ChangeNotifier {
         .toList();
     if (pool.isEmpty) return const [];
 
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     final playCount = <int, int>{};
     final artistPlayCount = <String, int>{};
     for (final e in _historyRaw) {
       final id = e['id'];
       if (id == null) continue;
       playCount[id] = (playCount[id] ?? 0) + 1;
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index >= 0) {
-        final artist = _allTracks[index].artist;
-        artistPlayCount[artist] = (artistPlayCount[artist] ?? 0) + 1;
+      final ht = byId[id];
+      if (ht != null) {
+        artistPlayCount[ht.artist] = (artistPlayCount[ht.artist] ?? 0) + 1;
       }
     }
 
     final n = _historyRaw.length;
     final lastSeen = <int, int>{};
     final artistAffinity = <String, double>{};
+    final genreAffinity = <String, double>{};
     for (var i = 0; i < n; i++) {
       final id = _historyRaw[i]['id'];
       if (id == null) continue;
       lastSeen[id] = i;
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index < 0) continue;
-      final artist = _allTracks[index].artist;
+      final ht = byId[id];
+      if (ht == null) continue;
       final age = i; // 0 = самый свежий
       final w = math.pow(0.88, age).toDouble();
-      artistAffinity[artist] = (artistAffinity[artist] ?? 0) + w;
+      artistAffinity[ht.artist] = (artistAffinity[ht.artist] ?? 0) + w;
+      final hg = primaryGenre(ht);
+      genreAffinity[hg] = (genreAffinity[hg] ?? 0) + w;
     }
 
     final currentArtist = currentTrack?.artist;
@@ -1351,6 +1578,20 @@ class PlayerProvider extends ChangeNotifier {
 
         final affinity = artistAffinity[t.artist] ?? 0;
         score += math.min(16.0, affinity) * 1.3;
+
+        // Аффинность жанра: что слушал — то и подмешиваем
+        final tg = primaryGenre(t);
+        score += math.min(12.0, genreAffinity[tg] ?? 0) * 1.1;
+
+        // Буст категорий с учётом весов пользователя
+        double catBoost = 0;
+        for (final c in categoriesForTrack(t)) {
+          if (activeCtx.contains(c)) {
+            final w = _categoryWeights[c] ?? 1.0;
+            if (w > catBoost) catBoost = w;
+          }
+        }
+        if (catBoost > 0) score += 4 + catBoost * 5;
 
         final lastI = lastSeen[t.id];
         if (lastI != null) {
@@ -1537,6 +1778,7 @@ class PlayerProvider extends ChangeNotifier {
   SortOrder get sortOrder => _sortOrder;
   set sortOrder(SortOrder value) {
     _sortOrder = value;
+    _invalidateCategoryCache();
     _allTracks = sortTracks(_allTracks, value);
     _prefs?.setString('sort_order', value.name);
     notifyListeners();
@@ -1668,6 +1910,7 @@ class PlayerProvider extends ChangeNotifier {
 
     _allTracks = sortTracks(_allTracks, _sortOrder);
     _invalidateFolderCache();
+    _invalidateCategoryCache();
     notifyListeners();
     await _maybeResume();
     await _prepareInitialPlaylist();
