@@ -54,7 +54,7 @@ class GenreTaxonomy {
       'chanson': 'Chanson', 'shanson': 'Chanson', 'шансон': 'Chanson',
       'estrada': 'Estrada', 'эстрада': 'Estrada', 'попса': 'Estrada',
     };
-    if (g in map) return map[g];
+    if (map.containsKey(g)) return map[g];
     for (final t in all) {
       if (g.contains(t.toLowerCase())) return t;
     }

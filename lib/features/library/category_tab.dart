@@ -392,7 +392,7 @@ class _CategoryTabState extends State<CategoryTab> {
                     const SizedBox(height: 12),
                     Text('Нет треков в жанре "$_selectedGenre"', style: TextStyle(color: AppTheme.textMuted)),
                     const SizedBox(height: 6),
-                    const Text('Назначьте жанр вручную долгим нажатием на трек', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+                    Text('Назначьте жанр вручную долгим нажатием на трек', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
                   ],
                 ),
               ),
