@@ -84,6 +84,11 @@ class SettingsScreen extends StatelessWidget {
                           label: Text('3D'),
                           icon: Icon(Icons.album_rounded, size: 18),
                         ),
+                        ButtonSegment(
+                          value: PlayerUIStyle.cinematic,
+                          label: Text('Кино'),
+                          icon: Icon(Icons.movie_outlined, size: 18),
+                        ),
                       ],
                       selected: {uiStyle.style},
                       showSelectedIcon: false,

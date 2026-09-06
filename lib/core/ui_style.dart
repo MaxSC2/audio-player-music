@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum PlayerUIStyle { simple, coverFlow3D }
+enum PlayerUIStyle { simple, coverFlow3D, cinematic }
 
 class UiStyleController extends ChangeNotifier {
   static const _prefsKey = 'ui_style';
@@ -15,9 +15,13 @@ class UiStyleController extends ChangeNotifier {
     try {
       _prefs = await SharedPreferences.getInstance();
       final saved = _prefs?.getString(_prefsKey);
-      _style = saved == PlayerUIStyle.coverFlow3D.name
-          ? PlayerUIStyle.coverFlow3D
-          : PlayerUIStyle.simple;
+      try {
+        _style = saved == null
+            ? PlayerUIStyle.simple
+            : PlayerUIStyle.values.byName(saved);
+      } catch (_) {
+        _style = PlayerUIStyle.simple;
+      }
       notifyListeners();
     } catch (_) {
       _style = PlayerUIStyle.simple;
@@ -32,9 +36,8 @@ class UiStyleController extends ChangeNotifier {
   }
 
   void toggle() {
-    final next = _style == PlayerUIStyle.simple
-        ? PlayerUIStyle.coverFlow3D
-        : PlayerUIStyle.simple;
+    const values = PlayerUIStyle.values;
+    final next = values[(_style.index + 1) % values.length];
     setStyle(next);
   }
 }

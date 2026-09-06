@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/ui_style.dart';
+import 'cinematic/cinematic_mini_player.dart';
 import 'cover_flow/cover_flow_mini_player.dart';
 import 'simple/simple_mini_player.dart';
 
@@ -18,6 +19,7 @@ class MiniPlayer extends StatelessWidget {
       child: switch (style) {
         PlayerUIStyle.simple => SimpleMiniPlayer(onExpand: onExpand),
         PlayerUIStyle.coverFlow3D => CoverFlowMiniPlayer(onExpand: onExpand),
+        PlayerUIStyle.cinematic => CinematicMiniPlayer(onExpand: onExpand),
       },
     );
   }
