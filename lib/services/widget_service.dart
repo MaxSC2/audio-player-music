@@ -24,11 +24,8 @@ class WidgetService {
   static bool _busy = false;
   static Timer? _debounce;
 
-  static PlayerProvider? _player;
-
   /// Регистрирует обработчик команд от виджетов. Вызывать один раз в main().
   static void bind(PlayerProvider player) {
-    _player = player;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'widgetAction') {
         final action = call.arguments as String?;

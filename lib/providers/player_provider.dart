@@ -298,6 +298,9 @@ class PlayerProvider extends ChangeNotifier {
           _currentIndex -= 1;
         }
         _playlist.removeAt(queueIndex);
+        // Синхронизируем нативную очередь, иначе индексы провайдера
+        // и плеера расходятся и next() играет не тот трек.
+        await _rebuildPlaylist();
       }
 
       notifyListeners();

@@ -647,7 +647,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       ),
     );
 
-    if (name != null && name.isNotEmpty && context.mounted) {
+    if (name != null && name.isNotEmpty && mounted) {
       context.read<PlayerProvider>().createPlaylist(name);
     }
   }
@@ -1392,6 +1392,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     for (final t in selected) {
       if (await player.deleteTrack(t)) deleted++;
     }
+    if (!mounted) return;
     _exitSelection();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1481,7 +1482,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       await player.addToPlaylist(playlistId, t);
     }
     _exitSelection();
-    if (context.mounted) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

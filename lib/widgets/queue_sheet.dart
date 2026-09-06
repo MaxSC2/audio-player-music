@@ -127,7 +127,6 @@ class QueueSheet extends StatelessWidget {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: player.queueSnapshots.map((QueueSnapshot s) {
-                  final t = DateTime.fromMillisecondsSinceEpoch(s.createdAt);
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: Container(

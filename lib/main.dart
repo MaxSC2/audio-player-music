@@ -54,9 +54,7 @@ Future<void> main() async {
   );
 
   handlerFuture.then((handler) {
-    if (handler is PlayerAudioHandler) {
-      playerProvider.attachAudioHandler(handler);
-    }
+    playerProvider.attachAudioHandler(handler);
   }, onError: (Object e) {
     playerProvider.setMediaServiceError('Ошибка: $e');
   });

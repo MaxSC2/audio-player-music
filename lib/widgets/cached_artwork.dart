@@ -52,7 +52,6 @@ class CachedArtwork extends StatefulWidget {
 
 class _CachedArtworkState extends State<CachedArtwork> {
   Uint8List? _bytes;
-  bool _loading = true;
 
   @override
   void initState() {
@@ -65,7 +64,6 @@ class _CachedArtworkState extends State<CachedArtwork> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.trackId != widget.trackId) {
       _bytes = null;
-      _loading = true;
       _load();
     }
   }
@@ -75,7 +73,6 @@ class _CachedArtworkState extends State<CachedArtwork> {
     if (!mounted) return;
     setState(() {
       _bytes = bytes;
-      _loading = false;
     });
   }
 

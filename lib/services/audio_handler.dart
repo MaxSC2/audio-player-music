@@ -62,17 +62,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       final s = _state;
       return 'playing=${s.playing} processing=${s.processingState}\n'
           'controls=[${_controlsSummary(s.controls)}]\n'
-          'systemActions=${s.systemActions?.map((a) => a.name).join(',')}\n'
+          'systemActions=${s.systemActions.map((a) => a.name).join(',')}\n'
           'repeat=${s.repeatMode} shuffle=${s.shuffleMode}\n'
           'compact=${s.androidCompactActionIndices}';
     } catch (e) {
       return 'ошибка диагностики: $e';
     }
   }
-
-  String get _shuffleIcon => _shuffleOn
-      ? 'drawable/ic_action_shuffle'
-      : 'drawable/ic_action_shuffle_off';
 
   String get _repeatIcon {
     switch (_repeat) {
@@ -290,7 +286,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       );
       _log('PUBLISH playing=$playing processing=${state.processingState} '
           'controls=[${_controlsSummary(state.controls)}] '
-          'sys=${state.systemActions?.map((a) => a.name).join(',')} '
+           'sys=${state.systemActions.map((a) => a.name).join(',')} '
           'repeat=${state.repeatMode} shuffle=${state.shuffleMode} '
           'compact=${state.androidCompactActionIndices}');
       playbackState.add(state);

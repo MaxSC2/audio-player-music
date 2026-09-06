@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/ui_style.dart';
-import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/three_d_visualizer.dart';
@@ -158,7 +157,6 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
       });
     }
 
-    final screenW = MediaQuery.sizeOf(context).width;
     final posMs = player.position.inMilliseconds;
     final durMs = player.duration.inMilliseconds;
     final posFrac = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0).toDouble() : 0.0;
