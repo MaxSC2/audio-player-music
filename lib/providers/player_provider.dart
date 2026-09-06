@@ -1004,11 +1004,17 @@ class PlayerProvider extends ChangeNotifier {
     if (tracks.isEmpty || index < 0 || index >= tracks.length) return;
 
     _playlist = tracks;
-    await _audioPlayer.setAudioSources(
-      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-    );
-    _currentIndex = index;
-    await _audioPlayer.seek(Duration(milliseconds: positionMs), index: index);
+    _switchingSource = true;
+    try {
+      await _audioPlayer.setAudioSources(
+        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+      );
+      _currentIndex = index;
+      _lastEventIndex = index;
+      await _audioPlayer.seek(Duration(milliseconds: positionMs), index: index);
+    } finally {
+      _switchingSource = false;
+    }
     _audioHandler?.setQueue(_playlist);
     notifyListeners();
   }
@@ -2047,10 +2053,10 @@ class PlayerProvider extends ChangeNotifier {
     if (more.isEmpty) return;
     _radioUsedIds.addAll(more.map((t) => t.id));
     _playlist = [..._playlist, ...more];
-    _audioHandler?.setQueue(_playlist);
-    await _audioPlayer.setAudioSources(
-      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-    );
+    // Через _rebuildPlaylist: он под гардом вернёт нативный плеер
+    // на текущий трек/позицию. Без этого setAudioSources сбрасывает
+    // нативный индекс в 0 — играет трек №1, а UI показывает старый.
+    await _rebuildPlaylist();
     notifyListeners();
   }
 
@@ -2339,11 +2345,17 @@ class PlayerProvider extends ChangeNotifier {
     if (initial.isEmpty) return;
 
     _playlist = initial;
-    _currentIndex = 0;
-    await _audioPlayer.setAudioSources(
-      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-    );
-    await _audioPlayer.seek(Duration.zero, index: 0);
+    _switchingSource = true;
+    try {
+      await _audioPlayer.setAudioSources(
+        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+      );
+      _currentIndex = 0;
+      _lastEventIndex = 0;
+      await _audioPlayer.seek(Duration.zero, index: 0);
+    } finally {
+      _switchingSource = false;
+    }
     _audioHandler?.setQueue(_playlist);
     notifyListeners();
   }
@@ -2621,6 +2633,10 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _rebuildPlaylist() async {
+    // Гард обязателен: setAudioSources сбрасывает нативный индекс в 0,
+    // и без подавления устаревшее событие перезапишет _currentIndex,
+    // после чего UI/очередь/шторка/виджеты расходятся с реальностью.
+    _switchingSource = true;
     try {
       if (_playlist.isEmpty) {
         await _audioPlayer.stop();
@@ -2637,6 +2653,11 @@ class PlayerProvider extends ChangeNotifier {
     } catch (_) {
       // Очередь провайдера уже консистентна; ошибка нативного плеера
       // не должна ронять UI — состояние досинхронизируется следующим событием.
+    } finally {
+      // Гасим эхо пересборки: следующее событие с текущим нативным
+      // индексом не должно трактоваться как смена трека.
+      _lastEventIndex = _currentIndex;
+      _switchingSource = false;
     }
   }
 
