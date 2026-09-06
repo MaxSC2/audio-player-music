@@ -150,73 +150,67 @@ class AppTheme {
 
   // ThemeData
   static ThemeData get dark => ThemeData(
-        brightness: lightMode ? Brightness.light : Brightness.dark,
-        scaffoldBackgroundColor: background,
-        primaryColor: accent,
-        canvasColor: background,
-        colorScheme: lightMode
-            ? ColorScheme.light(
-                primary: accent,
-                secondary: accentCyan,
-                surface: card,
-                error: accentPink,
-              )
-            : ColorScheme.dark(
-                primary: accent,
-                secondary: accentCyan,
-                surface: card,
-                error: accentPink,
-              ),
-        appBarTheme: AppBarTheme(
-          backgroundColor: background,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          titleTextStyle: TextStyle(
-            color: textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.2,
+    brightness: lightMode ? Brightness.light : Brightness.dark,
+    scaffoldBackgroundColor: background,
+    primaryColor: accent,
+    canvasColor: background,
+    colorScheme: lightMode
+        ? ColorScheme.light(
+            primary: accent,
+            secondary: accentCyan,
+            surface: card,
+            error: accentPink,
+          )
+        : ColorScheme.dark(
+            primary: accent,
+            secondary: accentCyan,
+            surface: card,
+            error: accentPink,
           ),
-          iconTheme: IconThemeData(color: textPrimary),
-        ),
-        cardTheme: CardThemeData(
-          color: card,
-          elevation: 0,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: cardBorder, width: 0.8),
-          ),
-        ),
-        textTheme: TextTheme(
-          titleLarge: TextStyle(
-            color: textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-          titleMedium: TextStyle(
-            color: textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-          bodyMedium: TextStyle(
-            color: textSecondary,
-            fontSize: 14,
-          ),
-          bodySmall: TextStyle(
-            color: textMuted,
-            fontSize: 12,
-          ),
-        ),
-        sliderTheme: SliderThemeData(
-          trackHeight: 4.0,
-          activeTrackColor: accent,
-          inactiveTrackColor: surfaceLight,
-          thumbColor: textPrimary,
-          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-          overlayColor: accent.withOpacity(0.25),
-          overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
-        ),
-        iconTheme: IconThemeData(color: textPrimary),
-      );
+    appBarTheme: AppBarTheme(
+      backgroundColor: background,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      titleTextStyle: TextStyle(
+        color: textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+      ),
+      iconTheme: IconThemeData(color: textPrimary),
+    ),
+    cardTheme: CardThemeData(
+      color: card,
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: cardBorder, width: 0.8),
+      ),
+    ),
+    textTheme: TextTheme(
+      titleLarge: TextStyle(
+        color: textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      ),
+      titleMedium: TextStyle(
+        color: textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+      bodyMedium: TextStyle(color: textSecondary, fontSize: 14),
+      bodySmall: TextStyle(color: textMuted, fontSize: 12),
+    ),
+    sliderTheme: SliderThemeData(
+      trackHeight: 4.0,
+      activeTrackColor: accent,
+      inactiveTrackColor: surfaceLight,
+      thumbColor: textPrimary,
+      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+      overlayColor: accent.withValues(alpha: accent.a * (0.25)),
+      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+    ),
+    iconTheme: IconThemeData(color: textPrimary),
+  );
 }

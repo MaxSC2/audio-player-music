@@ -29,8 +29,8 @@ class CoverFlowPlayerSheet extends StatelessWidget {
     if (track == null) return const SizedBox.shrink();
 
     final panelColor = AppTheme.lightMode
-        ? Colors.white.withOpacity(0.93)
-        : AppTheme.surface.withOpacity(0.88);
+        ? Colors.white.withValues(alpha: Colors.white.a * (0.93))
+        : AppTheme.surface.withValues(alpha: AppTheme.surface.a * (0.88));
 
     return Padding(
       padding: const EdgeInsets.only(left: 12, right: 12, bottom: 14, top: 0),
@@ -45,12 +45,16 @@ class CoverFlowPlayerSheet extends StatelessWidget {
               border: Border.all(color: AppTheme.cardBorder, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.accent.withOpacity(0.28),
+                  color: AppTheme.accent.withValues(
+                    alpha: AppTheme.accent.a * (0.28),
+                  ),
                   blurRadius: 42,
                   spreadRadius: 2,
                 ),
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.45),
+                  color: Colors.black.withValues(
+                    alpha: Colors.black.a * (0.45),
+                  ),
                   blurRadius: 24,
                   offset: const Offset(0, 10),
                 ),
@@ -93,8 +97,7 @@ class CoverFlowPlayerSheet extends StatelessWidget {
                               SizedBox(
                                 width: double.infinity,
                                 child: MarqueeText(
-                                  text:
-                                      '${track.title} — ${track.artist}',
+                                  text: '${track.title} — ${track.artist}',
                                   style: TextStyle(
                                     color: AppTheme.textMuted,
                                     fontSize: 11,
@@ -105,8 +108,11 @@ class CoverFlowPlayerSheet extends StatelessWidget {
                           ),
                         ),
                         IconButton(
-                          icon: Icon(Icons.keyboard_arrow_down_rounded,
-                              color: AppTheme.textSecondary, size: 26),
+                          icon: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: AppTheme.textSecondary,
+                            size: 26,
+                          ),
                           onPressed: () => Navigator.of(context).pop(),
                           tooltip: 'Закрыть',
                         ),

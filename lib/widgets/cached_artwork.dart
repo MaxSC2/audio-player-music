@@ -1,16 +1,21 @@
+import 'dart:collection';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query_pluse/on_audio_query.dart';
 import '../ui/theme.dart';
 
 class ArtworkCache {
-  static final Map<int, Uint8List?> _cache = {};
+  static const int _maxEntries = 100;
+  static final LinkedHashMap<int, Uint8List?> _cache = LinkedHashMap();
   static final Map<int, Future<Uint8List?>> _pending = {};
   static final OnAudioQuery _query = OnAudioQuery();
 
   static Future<Uint8List?> load(int trackId, {int size = 400}) {
     if (_cache.containsKey(trackId)) {
-      return Future.value(_cache[trackId]);
+      // LRU: поднимаем запрошенный ключ в конец.
+      final bytes = _cache.remove(trackId);
+      _cache[trackId] = bytes;
+      return Future.value(bytes);
     }
     final pending = _pending[trackId];
     if (pending != null) return pending;
@@ -24,6 +29,9 @@ class ArtworkCache {
     _pending[trackId] = future;
     future.then((bytes) {
       _cache[trackId] = bytes;
+      while (_cache.length > _maxEntries) {
+        _cache.remove(_cache.keys.first);
+      }
       _pending.remove(trackId);
     });
     return future;
@@ -142,19 +150,20 @@ class _CoverPatternPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.12);
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: Colors.white.a * (0.12));
     final rng = hash.abs();
     final cx = size.width * (0.2 + (rng % 60) / 100);
     final cy = size.height * (0.15 + ((rng ~/ 13) % 70) / 100);
     final r0 = size.shortestSide * 0.55;
     canvas.drawCircle(Offset(cx, cy), r0, paint);
-    paint.color = Colors.white.withOpacity(0.08);
+    paint.color = Colors.white.withValues(alpha: Colors.white.a * (0.08));
     canvas.drawCircle(
       Offset(size.width - cx * 0.6, size.height - cy * 0.7),
       r0 * 0.7,
       paint,
     );
-    paint.color = Colors.black.withOpacity(0.07);
+    paint.color = Colors.black.withValues(alpha: Colors.black.a * (0.07));
     canvas.drawCircle(
       Offset(size.width * 0.75, size.height * 0.3),
       r0 * 0.45,

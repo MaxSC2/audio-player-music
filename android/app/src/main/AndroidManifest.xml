@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     
     <application
-        android:label="Audio Player"
+        android:label="NeonWave"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round">
@@ -31,7 +31,6 @@
             android:label="NeonWave — компактный">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-                <action android:name="neonwave.WIDGET_KICK"/>
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -43,7 +42,6 @@
             android:label="NeonWave — расширенный">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-                <action android:name="neonwave.WIDGET_KICK"/>
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

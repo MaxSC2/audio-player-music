@@ -18,8 +18,8 @@ class QueueSnapshot {
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'createdAt': createdAt,
-        'trackIds': trackIds,
-      };
+    'name': name,
+    'createdAt': createdAt,
+    'trackIds': trackIds,
+  };
 }

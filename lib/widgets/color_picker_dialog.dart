@@ -45,14 +45,17 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
                 gradient: LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  colors: [color, color.withOpacity(0.6)],
+                  colors: [
+                    color,
+                    color.withValues(alpha: color.a * (0.6)),
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.cardBorder),
               ),
               child: Center(
                 child: Text(
-                  '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+                  '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
                   style: const TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.w800,
@@ -73,15 +76,18 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
               label: 'Насыщенность',
               value: _hsl.saturation,
               color: HSLColor.fromAHSL(1, _hsl.hue, 1.0, 0.5).toColor(),
-              onChanged: (v) =>
-                  setState(() => _hsl = _hsl.withSaturation(v)),
+              onChanged: (v) => setState(() => _hsl = _hsl.withSaturation(v)),
             ),
             const SizedBox(height: 6),
             _HsvSlider(
               label: 'Яркость',
               value: _hsl.lightness,
-              color: HSLColor.fromAHSL(1, _hsl.hue, _hsl.saturation, 0.5)
-                  .toColor(),
+              color: HSLColor.fromAHSL(
+                1,
+                _hsl.hue,
+                _hsl.saturation,
+                0.5,
+              ).toColor(),
               onChanged: (v) => setState(() => _hsl = _hsl.withLightness(v)),
             ),
           ],
@@ -90,8 +96,10 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text('Отмена',
-              style: TextStyle(color: AppTheme.textSecondary)),
+          child: Text(
+            'Отмена',
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(color),
@@ -99,7 +107,10 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
             backgroundColor: AppTheme.accent,
             foregroundColor: Colors.black,
           ),
-          child: const Text('Готово', style: TextStyle(fontWeight: FontWeight.w700)),
+          child: const Text(
+            'Готово',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );

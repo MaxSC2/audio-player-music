@@ -92,7 +92,7 @@ class PlaylistPickerSheet extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         decoration: BoxDecoration(
           color: AppTheme.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -107,7 +107,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Container(
@@ -116,8 +116,11 @@ class PlaylistPickerSheet extends StatelessWidget {
                     gradient: AppTheme.primaryGradient,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.playlist_add_rounded,
-                      color: Colors.white, size: 18),
+                  child: const Icon(
+                    Icons.playlist_add_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -133,8 +136,10 @@ class PlaylistPickerSheet extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      color: AppTheme.textSecondary),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: AppTheme.textSecondary,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -143,7 +148,7 @@ class PlaylistPickerSheet extends StatelessWidget {
 
             if (playlists.isEmpty)
               Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Text(
                   'Плейлистов пока нет',
                   textAlign: TextAlign.center,
@@ -184,20 +189,25 @@ class PlaylistPickerSheet extends StatelessWidget {
                         subtitle: Text(
                           '${playlist.trackIds.length} треков',
                           style: TextStyle(
-                              color: AppTheme.textMuted, fontSize: 12),
+                            color: AppTheme.textMuted,
+                            fontSize: 12,
+                          ),
                         ),
                         trailing: contains
-                            ? Icon(Icons.check_rounded,
-                                color: AppTheme.accentGreen)
-                            : Icon(Icons.add_rounded,
-                                color: AppTheme.textSecondary),
+                            ? Icon(
+                                Icons.check_rounded,
+                                color: AppTheme.accentGreen,
+                              )
+                            : Icon(
+                                Icons.add_rounded,
+                                color: AppTheme.textSecondary,
+                              ),
                         onTap: () {
                           if (contains) {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content:
-                                    Text('Трек уже в этом плейлисте'),
+                                content: Text('Трек уже в этом плейлисте'),
                                 duration: Duration(seconds: 1),
                                 behavior: SnackBarBehavior.floating,
                               ),
@@ -213,7 +223,7 @@ class PlaylistPickerSheet extends StatelessWidget {
                 ),
               ),
 
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             ElevatedButton.icon(
               onPressed: () => _createPlaylist(context),
               style: ElevatedButton.styleFrom(

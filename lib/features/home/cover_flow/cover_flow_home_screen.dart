@@ -59,16 +59,14 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.45),
+      barrierColor: Colors.black.withValues(alpha: Colors.black.a * (0.45)),
       builder: (context) => FractionallySizedBox(
         heightFactor: 0.92,
         child: Container(
           decoration: const BoxDecoration(
             color: Color(0xE60F101C),
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border(
-              top: BorderSide(color: Colors.white10, width: 1),
-            ),
+            border: Border(top: BorderSide(color: Colors.white10, width: 1)),
           ),
           child: Column(
             children: [
@@ -83,7 +81,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
               ),
               const SizedBox(height: 6),
               Padding(
-                padding: EdgeInsets.only(top: 6, bottom: 2),
+                padding: const EdgeInsets.only(top: 6, bottom: 2),
                 child: Text(
                   'Библиотека',
                   style: TextStyle(
@@ -159,7 +157,9 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
 
     final posMs = player.position.inMilliseconds;
     final durMs = player.duration.inMilliseconds;
-    final posFrac = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0).toDouble() : 0.0;
+    final posFrac = durMs > 0
+        ? (posMs / durMs).clamp(0.0, 1.0).toDouble()
+        : 0.0;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -177,21 +177,22 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(
-                                color: AppTheme.accent),
+                            CircularProgressIndicator(color: AppTheme.accent),
                             const SizedBox(height: 16),
                             Text(
                               'Сканируем музыку...',
-                              style:
-                                  TextStyle(color: AppTheme.textSecondary),
+                              style: TextStyle(color: AppTheme.textSecondary),
                             ),
-                            SizedBox(height: 12),
+                            const SizedBox(height: 12),
                             TextButton.icon(
                               onPressed: () => context
                                   .read<PlayerProvider>()
                                   .requestPermission(),
-                              icon: Icon(Icons.folder_open_rounded,
-                                  color: AppTheme.accentLight, size: 18),
+                              icon: Icon(
+                                Icons.folder_open_rounded,
+                                color: AppTheme.accentLight,
+                                size: 18,
+                              ),
                               label: const Text('Запросить доступ'),
                             ),
                           ],
@@ -228,9 +229,9 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                           itemBuilder: (context, index) {
                             final item = useAlbums
                                 ? player.allTracks
-                                    .where((t) => t.album == albums[index])
-                                    .toList()
-                                    .first
+                                      .where((t) => t.album == albums[index])
+                                      .toList()
+                                      .first
                                 : tracks[index];
                             return CoverFlowCard(
                               track: item,
@@ -264,54 +265,56 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                   child: GestureDetector(
                     onTap: () => _openFullPlayer(context),
                     child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            MarqueeText(
-                              text: track.title,
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              MarqueeText(
+                                text: track.title,
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              track.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 14,
+                              const SizedBox(height: 2),
+                              Text(
+                                track.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.keyboard_arrow_up_rounded,
-                            color: AppTheme.textSecondary),
-                        onPressed: () => _openFullPlayer(context),
-                        tooltip: 'Открыть плеер',
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          track.isFavorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: track.isFavorite
-                              ? AppTheme.accentPink
-                              : AppTheme.textSecondary,
+                        IconButton(
+                          icon: Icon(
+                            Icons.keyboard_arrow_up_rounded,
+                            color: AppTheme.textSecondary,
+                          ),
+                          onPressed: () => _openFullPlayer(context),
+                          tooltip: 'Открыть плеер',
                         ),
-                        onPressed: player.toggleFavoriteCurrent,
-                        tooltip: 'В избранное',
-                      ),
-                    ],
+                        IconButton(
+                          icon: Icon(
+                            track.isFavorite
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: track.isFavorite
+                                ? AppTheme.accentPink
+                                : AppTheme.textSecondary,
+                          ),
+                          onPressed: player.toggleFavoriteCurrent,
+                          tooltip: 'В избранное',
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               // Progress
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 26),
@@ -323,14 +326,18 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         activeTrackColor: AppTheme.accent,
                         inactiveTrackColor: AppTheme.surfaceLight,
                         thumbColor: AppTheme.accentLight,
-                        thumbShape:
-                            RoundSliderThumbShape(enabledThumbRadius: 7),
-                        overlayColor: AppTheme.accent.withOpacity(0.15),
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 7,
+                        ),
+                        overlayColor: AppTheme.accent.withValues(
+                          alpha: AppTheme.accent.a * (0.15),
+                        ),
                       ),
                       child: Slider(
                         value: posFrac,
-                        onChanged: (v) => player
-                            .seek(Duration(milliseconds: (durMs * v).round())),
+                        onChanged: (v) => player.seek(
+                          Duration(milliseconds: (durMs * v).round()),
+                        ),
                       ),
                     ),
                     Padding(
@@ -341,14 +348,18 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                           Text(
                             _fmt(player.position),
                             style: TextStyle(
-                                color: AppTheme.textMuted, fontSize: 11),
+                              color: AppTheme.textMuted,
+                              fontSize: 11,
+                            ),
                           ),
                           Text(
                             durMs > 0
                                 ? '-${_fmt(player.duration - player.position)}'
                                 : '',
                             style: TextStyle(
-                                color: AppTheme.textMuted, fontSize: 11),
+                              color: AppTheme.textMuted,
+                              fontSize: 11,
+                            ),
                           ),
                         ],
                       ),
@@ -363,7 +374,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: Icon(Icons.shuffle_rounded),
+                      icon: const Icon(Icons.shuffle_rounded),
                       color: player.shuffleMode
                           ? AppTheme.accentCyan
                           : AppTheme.textSecondary,
@@ -373,13 +384,15 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     ),
                     const SizedBox(width: 18),
                     IconButton(
-                      icon: Icon(Icons.skip_previous_rounded,
-                          color: AppTheme.textPrimary),
+                      icon: Icon(
+                        Icons.skip_previous_rounded,
+                        color: AppTheme.textPrimary,
+                      ),
                       iconSize: 42,
                       onPressed: player.previous,
                       tooltip: 'Предыдущий',
                     ),
-                    SizedBox(width: 14),
+                    const SizedBox(width: 14),
                     IconButton(
                       icon: Icon(
                         player.isPlaying
@@ -393,8 +406,10 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     ),
                     const SizedBox(width: 14),
                     IconButton(
-                      icon: Icon(Icons.skip_next_rounded,
-                          color: AppTheme.textPrimary),
+                      icon: Icon(
+                        Icons.skip_next_rounded,
+                        color: AppTheme.textPrimary,
+                      ),
                       iconSize: 42,
                       onPressed: player.next,
                       tooltip: 'Следующий',
@@ -428,25 +443,37 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         isScrollControlled: true,
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(24)),
+                            top: Radius.circular(24),
+                          ),
                         ),
                         builder: (_) => const PersonalDJSheet(),
                       );
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 9),
+                        horizontal: 20,
+                        vertical: 9,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppTheme.accent.withOpacity(0.18),
+                        color: AppTheme.accent.withValues(
+                          alpha: AppTheme.accent.a * (0.18),
+                        ),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppTheme.accent.withOpacity(0.4)),
+                        border: Border.all(
+                          color: AppTheme.accent.withValues(
+                            alpha: AppTheme.accent.a * (0.4),
+                          ),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome_rounded,
-                              color: AppTheme.accentLight, size: 19),
-                          SizedBox(width: 8),
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            color: AppTheme.accentLight,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
                             'Personal DJ',
                             style: TextStyle(
@@ -464,18 +491,25 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                     onTap: _openLibrary,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 22, vertical: 9),
+                        horizontal: 22,
+                        vertical: 9,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.07),
+                        color: Colors.white.withValues(
+                          alpha: Colors.white.a * (0.07),
+                        ),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: Colors.white10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.list_rounded,
-                              color: AppTheme.textSecondary, size: 19),
-                          SizedBox(width: 8),
+                          Icon(
+                            Icons.list_rounded,
+                            color: AppTheme.textSecondary,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
                             'Библиотека',
                             style: TextStyle(
@@ -518,20 +552,21 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
           ),
           const Spacer(),
           IconButton(
-            icon: Icon(Icons.view_agenda_outlined,
-                color: AppTheme.textSecondary),
-            onPressed: () => context
-                .read<UiStyleController>()
-                .setStyle(PlayerUIStyle.simple),
+            icon: Icon(
+              Icons.view_agenda_outlined,
+              color: AppTheme.textSecondary,
+            ),
+            onPressed: () => context.read<UiStyleController>().setStyle(
+              PlayerUIStyle.simple,
+            ),
             tooltip: 'Простой интерфейс',
           ),
           IconButton(
-            icon: Icon(Icons.settings_rounded,
-                color: AppTheme.textSecondary),
+            icon: Icon(Icons.settings_rounded, color: AppTheme.textSecondary),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
             tooltip: 'Настройки',
           ),

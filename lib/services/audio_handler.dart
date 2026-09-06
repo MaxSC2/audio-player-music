@@ -44,7 +44,8 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   void _log(String msg) {
     final t = DateTime.now();
-    final ts = '${t.hour.toString().padLeft(2, '0')}:'
+    final ts =
+        '${t.hour.toString().padLeft(2, '0')}:'
         '${t.minute.toString().padLeft(2, '0')}:'
         '${t.second.toString().padLeft(2, '0')}.'
         '${t.millisecond.toString().padLeft(3, '0')}';
@@ -53,8 +54,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   String _controlsSummary(List<MediaControl> c) => c
-      .map((m) => '${m.label}(${m.action.name}'
-          '${m.customAction != null ? '/c:${m.customAction!.name}' : ''})')
+      .map(
+        (m) =>
+            '${m.label}(${m.action.name}'
+            '${m.customAction != null ? '/c:${m.customAction!.name}' : ''})',
+      )
       .join(' ');
 
   String get diagnostics {
@@ -108,8 +112,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       controls: _buildControls(_state.playing),
       systemActions: _systemActions,
       repeatMode: _repeatServiceMode,
-      shuffleMode:
-          on ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
+      shuffleMode: on
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
     );
     _log('SHUFFLE=$on controls=[${_controlsSummary(state.controls)}]');
     playbackState.add(state);
@@ -117,9 +122,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   void setFavoriteState(bool on) {
     _favoriteOn = on;
-    final state = _state.copyWith(
-      controls: _buildControls(_state.playing),
-    );
+    final state = _state.copyWith(controls: _buildControls(_state.playing));
     _log('FAVORITE=$on controls=[${_controlsSummary(state.controls)}]');
     playbackState.add(state);
   }
@@ -130,8 +133,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       controls: _buildControls(_state.playing),
       systemActions: _systemActions,
       repeatMode: _repeatServiceMode,
-      shuffleMode:
-          _shuffleOn ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
+      shuffleMode: _shuffleOn
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
     );
     _log('REPEAT=$mode controls=[${_controlsSummary(state.controls)}]');
     playbackState.add(state);
@@ -143,24 +147,28 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   void setUseCustomActions(bool v) {
     useCustomActions = v;
-    playbackState.add(_state.copyWith(controls: _buildControls(_state.playing)));
+    playbackState.add(
+      _state.copyWith(controls: _buildControls(_state.playing)),
+    );
   }
 
   List<MediaControl> _buildControls(bool playing) => [
-        MediaControl.skipToPrevious,
-        if (playing) MediaControl.pause else MediaControl.play,
-        MediaControl.skipToNext,
-        if (useCustomActions) MediaControl.custom(
-          androidIcon: _favoriteIcon,
-          label: 'В избранное',
-          name: 'favorite',
-        ),
-        if (useCustomActions) MediaControl.custom(
-          androidIcon: _repeatIcon,
-          label: 'Повтор',
-          name: 'repeat',
-        ),
-      ];
+    MediaControl.skipToPrevious,
+    if (playing) MediaControl.pause else MediaControl.play,
+    MediaControl.skipToNext,
+    if (useCustomActions)
+      MediaControl.custom(
+        androidIcon: _favoriteIcon,
+        label: 'В избранное',
+        name: 'favorite',
+      ),
+    if (useCustomActions)
+      MediaControl.custom(
+        androidIcon: _repeatIcon,
+        label: 'Повтор',
+        name: 'repeat',
+      ),
+  ];
 
   @override
   Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
@@ -262,10 +270,12 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   void _listen() {
     player.positionStream.listen((p) {
-      playbackState.add(_state.copyWith(
-        updatePosition: p,
-        bufferedPosition: player.bufferedPosition,
-      ));
+      playbackState.add(
+        _state.copyWith(
+          updatePosition: p,
+          bufferedPosition: player.bufferedPosition,
+        ),
+      );
     });
 
     player.playingStream.listen((playing) {
@@ -284,11 +294,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
             : AudioServiceShuffleMode.none,
         queueIndex: player.currentIndex,
       );
-      _log('PUBLISH playing=$playing processing=${state.processingState} '
-          'controls=[${_controlsSummary(state.controls)}] '
-           'sys=${state.systemActions.map((a) => a.name).join(',')} '
-          'repeat=${state.repeatMode} shuffle=${state.shuffleMode} '
-          'compact=${state.androidCompactActionIndices}');
+      _log(
+        'PUBLISH playing=$playing processing=${state.processingState} '
+        'controls=[${_controlsSummary(state.controls)}] '
+        'sys=${state.systemActions.map((a) => a.name).join(',')} '
+        'repeat=${state.repeatMode} shuffle=${state.shuffleMode} '
+        'compact=${state.androidCompactActionIndices}',
+      );
       playbackState.add(state);
     });
 

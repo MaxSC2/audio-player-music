@@ -65,28 +65,34 @@ class PersonalDJSheet extends StatelessWidget {
                 return GestureDetector(
                   onTap: () => player.toggleContext(e.key),
                   child: AnimatedContainer(
-                    duration: Duration(milliseconds: 180),
+                    duration: const Duration(milliseconds: 180),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 9),
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? AppTheme.accent.withOpacity(0.25)
-                          : Colors.white.withOpacity(0.06),
+                          ? AppTheme.accent.withValues(
+                              alpha: AppTheme.accent.a * (0.25),
+                            )
+                          : Colors.white.withValues(
+                              alpha: Colors.white.a * (0.06),
+                            ),
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: selected
-                            ? AppTheme.accent
-                            : Colors.white10,
+                        color: selected ? AppTheme.accent : Colors.white10,
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(icon,
-                            color: selected
-                                ? AppTheme.accentLight
-                                : AppTheme.textSecondary,
-                            size: 16),
+                        Icon(
+                          icon,
+                          color: selected
+                              ? AppTheme.accentLight
+                              : AppTheme.textSecondary,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           label,
@@ -111,8 +117,11 @@ class PersonalDJSheet extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.tune_rounded,
-                          color: AppTheme.textSecondary, size: 16),
+                      Icon(
+                        Icons.tune_rounded,
+                        color: AppTheme.textSecondary,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Настройки подбора',
@@ -126,13 +135,19 @@ class PersonalDJSheet extends StatelessWidget {
                       GestureDetector(
                         onTap: () => player.setDeepCuts(!player.deepCuts),
                         child: AnimatedContainer(
-                          duration: Duration(milliseconds: 180),
+                          duration: const Duration(milliseconds: 180),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 7),
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: player.deepCuts
-                                ? AppTheme.accentGreen.withOpacity(0.22)
-                                : Colors.white.withOpacity(0.06),
+                                ? AppTheme.accentGreen.withValues(
+                                    alpha: AppTheme.accentGreen.a * (0.22),
+                                  )
+                                : Colors.white.withValues(
+                                    alpha: Colors.white.a * (0.06),
+                                  ),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: player.deepCuts
@@ -176,7 +191,9 @@ class PersonalDJSheet extends StatelessWidget {
                       child: Text(
                         'Тянет малоигранные треки',
                         style: TextStyle(
-                            color: AppTheme.textMuted, fontSize: 11),
+                          color: AppTheme.textMuted,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ],
@@ -188,13 +205,17 @@ class PersonalDJSheet extends StatelessWidget {
                         child: GestureDetector(
                           onTap: () => player.setDiscoveryLevel(d),
                           child: AnimatedContainer(
-                            duration: Duration(milliseconds: 180),
+                            duration: const Duration(milliseconds: 180),
                             margin: const EdgeInsets.symmetric(horizontal: 2),
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
                               color: selected
-                                  ? AppTheme.accent.withOpacity(0.22)
-                                  : Colors.white.withOpacity(0.05),
+                                  ? AppTheme.accent.withValues(
+                                      alpha: AppTheme.accent.a * (0.22),
+                                    )
+                                  : Colors.white.withValues(
+                                      alpha: Colors.white.a * (0.05),
+                                    ),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: selected
@@ -223,8 +244,7 @@ class PersonalDJSheet extends StatelessWidget {
                                     DiscoveryLevel.familiar =>
                                       'знакомые исполнители',
                                     DiscoveryLevel.balanced => 'микс знакомых',
-                                    DiscoveryLevel.discovery =>
-                                      'новые имена',
+                                    DiscoveryLevel.discovery => 'новые имена',
                                     DiscoveryLevel.experimental =>
                                       'случайные открытия',
                                   },
@@ -232,8 +252,9 @@ class PersonalDJSheet extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 9),
+                                    color: AppTheme.textMuted,
+                                    fontSize: 9,
+                                  ),
                                 ),
                               ],
                             ),
@@ -268,17 +289,22 @@ class PersonalDJSheet extends StatelessWidget {
                             : Icons.radio_rounded,
                         size: 18,
                       ),
-                      label: Text(player.radioMode
-                          ? 'Остановить радио'
-                          : 'AI Radio'),
+                      label: Text(
+                        player.radioMode ? 'Остановить радио' : 'AI Radio',
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: player.radioMode
                             ? AppTheme.accentPink
                             : AppTheme.accentCyan,
                         side: BorderSide(
-                            color: player.radioMode
-                                ? AppTheme.accentPink.withOpacity(0.5)
-                                : AppTheme.accentCyan.withOpacity(0.4)),
+                          color: player.radioMode
+                              ? AppTheme.accentPink.withValues(
+                                  alpha: AppTheme.accentPink.a * (0.5),
+                                )
+                              : AppTheme.accentCyan.withValues(
+                                  alpha: AppTheme.accentCyan.a * (0.4),
+                                ),
+                        ),
                       ),
                     ),
                   ),
@@ -294,9 +320,10 @@ class PersonalDJSheet extends StatelessWidget {
                           isScrollControlled: true,
                           shape: const RoundedRectangleBorder(
                             borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(24)),
+                              top: Radius.circular(24),
+                            ),
                           ),
-                          builder: (_) => PromptPlaylistSheet(),
+                          builder: (_) => const PromptPlaylistSheet(),
                         );
                       },
                       icon: const Icon(Icons.text_fields_rounded, size: 18),
@@ -316,15 +343,18 @@ class PersonalDJSheet extends StatelessWidget {
                 player.launchPersonalDJ();
                 Navigator.of(context).pop();
               },
-              icon: Icon(Icons.auto_awesome_rounded, size: 20),
-              label: const Text('Запустить DJ',
-                  style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w700)),
+              icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+              label: const Text(
+                'Запустить DJ',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.black,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 13,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(26),
                 ),
@@ -333,7 +363,7 @@ class PersonalDJSheet extends StatelessWidget {
             if (notNow.isNotEmpty) ...[
               const SizedBox(height: 18),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -356,25 +386,35 @@ class PersonalDJSheet extends StatelessWidget {
                     final t = notNow[index];
                     return ListTile(
                       dense: true,
-                      leading: Icon(Icons.do_not_disturb_on_rounded,
-                          color: AppTheme.textMuted, size: 20),
+                      leading: Icon(
+                        Icons.do_not_disturb_on_rounded,
+                        color: AppTheme.textMuted,
+                        size: 20,
+                      ),
                       title: Text(
                         t.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            color: AppTheme.textPrimary, fontSize: 14),
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                        ),
                       ),
                       subtitle: Text(
                         t.artist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            color: AppTheme.textMuted, fontSize: 12),
+                          color: AppTheme.textMuted,
+                          fontSize: 12,
+                        ),
                       ),
                       trailing: IconButton(
-                        icon: Icon(Icons.undo_rounded,
-                            color: AppTheme.accentLight, size: 20),
+                        icon: Icon(
+                          Icons.undo_rounded,
+                          color: AppTheme.accentLight,
+                          size: 20,
+                        ),
                         onPressed: () => player.toggleNotNow(t),
                         tooltip: 'Вернуть',
                       ),

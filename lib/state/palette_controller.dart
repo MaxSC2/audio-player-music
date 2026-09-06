@@ -22,34 +22,37 @@ class PaletteColors {
     required this.accentAmber,
   });
 
-  PaletteColors copyWith({Color? background, Color? accent, Color? accentCyan,
-          Color? accentPink, Color? accentGreen, Color? accentAmber}) =>
-      PaletteColors(
-        background: background ?? this.background,
-        accent: accent ?? this.accent,
-        accentLight: _lighten(accent ?? this.accent),
-        accentCyan: accentCyan ?? this.accentCyan,
-        accentPink: accentPink ?? this.accentPink,
-        accentGreen: accentGreen ?? this.accentGreen,
-        accentAmber: accentAmber ?? this.accentAmber,
-      );
+  PaletteColors copyWith({
+    Color? background,
+    Color? accent,
+    Color? accentCyan,
+    Color? accentPink,
+    Color? accentGreen,
+    Color? accentAmber,
+  }) => PaletteColors(
+    background: background ?? this.background,
+    accent: accent ?? this.accent,
+    accentLight: _lighten(accent ?? this.accent),
+    accentCyan: accentCyan ?? this.accentCyan,
+    accentPink: accentPink ?? this.accentPink,
+    accentGreen: accentGreen ?? this.accentGreen,
+    accentAmber: accentAmber ?? this.accentAmber,
+  );
 
   static Color _lighten(Color c) {
     final hsl = HSLColor.fromColor(c);
-    return hsl
-        .withLightness((hsl.lightness * 1.4).clamp(0.0, 1.0))
-        .toColor();
+    return hsl.withLightness((hsl.lightness * 1.4).clamp(0.0, 1.0)).toColor();
   }
 
   String encode() => [
-        background.value,
-        accent.value,
-        accentLight.value,
-        accentCyan.value,
-        accentPink.value,
-        accentGreen.value,
-        accentAmber.value,
-      ].join(',');
+    background.toARGB32(),
+    accent.toARGB32(),
+    accentLight.toARGB32(),
+    accentCyan.toARGB32(),
+    accentPink.toARGB32(),
+    accentGreen.toARGB32(),
+    accentAmber.toARGB32(),
+  ].join(',');
 
   static PaletteColors decode(String raw) {
     final parts = raw.split(',');
@@ -213,9 +216,15 @@ class PaletteController extends ChangeNotifier {
 
   /// Редактирование слота своей палитры. [color] применяется к конкретному
   /// слоту, остальные берутся из текущей активной палитры.
-  void editSlot({Color? background, Color? accent, Color? accentCyan,
-          Color? accentPink, Color? accentGreen, Color? accentAmber}) {
-    if (_custom == null) _custom = active;
+  void editSlot({
+    Color? background,
+    Color? accent,
+    Color? accentCyan,
+    Color? accentPink,
+    Color? accentGreen,
+    Color? accentAmber,
+  }) {
+    _custom ??= active;
     _custom = _custom!.copyWith(
       background: background,
       accent: accent,
@@ -259,16 +268,19 @@ class PaletteController extends ChangeNotifier {
       accentGreen: p.accentGreen,
       accentAmber: p.accentAmber,
     );
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: _light ? Brightness.dark : Brightness.light,
-      statusBarBrightness: _light ? Brightness.light : Brightness.dark,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness:
-          _light ? Brightness.dark : Brightness.light,
-      systemNavigationBarDividerColor: Colors.transparent,
-      systemNavigationBarContrastEnforced: false,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: _light ? Brightness.dark : Brightness.light,
+        statusBarBrightness: _light ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: _light
+            ? Brightness.dark
+            : Brightness.light,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+      ),
+    );
     notifyListeners();
   }
 }

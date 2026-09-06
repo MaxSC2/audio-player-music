@@ -21,13 +21,28 @@ class PlaylistDetailScreen extends StatelessWidget {
 
     if (isSmart) {
       if (playlistId == 'smart_added') {
-        playlist = CustomPlaylist(id: 'smart_added', name: 'Недавно добавленные', trackIds: const [], createdAt: 0);
+        playlist = CustomPlaylist(
+          id: 'smart_added',
+          name: 'Недавно добавленные',
+          trackIds: const [],
+          createdAt: 0,
+        );
         tracks = player.smartRecentlyAdded;
       } else if (playlistId == 'smart_played') {
-        playlist = CustomPlaylist(id: 'smart_played', name: 'Недавно сыгранные', trackIds: const [], createdAt: 0);
+        playlist = CustomPlaylist(
+          id: 'smart_played',
+          name: 'Недавно сыгранные',
+          trackIds: const [],
+          createdAt: 0,
+        );
         tracks = player.smartRecentlyPlayed;
       } else if (playlistId == 'smart_most') {
-        playlist = CustomPlaylist(id: 'smart_most', name: 'Часто прослушиваемые', trackIds: const [], createdAt: 0);
+        playlist = CustomPlaylist(
+          id: 'smart_most',
+          name: 'Часто прослушиваемые',
+          trackIds: const [],
+          createdAt: 0,
+        );
         tracks = player.smartMostPlayed;
       }
     } else {
@@ -66,48 +81,58 @@ class PlaylistDetailScreen extends StatelessWidget {
             ? null
             : [
                 PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert_rounded,
-                color: AppTheme.textSecondary),
-            color: AppTheme.surfaceLight,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: BorderSide(color: AppTheme.cardBorder),
-            ),
-            onSelected: (value) async {
-              if (value == 'rename') {
-                await _renamePlaylist(context, player, playlist!);
-              } else if (value == 'delete') {
-                final ok = await _confirmDelete(context);
-                if (ok == true && context.mounted) {
-                  player.deletePlaylist(playlist!.id);
-                  if (context.mounted) Navigator.pop(context);
-                }
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'rename',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit_rounded, color: AppTheme.accentCyan, size: 18),
-                    SizedBox(width: 10),
-                    Text('Переименовать'),
+                  icon: Icon(
+                    Icons.more_vert_rounded,
+                    color: AppTheme.textSecondary,
+                  ),
+                  color: AppTheme.surfaceLight,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: AppTheme.cardBorder),
+                  ),
+                  onSelected: (value) async {
+                    if (value == 'rename') {
+                      await _renamePlaylist(context, player, playlist!);
+                    } else if (value == 'delete') {
+                      final ok = await _confirmDelete(context);
+                      if (ok == true && context.mounted) {
+                        player.deletePlaylist(playlist!.id);
+                        if (context.mounted) Navigator.pop(context);
+                      }
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.edit_rounded,
+                            color: AppTheme.accentCyan,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Переименовать'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_rounded,
+                            color: AppTheme.accentPink,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Удалить плейлист'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_rounded, color: AppTheme.accentPink, size: 18),
-                    SizedBox(width: 10),
-                    Text('Удалить плейлист'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+              ],
       ),
       body: Column(
         children: [
@@ -129,8 +154,11 @@ class PlaylistDetailScreen extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: AppTheme.pinkPurpleGradient,
                   ),
-                  child: const Icon(Icons.queue_music_rounded,
-                      color: Colors.white, size: 36),
+                  child: const Icon(
+                    Icons.queue_music_rounded,
+                    color: Colors.white,
+                    size: 36,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -145,10 +173,7 @@ class PlaylistDetailScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${tracks.length} ${_plural(tracks.length)}',
-                  style: TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 if (tracks.isNotEmpty)
@@ -189,7 +214,8 @@ class PlaylistDetailScreen extends StatelessWidget {
                   )
                 : ListView.builder(
                     padding: EdgeInsets.only(
-                        bottom: 16 + MediaQuery.viewPaddingOf(context).bottom),
+                      bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
+                    ),
                     itemCount: tracks.length,
                     itemBuilder: (context, trackIndex) {
                       final track = tracks[trackIndex];
@@ -212,7 +238,10 @@ class PlaylistDetailScreen extends StatelessWidget {
   }
 
   Future<void> _renamePlaylist(
-      BuildContext context, PlayerProvider player, CustomPlaylist playlist) async {
+    BuildContext context,
+    PlayerProvider player,
+    CustomPlaylist playlist,
+  ) async {
     final controller = TextEditingController(text: playlist.name);
     final name = await showDialog<String>(
       context: context,
@@ -245,14 +274,20 @@ class PlaylistDetailScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Отмена',
-                style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text('Сохранить',
-                style: TextStyle(
-                    color: AppTheme.accentLight, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Сохранить',
+              style: TextStyle(
+                color: AppTheme.accentLight,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -285,8 +320,10 @@ class PlaylistDetailScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Отмена',
-                style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),

@@ -128,7 +128,7 @@ class _SoundDomePainter extends CustomPainter {
         canvas.drawRRect(
           rrect,
           Paint()
-            ..color = color.withOpacity(0.95)
+            ..color = color.withValues(alpha: color.a * (0.95))
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
         );
         canvas.restore();

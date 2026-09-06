@@ -18,7 +18,7 @@ class QueueSheet extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
@@ -47,8 +47,11 @@ class QueueSheet extends StatelessWidget {
                       gradient: AppTheme.primaryGradient,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.queue_music_rounded,
-                        color: Colors.white, size: 18),
+                    child: const Icon(
+                      Icons.queue_music_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Text(
@@ -70,7 +73,9 @@ class QueueSheet extends StatelessWidget {
                     backgroundColor: AppTheme.surface,
                     isScrollControlled: true,
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
                     ),
                     builder: (_) => const NumpadSheet(),
                   );
@@ -78,8 +83,10 @@ class QueueSheet extends StatelessWidget {
                 tooltip: 'Перейти к треку по номеру',
               ),
               IconButton(
-                icon: Icon(Icons.bookmark_add_outlined,
-                    color: AppTheme.textSecondary),
+                icon: Icon(
+                  Icons.bookmark_add_outlined,
+                  color: AppTheme.textSecondary,
+                ),
                 onPressed: () {
                   if (queue.isEmpty) return;
                   final now = DateTime.now();
@@ -98,8 +105,7 @@ class QueueSheet extends StatelessWidget {
                 tooltip: 'Сохранить очередь',
               ),
               IconButton(
-                icon: Icon(Icons.close_rounded,
-                    color: AppTheme.textSecondary),
+                icon: Icon(Icons.close_rounded, color: AppTheme.textSecondary),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -132,10 +138,15 @@ class QueueSheet extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: AppTheme.accent.withOpacity(0.14),
+                        color: AppTheme.accent.withValues(
+                          alpha: AppTheme.accent.a * (0.14),
+                        ),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: AppTheme.accent.withOpacity(0.35)),
+                          color: AppTheme.accent.withValues(
+                            alpha: AppTheme.accent.a * (0.35),
+                          ),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -148,8 +159,11 @@ class QueueSheet extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.queue_music_rounded,
-                                    color: AppTheme.accentLight, size: 16),
+                                Icon(
+                                  Icons.queue_music_rounded,
+                                  color: AppTheme.accentLight,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   s.name,
@@ -163,8 +177,9 @@ class QueueSheet extends StatelessWidget {
                                 Text(
                                   '${s.trackIds.length}',
                                   style: TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 11),
+                                    color: AppTheme.textMuted,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ],
                             ),
@@ -175,15 +190,17 @@ class QueueSheet extends StatelessWidget {
                               player.deleteQueueSnapshot(s.name);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content:
-                                      Text('Очередь «${s.name}» удалена'),
+                                  content: Text('Очередь «${s.name}» удалена'),
                                   duration: const Duration(seconds: 1),
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
                             },
-                            child: Icon(Icons.close_rounded,
-                                color: AppTheme.textMuted, size: 15),
+                            child: Icon(
+                              Icons.close_rounded,
+                              color: AppTheme.textMuted,
+                              size: 15,
+                            ),
                           ),
                         ],
                       ),
@@ -198,7 +215,7 @@ class QueueSheet extends StatelessWidget {
           // Queue List
           if (queue.isEmpty)
             Padding(
-              padding: EdgeInsets.all(32.0),
+              padding: const EdgeInsets.all(32.0),
               child: Text(
                 'Очередь пуста',
                 style: TextStyle(color: AppTheme.textSecondary),
@@ -216,19 +233,25 @@ class QueueSheet extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(vertical: 3),
                     decoration: BoxDecoration(
                       color: isCurrent
-                          ? AppTheme.accent.withOpacity(0.16)
+                          ? AppTheme.accent.withValues(
+                              alpha: AppTheme.accent.a * (0.16),
+                            )
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                       border: isCurrent
                           ? Border.all(
-                              color: AppTheme.accent.withOpacity(0.5),
+                              color: AppTheme.accent.withValues(
+                                alpha: AppTheme.accent.a * (0.5),
+                              ),
                               width: 1,
                             )
                           : null,
                     ),
                     child: ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 2,
+                      ),
                       leading: Container(
                         width: 36,
                         height: 36,
@@ -265,8 +288,9 @@ class QueueSheet extends StatelessWidget {
                           color: isCurrent
                               ? AppTheme.accentLight
                               : AppTheme.textPrimary,
-                          fontWeight:
-                              isCurrent ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isCurrent
+                              ? FontWeight.bold
+                              : FontWeight.w500,
                           fontSize: 14,
                         ),
                         maxLines: 1,

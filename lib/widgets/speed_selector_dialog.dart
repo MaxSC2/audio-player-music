@@ -21,7 +21,8 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
     _speed = context.read<PlayerProvider>().speed;
   }
 
-  String get _label => '${_speed.toStringAsFixed(2).replaceFirst(RegExp(r'\.0+$'), '').replaceFirst(RegExp(r'\.$'), '')}x';
+  String get _label =>
+      '${_speed.toStringAsFixed(2).replaceFirst(RegExp(r'\.0+$'), '').replaceFirst(RegExp(r'\.$'), '')}x';
 
   @override
   Widget build(BuildContext context) {
@@ -41,25 +42,43 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
               gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.speed_rounded, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.speed_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
             'Скорость',
-            style: TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _speed == 1.0 ? AppTheme.surfaceLight : AppTheme.accentCyan.withOpacity(0.15),
+              color: _speed == 1.0
+                  ? AppTheme.surfaceLight
+                  : AppTheme.accentCyan.withValues(
+                      alpha: AppTheme.accentCyan.a * (0.15),
+                    ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _speed == 1.0 ? AppTheme.cardBorder : AppTheme.accentCyan),
+              border: Border.all(
+                color: _speed == 1.0
+                    ? AppTheme.cardBorder
+                    : AppTheme.accentCyan,
+              ),
             ),
             child: Text(
               _label,
               style: TextStyle(
-                color: _speed == 1.0 ? AppTheme.textSecondary : AppTheme.accentCyan,
+                color: _speed == 1.0
+                    ? AppTheme.textSecondary
+                    : AppTheme.accentCyan,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
               ),
@@ -79,7 +98,9 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
                 activeTrackColor: AppTheme.accent,
                 inactiveTrackColor: AppTheme.surfaceLight,
                 thumbColor: AppTheme.accentLight,
-                overlayColor: AppTheme.accent.withOpacity(0.15),
+                overlayColor: AppTheme.accent.withValues(
+                  alpha: AppTheme.accent.a * (0.15),
+                ),
                 trackHeight: 6,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
@@ -100,9 +121,22 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('0.5x', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
-                Text('1.0x', style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.bold)),
-                Text('2.0x', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
+                Text(
+                  '0.5x',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                ),
+                Text(
+                  '1.0x',
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '2.0x',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -112,7 +146,8 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: _presets.map((p) {
-                final label = '${p.toStringAsFixed(2).replaceFirst(RegExp(r'\.00$'), '').replaceFirst(RegExp(r'\.0$'), '')}x';
+                final label =
+                    '${p.toStringAsFixed(2).replaceFirst(RegExp(r'\.00$'), '').replaceFirst(RegExp(r'\.0$'), '')}x';
                 final selected = (p - _speed).abs() < 0.01;
                 return ChoiceChip(
                   label: Text(label),
@@ -121,14 +156,20 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
                     setState(() => _speed = p);
                     player.setSpeed(p);
                   },
-                  selectedColor: AppTheme.accent.withOpacity(0.2),
+                  selectedColor: AppTheme.accent.withValues(
+                    alpha: AppTheme.accent.a * (0.2),
+                  ),
                   backgroundColor: AppTheme.surfaceLight,
                   labelStyle: TextStyle(
-                    color: selected ? AppTheme.accentLight : AppTheme.textSecondary,
+                    color: selected
+                        ? AppTheme.accentLight
+                        : AppTheme.textSecondary,
                     fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                     fontSize: 12,
                   ),
-                  side: BorderSide(color: selected ? AppTheme.accent : Colors.transparent),
+                  side: BorderSide(
+                    color: selected ? AppTheme.accent : Colors.transparent,
+                  ),
                 );
               }).toList(),
             ),
@@ -144,7 +185,9 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.textSecondary,
                       side: BorderSide(color: AppTheme.cardBorder),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Text('Сброс 1.0x'),
                   ),
@@ -156,7 +199,9 @@ class _SpeedSelectorDialogState extends State<SpeedSelectorDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accent,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Text('Готово'),
                   ),

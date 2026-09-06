@@ -34,9 +34,12 @@ class ExplainSheet extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.psychology_rounded,
-                    color: AppTheme.accentLight, size: 20),
-                SizedBox(width: 8),
+                Icon(
+                  Icons.psychology_rounded,
+                  color: AppTheme.accentLight,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
                 Text(
                   'Почему Personal DJ выбрал это',
                   style: TextStyle(
@@ -54,16 +57,13 @@ class ExplainSheet extends StatelessWidget {
                 track.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
             ),
             const SizedBox(height: 12),
             if (breakdown.isEmpty)
               Padding(
-                padding: EdgeInsets.all(20),
+                padding: const EdgeInsets.all(20),
                 child: Text(
                   'Пока без явных причин — трек попал через случайный отбор. Слушай и ставь избранное, чтобы DJ учился.',
                   textAlign: TextAlign.center,
@@ -80,9 +80,13 @@ class ExplainSheet extends StatelessWidget {
                     return Container(
                       margin: const EdgeInsets.symmetric(vertical: 3),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 9),
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(
+                          alpha: Colors.white.a * (0.05),
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -124,17 +128,12 @@ class ExplainSheet extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 10),
-            Container(
-              width: 100,
-              height: 1,
-              color: AppTheme.cardBorder,
-            ),
+            Container(width: 100, height: 1, color: AppTheme.cardBorder),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: Row(
                 children: [
-                  Spacer(),
+                  const Spacer(),
                   Text(
                     'Итог: ${total.toStringAsFixed(1)}',
                     style: TextStyle(

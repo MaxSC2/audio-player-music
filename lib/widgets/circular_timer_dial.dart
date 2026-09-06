@@ -28,7 +28,10 @@ class _CircularTimerDialState extends State<CircularTimerDial> {
   @override
   void initState() {
     super.initState();
-    _minutes = widget.initialMinutes.clamp(widget.minMinutes, widget.maxMinutes);
+    _minutes = widget.initialMinutes.clamp(
+      widget.minMinutes,
+      widget.maxMinutes,
+    );
   }
 
   void _updateFromPosition(Offset local, Size size) {
@@ -60,59 +63,68 @@ class _CircularTimerDialState extends State<CircularTimerDial> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        LayoutBuilder(builder: (context, constraints) {
-          final size = math.min(constraints.maxWidth, 260).toDouble();
-          return GestureDetector(
-            onPanStart: (d) {
-              final box = context.findRenderObject() as RenderBox?;
-              if (box == null) return;
-              // Use global to local conversion via RenderBox
-              final local = box.globalToLocal(d.globalPosition);
-              // Need size of the dial itself, not the LayoutBuilder constraints
-              // Approximate: we use the dial size
-              _updateFromPosition(local, Size(size, size));
-            },
-            onPanUpdate: (d) {
-              final box = context.findRenderObject() as RenderBox?;
-              if (box == null) return;
-              final local = box.globalToLocal(d.globalPosition);
-              _updateFromPosition(local, Size(size, size));
-            },
-            child: SizedBox(
-              width: size,
-              height: size,
-              child: CustomPaint(
-                painter: _DialPainter(
-                  minutes: _minutes,
-                  maxMinutes: widget.maxMinutes,
-                  step: widget.step,
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.nightlight_round, color: AppTheme.accentLight, size: 28),
-                      const SizedBox(height: 6),
-                      Text(
-                        _label,
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final size = math.min(constraints.maxWidth, 260).toDouble();
+            return GestureDetector(
+              onPanStart: (d) {
+                final box = context.findRenderObject() as RenderBox?;
+                if (box == null) return;
+                // Use global to local conversion via RenderBox
+                final local = box.globalToLocal(d.globalPosition);
+                // Need size of the dial itself, not the LayoutBuilder constraints
+                // Approximate: we use the dial size
+                _updateFromPosition(local, Size(size, size));
+              },
+              onPanUpdate: (d) {
+                final box = context.findRenderObject() as RenderBox?;
+                if (box == null) return;
+                final local = box.globalToLocal(d.globalPosition);
+                _updateFromPosition(local, Size(size, size));
+              },
+              child: SizedBox(
+                width: size,
+                height: size,
+                child: CustomPaint(
+                  painter: _DialPainter(
+                    minutes: _minutes,
+                    maxMinutes: widget.maxMinutes,
+                    step: widget.step,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.nightlight_round,
+                          color: AppTheme.accentLight,
+                          size: 28,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _minutes == 0 ? 'таймер выключен' : 'до паузы',
-                        style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        Text(
+                          _label,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _minutes == 0 ? 'таймер выключен' : 'до паузы',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          },
+        ),
         const SizedBox(height: 14),
         Wrap(
           spacing: 8,
@@ -121,20 +133,30 @@ class _CircularTimerDialState extends State<CircularTimerDial> {
           children: [0, 5, 15, 30, 45, 60, 90, 120, 180].map((m) {
             final selected = m == _minutes;
             return ChoiceChip(
-              label: Text(m == 0 ? 'Выкл' : m < 60 ? '$m м' : '${m ~/ 60}ч${m % 60 == 0 ? '' : ' ${m % 60}м'}'),
+              label: Text(
+                m == 0
+                    ? 'Выкл'
+                    : m < 60
+                    ? '$m м'
+                    : '${m ~/ 60}ч${m % 60 == 0 ? '' : ' ${m % 60}м'}',
+              ),
               selected: selected,
               onSelected: (_) {
                 setState(() => _minutes = m);
                 widget.onChanged(m);
               },
-              selectedColor: AppTheme.accent.withOpacity(0.2),
+              selectedColor: AppTheme.accent.withValues(
+                alpha: AppTheme.accent.a * (0.2),
+              ),
               backgroundColor: AppTheme.surfaceLight,
               labelStyle: TextStyle(
                 color: selected ? AppTheme.accentLight : AppTheme.textSecondary,
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 12,
               ),
-              side: BorderSide(color: selected ? AppTheme.accent : Colors.transparent),
+              side: BorderSide(
+                color: selected ? AppTheme.accent : Colors.transparent,
+              ),
             );
           }).toList(),
         ),
@@ -148,13 +170,17 @@ class _DialPainter extends CustomPainter {
   final int maxMinutes;
   final int step;
 
-  _DialPainter({required this.minutes, required this.maxMinutes, required this.step});
+  _DialPainter({
+    required this.minutes,
+    required this.maxMinutes,
+    required this.step,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2 - 18;
-    final stroke = 14.0;
+    const stroke = 14.0;
 
     final bgPaint = Paint()
       ..color = AppTheme.surfaceLight
@@ -185,7 +211,7 @@ class _DialPainter extends CustomPainter {
 
       // Glow
       final glowPaint = Paint()
-        ..color = AppTheme.accent.withOpacity(0.18)
+        ..color = AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.18))
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke + 10
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
@@ -203,14 +229,28 @@ class _DialPainter extends CustomPainter {
       final thumbY = center.dy + radius * math.sin(angle);
       final thumbPaint = Paint()..color = AppTheme.accentLight;
       canvas.drawCircle(Offset(thumbX, thumbY), 10, thumbPaint);
-      canvas.drawCircle(Offset(thumbX, thumbY), 13,
-          Paint()..color = AppTheme.accentLight.withOpacity(0.18)..style = PaintingStyle.stroke..strokeWidth = 6);
-      canvas.drawCircle(Offset(thumbX, thumbY), 4, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        Offset(thumbX, thumbY),
+        13,
+        Paint()
+          ..color = AppTheme.accentLight.withValues(
+            alpha: AppTheme.accentLight.a * (0.18),
+          )
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6,
+      );
+      canvas.drawCircle(
+        Offset(thumbX, thumbY),
+        4,
+        Paint()..color = Colors.white,
+      );
     }
 
     // Ticks
     final tickPaint = Paint()
-      ..color = AppTheme.textMuted.withOpacity(0.35)
+      ..color = AppTheme.textMuted.withValues(
+        alpha: AppTheme.textMuted.a * (0.35),
+      )
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
     for (int m = 0; m <= maxMinutes; m += step) {
@@ -219,8 +259,14 @@ class _DialPainter extends CustomPainter {
       final angle = -math.pi / 2 + 2 * math.pi * (m / maxMinutes);
       final r1 = radius - (isMajor ? 0 : 2);
       final r2 = radius + (isMajor ? 10 : 6);
-      final p1 = Offset(center.dx + r1 * math.cos(angle), center.dy + r1 * math.sin(angle));
-      final p2 = Offset(center.dx + r2 * math.cos(angle), center.dy + r2 * math.sin(angle));
+      final p1 = Offset(
+        center.dx + r1 * math.cos(angle),
+        center.dy + r1 * math.sin(angle),
+      );
+      final p2 = Offset(
+        center.dx + r2 * math.cos(angle),
+        center.dy + r2 * math.sin(angle),
+      );
       canvas.drawLine(p1, p2, tickPaint..strokeWidth = isMajor ? 2 : 1.2);
     }
   }

@@ -36,17 +36,17 @@ class TrackTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
         color: selected
-            ? AppTheme.accent.withOpacity(0.2)
+            ? AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.2))
             : isCurrent
-                ? AppTheme.accent.withOpacity(0.12)
-                : AppTheme.card,
+            ? AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.12))
+            : AppTheme.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: selected
               ? AppTheme.accent
               : isCurrent
-                  ? AppTheme.accent.withOpacity(0.6)
-                  : AppTheme.cardBorder,
+              ? AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.6))
+              : AppTheme.cardBorder,
           width: selected ? 1.4 : (isCurrent ? 1.2 : 0.8),
         ),
       ),
@@ -56,8 +56,12 @@ class TrackTile extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(16),
-          splashColor: AppTheme.accent.withOpacity(0.15),
-          highlightColor: AppTheme.accent.withOpacity(0.08),
+          splashColor: AppTheme.accent.withValues(
+            alpha: AppTheme.accent.a * (0.15),
+          ),
+          highlightColor: AppTheme.accent.withValues(
+            alpha: AppTheme.accent.a * (0.08),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
@@ -75,10 +79,12 @@ class TrackTile extends StatelessWidget {
                         boxShadow: isCurrent && isPlaying
                             ? [
                                 BoxShadow(
-                                  color: AppTheme.accent.withOpacity(0.4),
+                                  color: AppTheme.accent.withValues(
+                                    alpha: AppTheme.accent.a * (0.4),
+                                  ),
                                   blurRadius: 10,
                                   spreadRadius: 1,
-                                )
+                                ),
                               ]
                             : null,
                       ),
@@ -94,7 +100,9 @@ class TrackTile extends StatelessWidget {
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.45),
+                          color: Colors.black.withValues(
+                            alpha: Colors.black.a * (0.45),
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
@@ -106,7 +114,7 @@ class TrackTile extends StatelessWidget {
                             gradient: LinearGradient(
                               colors: [
                                 AppTheme.accentCyan,
-                                AppTheme.accentLight
+                                AppTheme.accentLight,
                               ],
                             ),
                           ),
@@ -117,7 +125,9 @@ class TrackTile extends StatelessWidget {
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: AppTheme.accent.withOpacity(0.55),
+                          color: AppTheme.accent.withValues(
+                            alpha: AppTheme.accent.a * (0.55),
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -139,8 +149,9 @@ class TrackTile extends StatelessWidget {
                         track.title,
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight:
-                              isCurrent ? FontWeight.w700 : FontWeight.w600,
+                          fontWeight: isCurrent
+                              ? FontWeight.w700
+                              : FontWeight.w600,
                           color: isCurrent
                               ? AppTheme.accentLight
                               : AppTheme.textPrimary,
@@ -193,8 +204,11 @@ class TrackTile extends StatelessWidget {
 
                 // More Options Menu
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert_rounded,
-                      color: AppTheme.textMuted, size: 20),
+                  icon: Icon(
+                    Icons.more_vert_rounded,
+                    color: AppTheme.textMuted,
+                    size: 20,
+                  ),
                   color: AppTheme.surfaceLight,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -205,7 +219,9 @@ class TrackTile extends StatelessWidget {
                       player.addToQueueNext(track);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('"${track.title}" будет играть следующим'),
+                          content: Text(
+                            '"${track.title}" будет играть следующим',
+                          ),
                           duration: const Duration(seconds: 1),
                           behavior: SnackBarBehavior.floating,
                         ),
@@ -219,7 +235,8 @@ class TrackTile extends StatelessWidget {
                         isScrollControlled: true,
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(24)),
+                            top: Radius.circular(24),
+                          ),
                         ),
                         builder: (_) => PlaylistPickerSheet(track: track),
                       );
@@ -232,9 +249,11 @@ class TrackTile extends StatelessWidget {
                       player.toggleNotNow(track);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(player.isNotNow(track.id)
-                              ? '"${track.title}" скрыт на неделю'
-                              : '"${track.title}" снова в подборе'),
+                          content: Text(
+                            player.isNotNow(track.id)
+                                ? '"${track.title}" скрыт на неделю'
+                                : '"${track.title}" снова в подборе',
+                          ),
                           duration: const Duration(seconds: 1),
                           behavior: SnackBarBehavior.floating,
                         ),
@@ -246,10 +265,13 @@ class TrackTile extends StatelessWidget {
                       value: 'play_next',
                       child: Row(
                         children: [
-                          Icon(Icons.playlist_play_rounded,
-                              color: AppTheme.accentCyan, size: 18),
-                          SizedBox(width: 10),
-                          Text('Играть следующим'),
+                          Icon(
+                            Icons.playlist_play_rounded,
+                            color: AppTheme.accentCyan,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Играть следующим'),
                         ],
                       ),
                     ),
@@ -265,9 +287,11 @@ class TrackTile extends StatelessWidget {
                             size: 18,
                           ),
                           const SizedBox(width: 10),
-                          Text(track.isFavorite
-                              ? 'Удалить из избранного'
-                              : 'В избранное'),
+                          Text(
+                            track.isFavorite
+                                ? 'Удалить из избранного'
+                                : 'В избранное',
+                          ),
                         ],
                       ),
                     ),
@@ -275,10 +299,13 @@ class TrackTile extends StatelessWidget {
                       value: 'playlist',
                       child: Row(
                         children: [
-                          Icon(Icons.playlist_add_rounded,
-                              color: AppTheme.accentGreen, size: 18),
-                          SizedBox(width: 10),
-                          Text('Добавить в плейлист'),
+                          Icon(
+                            Icons.playlist_add_rounded,
+                            color: AppTheme.accentGreen,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Добавить в плейлист'),
                         ],
                       ),
                     ),
@@ -294,9 +321,11 @@ class TrackTile extends StatelessWidget {
                             size: 18,
                           ),
                           const SizedBox(width: 10),
-                          Text(player.isNotNow(track.id)
-                              ? 'Вернуть в подбор'
-                              : 'Не хочу сейчас'),
+                          Text(
+                            player.isNotNow(track.id)
+                                ? 'Вернуть в подбор'
+                                : 'Не хочу сейчас',
+                          ),
                         ],
                       ),
                     ),
@@ -304,10 +333,13 @@ class TrackTile extends StatelessWidget {
                       value: 'info',
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline_rounded,
-                              color: AppTheme.textSecondary, size: 18),
-                          SizedBox(width: 10),
-                          Text('О треке'),
+                          Icon(
+                            Icons.info_outline_rounded,
+                            color: AppTheme.textSecondary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('О треке'),
                         ],
                       ),
                     ),
@@ -334,19 +366,25 @@ class TrackTile extends StatelessWidget {
           boxShadow: isCurrent
               ? [
                   BoxShadow(
-                    color: AppTheme.accent.withOpacity(0.38),
+                    color: AppTheme.accent.withValues(
+                      alpha: AppTheme.accent.a * (0.38),
+                    ),
                     blurRadius: 20,
                     offset: const Offset(0, 5),
                   ),
                   BoxShadow(
-                    color: AppTheme.accentLight.withOpacity(0.18),
+                    color: AppTheme.accentLight.withValues(
+                      alpha: AppTheme.accentLight.a * (0.18),
+                    ),
                     blurRadius: 34,
                     spreadRadius: 1,
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.32),
+                    color: Colors.black.withValues(
+                      alpha: Colors.black.a * (0.32),
+                    ),
                     blurRadius: 12,
                     offset: const Offset(0, 5),
                   ),

@@ -15,6 +15,7 @@ import '../services/widget_service.dart';
 import 'package:http/http.dart' as http;
 
 enum PlayerRepeatMode { off, all, one }
+
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 enum ListeningContext { balanced, energy, calm, party, focus }
@@ -23,11 +24,38 @@ enum ListeningContext { balanced, energy, calm, party, focus }
 /// Категории (настроение/контекст) при этом могут комбинироваться.
 class GenreTaxonomy {
   static const List<String> all = [
-    'Rock', 'Pop', 'Hip-Hop', 'Electronic', 'Dance', 'Jazz', 'Classical',
-    'Metal', 'Punk', 'Alternative', 'Indie', 'R&B', 'Soul', 'Funk', 'Blues',
-    'Country', 'Folk', 'Latin', 'Reggae', 'K-Pop', 'Ambient', 'Lo-Fi', 'Phonk',
-    'Synthwave', 'House', 'Techno', 'Drum & Bass', 'Dubstep', 'Trap',
-    'Soundtrack', 'Chanson', 'Estrada',
+    'Rock',
+    'Pop',
+    'Hip-Hop',
+    'Electronic',
+    'Dance',
+    'Jazz',
+    'Classical',
+    'Metal',
+    'Punk',
+    'Alternative',
+    'Indie',
+    'R&B',
+    'Soul',
+    'Funk',
+    'Blues',
+    'Country',
+    'Folk',
+    'Latin',
+    'Reggae',
+    'K-Pop',
+    'Ambient',
+    'Lo-Fi',
+    'Phonk',
+    'Synthwave',
+    'House',
+    'Techno',
+    'Drum & Bass',
+    'Dubstep',
+    'Trap',
+    'Soundtrack',
+    'Chanson',
+    'Estrada',
   ];
 
   /// Нормализация онлайн-жанров (iTunes primaryGenreName) в таксономию.
@@ -35,24 +63,62 @@ class GenreTaxonomy {
   static String? normalizeOnline(String raw) {
     final g = raw.trim().toLowerCase();
     const map = {
-      'rock': 'Rock', 'alternative': 'Alternative', 'indie': 'Indie',
-      'pop': 'Pop', 'vocal': 'Pop', 'pop/rock': 'Rock',
-      'hip-hop': 'Hip-Hop', 'hip-hop/rap': 'Hip-Hop', 'rap': 'Hip-Hop',
-      'r&b': 'R&B', 'r&b/soul': 'R&B', 'soul': 'Soul', 'funk': 'Funk',
-      'blues': 'Blues', 'country': 'Country', 'folk': 'Folk',
-      'singer/songwriter': 'Folk', 'latin': 'Latin', 'latino': 'Latin',
-      'reggae': 'Reggae', 'reggaeton': 'Latin', 'k-pop': 'K-Pop', 'j-pop': 'Pop',
-      'japanese': 'K-Pop', 'korean': 'K-Pop',
-      'electronic': 'Electronic', 'dance': 'Dance', 'house': 'House',
-      'techno': 'Techno', 'trance': 'Electronic', 'dubstep': 'Dubstep',
-      'drum & bass': 'Drum & Bass', "drum'n'bass": 'Drum & Bass', 'dnb': 'Drum & Bass',
-      'trap': 'Trap', 'phonk': 'Phonk', 'synthwave': 'Synthwave', 'synthpop': 'Synthwave',
-      'lo-fi': 'Lo-Fi', 'lofi': 'Lo-Fi', 'ambient': 'Ambient', 'new age': 'Ambient',
-      'jazz': 'Jazz', 'classical': 'Classical', 'opera': 'Classical',
-      'metal': 'Metal', 'punk': 'Punk', 'hard rock': 'Rock',
-      'soundtrack': 'Soundtrack', 'soundtracks': 'Soundtrack',
-      'chanson': 'Chanson', 'shanson': 'Chanson', 'шансон': 'Chanson',
-      'estrada': 'Estrada', 'эстрада': 'Estrada', 'попса': 'Estrada',
+      'rock': 'Rock',
+      'alternative': 'Alternative',
+      'indie': 'Indie',
+      'pop': 'Pop',
+      'vocal': 'Pop',
+      'pop/rock': 'Rock',
+      'hip-hop': 'Hip-Hop',
+      'hip-hop/rap': 'Hip-Hop',
+      'rap': 'Hip-Hop',
+      'r&b': 'R&B',
+      'r&b/soul': 'R&B',
+      'soul': 'Soul',
+      'funk': 'Funk',
+      'blues': 'Blues',
+      'country': 'Country',
+      'folk': 'Folk',
+      'singer/songwriter': 'Folk',
+      'latin': 'Latin',
+      'latino': 'Latin',
+      'reggae': 'Reggae',
+      'reggaeton': 'Latin',
+      'k-pop': 'K-Pop',
+      'j-pop': 'Pop',
+      'japanese': 'K-Pop',
+      'korean': 'K-Pop',
+      'electronic': 'Electronic',
+      'dance': 'Dance',
+      'house': 'House',
+      'techno': 'Techno',
+      'trance': 'Electronic',
+      'dubstep': 'Dubstep',
+      'drum & bass': 'Drum & Bass',
+      "drum'n'bass": 'Drum & Bass',
+      'dnb': 'Drum & Bass',
+      'trap': 'Trap',
+      'phonk': 'Phonk',
+      'synthwave': 'Synthwave',
+      'synthpop': 'Synthwave',
+      'lo-fi': 'Lo-Fi',
+      'lofi': 'Lo-Fi',
+      'ambient': 'Ambient',
+      'new age': 'Ambient',
+      'jazz': 'Jazz',
+      'classical': 'Classical',
+      'opera': 'Classical',
+      'metal': 'Metal',
+      'punk': 'Punk',
+      'hard rock': 'Rock',
+      'soundtrack': 'Soundtrack',
+      'soundtracks': 'Soundtrack',
+      'chanson': 'Chanson',
+      'shanson': 'Chanson',
+      'шансон': 'Chanson',
+      'estrada': 'Estrada',
+      'эстрада': 'Estrada',
+      'попса': 'Estrada',
     };
     if (map.containsKey(g)) return map[g];
     for (final t in all) {
@@ -63,38 +129,218 @@ class GenreTaxonomy {
 
   /// Ключевые слова (название+исполнитель+альбом) -> жанр. RU+EN.
   static const Map<String, List<String>> keywords = {
-    'Rock': ['rock', 'рок', 'ac/dc', 'queen', 'nirvana', 'rhapsody', 'guitar', 'гитара'],
-    'Metal': ['metal', 'метал', 'rammstein', 'slipknot', 'iron maiden', 'death', 'black metal', 'doom'],
-    'Punk': ['punk', 'панк', 'sex pistols', 'ramones', 'offspring', 'green day'],
-    'Hip-Hop': ['hip-hop', 'hip hop', 'rap', 'рэп', 'хип-хоп', 'eminem', 'drake', 'kendrick', 'travis scott', 'oxxxymiron', 'оксимирон', 'basta', 'баста', 'morgenshtern', 'моргенштерн'],
-    'Pop': ['pop', 'поп', 'madonna', 'taylor swift', 'dua lipa', 'ариана', 'bts', 'one direction'],
-    'Electronic': ['electronic', 'электрон', 'depeche mode', 'kraftwerk', 'synth', 'синт', 'edm', 'avicii'],
+    'Rock': [
+      'rock',
+      'рок',
+      'ac/dc',
+      'queen',
+      'nirvana',
+      'rhapsody',
+      'guitar',
+      'гитара',
+    ],
+    'Metal': [
+      'metal',
+      'метал',
+      'rammstein',
+      'slipknot',
+      'iron maiden',
+      'death',
+      'black metal',
+      'doom',
+    ],
+    'Punk': [
+      'punk',
+      'панк',
+      'sex pistols',
+      'ramones',
+      'offspring',
+      'green day',
+    ],
+    'Hip-Hop': [
+      'hip-hop',
+      'hip hop',
+      'rap',
+      'рэп',
+      'хип-хоп',
+      'eminem',
+      'drake',
+      'kendrick',
+      'travis scott',
+      'oxxxymiron',
+      'оксимирон',
+      'basta',
+      'баста',
+      'morgenshtern',
+      'моргенштерн',
+    ],
+    'Pop': [
+      'pop',
+      'поп',
+      'madonna',
+      'taylor swift',
+      'dua lipa',
+      'ариана',
+      'bts',
+      'one direction',
+    ],
+    'Electronic': [
+      'electronic',
+      'электрон',
+      'depeche mode',
+      'kraftwerk',
+      'synth',
+      'синт',
+      'edm',
+      'avicii',
+    ],
     'Dance': ['dance', 'танцевальн', 'eurodance', 'hands up', 'cascada'],
-    'House': ['house', 'хаус', 'deep house', 'david guetta', 'calvin harris', 'fisher'],
-    'Techno': ['techno', 'техно', 'charlotte de witte', 'amelie lens', 'boris brejcha'],
-    'Drum & Bass': ['drum and bass', 'drum & bass', 'dnb', 'драм', 'pendulum', 'netsky', 'sub focus'],
+    'House': [
+      'house',
+      'хаус',
+      'deep house',
+      'david guetta',
+      'calvin harris',
+      'fisher',
+    ],
+    'Techno': [
+      'techno',
+      'техно',
+      'charlotte de witte',
+      'amelie lens',
+      'boris brejcha',
+    ],
+    'Drum & Bass': [
+      'drum and bass',
+      'drum & bass',
+      'dnb',
+      'драм',
+      'pendulum',
+      'netsky',
+      'sub focus',
+    ],
     'Dubstep': ['dubstep', 'дабстеп', 'skrillex', 'excision'],
     'Trap': ['trap', 'трэп', 'future ', 'metro boomin'],
     'Phonk': ['phonk', 'фонк', 'drift phonk', 'ghostface playa', 'kaito shoma'],
-    'Synthwave': ['synthwave', 'синтвейв', 'retrowave', 'outrun', 'kavinsky', 'gunship', 'carpenter brut'],
-    'Lo-Fi': ['lo-fi', 'lofi', 'лофай', 'chillhop', 'lofi hip hop', 'jinsang', 'nujabes'],
-    'Ambient': ['ambient', 'эмбиент', 'brian eno', 'stars of the lid', 'meditation', 'медитац'],
-    'Jazz': ['jazz', 'джаз', 'miles davis', 'coltrane', 'sinatra', 'ella fitzgerald', 'bossa nova', 'босса'],
-    'Classical': ['classical', 'классика', 'mozart', 'beethoven', 'bach', 'vivaIdi', 'symphony', 'симфони', 'orchestra', 'оркестр', 'piano concerto'],
+    'Synthwave': [
+      'synthwave',
+      'синтвейв',
+      'retrowave',
+      'outrun',
+      'kavinsky',
+      'gunship',
+      'carpenter brut',
+    ],
+    'Lo-Fi': [
+      'lo-fi',
+      'lofi',
+      'лофай',
+      'chillhop',
+      'lofi hip hop',
+      'jinsang',
+      'nujabes',
+    ],
+    'Ambient': [
+      'ambient',
+      'эмбиент',
+      'brian eno',
+      'stars of the lid',
+      'meditation',
+      'медитац',
+    ],
+    'Jazz': [
+      'jazz',
+      'джаз',
+      'miles davis',
+      'coltrane',
+      'sinatra',
+      'ella fitzgerald',
+      'bossa nova',
+      'босса',
+    ],
+    'Classical': [
+      'classical',
+      'классика',
+      'mozart',
+      'beethoven',
+      'bach',
+      'vivaIdi',
+      'symphony',
+      'симфони',
+      'orchestra',
+      'оркестр',
+      'piano concerto',
+    ],
     'Blues': ['blues', 'блюз', 'b.b. king', 'muddy waters'],
     'Country': ['country', 'кантри', 'johnny cash', 'dolly parton'],
-    'Folk': ['folk', 'фолк', 'singer-songwriter', 'бард', 'высоцкий', 'окуджава'],
-    'Latin': ['latin', 'латино', 'reggaeton', 'реггетон', 'salsa', 'сальса', 'despacito', 'shakira', 'bad bunny'],
+    'Folk': [
+      'folk',
+      'фолк',
+      'singer-songwriter',
+      'бард',
+      'высоцкий',
+      'окуджава',
+    ],
+    'Latin': [
+      'latin',
+      'латино',
+      'reggaeton',
+      'реггетон',
+      'salsa',
+      'сальса',
+      'despacito',
+      'shakira',
+      'bad bunny',
+    ],
     'Reggae': ['reggae', 'регги', 'bob marley', 'marley'],
     'R&B': ['r&b', 'rnb', 'the weeknd', 'sza', 'usher', 'alicia keys'],
     'Soul': ['soul', 'соул', 'aretha', 'marvin gaye', 'sam cooke'],
     'Funk': ['funk', 'фанк', 'james brown', 'parliament'],
-    'K-Pop': ['k-pop', 'kpop', 'кей-поп', 'bts', 'blackpink', 'stray kids', 'twice', 'exo'],
-    'Soundtrack': ['soundtrack', 'саундтрек', 'ost ', 'score', 'hans zimmer', 'anime', 'аниме', 'amv'],
-    'Alternative': ['alternative', 'альтернатив', 'radiohead', 'arctic monkeys', 'placebo', 'muse'],
-    'Indie': ['indie', 'инди', 'tame impala', 'arctic monkeys', 'the strokes', 'vampire weekend'],
+    'K-Pop': [
+      'k-pop',
+      'kpop',
+      'кей-поп',
+      'bts',
+      'blackpink',
+      'stray kids',
+      'twice',
+      'exo',
+    ],
+    'Soundtrack': [
+      'soundtrack',
+      'саундтрек',
+      'ost ',
+      'score',
+      'hans zimmer',
+      'anime',
+      'аниме',
+      'amv',
+    ],
+    'Alternative': [
+      'alternative',
+      'альтернатив',
+      'radiohead',
+      'arctic monkeys',
+      'placebo',
+      'muse',
+    ],
+    'Indie': [
+      'indie',
+      'инди',
+      'tame impala',
+      'arctic monkeys',
+      'the strokes',
+      'vampire weekend',
+    ],
     'Chanson': ['chanson', 'шансон', 'круг', 'михаил круг', 'лепс'],
-    'Estrada': ['эстрада', 'пугачева', 'киркоров', 'басков', 'аллегрова', 'леонтьев'],
+    'Estrada': [
+      'эстрада',
+      'пугачева',
+      'киркоров',
+      'басков',
+      'аллегрова',
+      'леонтьев',
+    ],
   };
 
   static String guessFromText(String text) {
@@ -120,18 +366,18 @@ enum DiscoveryLevel { familiar, balanced, discovery, experimental }
 
 extension DiscoveryLevelX on DiscoveryLevel {
   double get factor => switch (this) {
-        DiscoveryLevel.familiar => 0.0,
-        DiscoveryLevel.balanced => 0.35,
-        DiscoveryLevel.discovery => 0.7,
-        DiscoveryLevel.experimental => 1.0,
-      };
+    DiscoveryLevel.familiar => 0.0,
+    DiscoveryLevel.balanced => 0.35,
+    DiscoveryLevel.discovery => 0.7,
+    DiscoveryLevel.experimental => 1.0,
+  };
 
   String get label => switch (this) {
-        DiscoveryLevel.familiar => 'Привычное',
-        DiscoveryLevel.balanced => 'Баланс',
-        DiscoveryLevel.discovery => 'Открытия',
-        DiscoveryLevel.experimental => 'Эксперимент',
-      };
+    DiscoveryLevel.familiar => 'Привычное',
+    DiscoveryLevel.balanced => 'Баланс',
+    DiscoveryLevel.discovery => 'Открытия',
+    DiscoveryLevel.experimental => 'Эксперимент',
+  };
 }
 
 class PlayerProvider extends ChangeNotifier {
@@ -147,7 +393,7 @@ class PlayerProvider extends ChangeNotifier {
   List<Map<String, int>> _historyRaw = [];
   List<Map<String, int>> _notNowRaw = [];
   Set<ListeningContext> _activeContexts = {ListeningContext.balanced};
-  Map<ListeningContext, double> _categoryWeights = {
+  final Map<ListeningContext, double> _categoryWeights = {
     ListeningContext.balanced: 1.0,
     ListeningContext.energy: 1.6,
     ListeningContext.calm: 1.25,
@@ -155,11 +401,11 @@ class PlayerProvider extends ChangeNotifier {
     ListeningContext.party: 1.6,
   };
   Map<int, Set<ListeningContext>> _manualCategories = {};
-  Map<int, String> _genreCache = {};
+  final Map<int, String> _genreCache = {};
   final Set<int> _genreFetching = {};
   bool _genreBatchRunning = false;
   DateTime? _genreBatchLastRun;
-  Map<int, String> _manualGenre = {};
+  final Map<int, String> _manualGenre = {};
   final Map<int, Set<ListeningContext>> _categoryCache = {};
   final Map<ListeningContext, List<AudioTrack>> _categoryTracksCache = {};
   final Map<int, String> _primaryGenreCache = {};
@@ -215,11 +461,14 @@ class PlayerProvider extends ChangeNotifier {
 
   AudioTrack? get currentTrack {
     final idx = _audioPlayer.currentIndex;
-    if (idx != null && idx >= 0 && idx < _playlist.length) return _playlist[idx];
+    if (idx != null && idx >= 0 && idx < _playlist.length) {
+      return _playlist[idx];
+    }
     return (_currentIndex >= 0 && _currentIndex < _playlist.length)
         ? _playlist[_currentIndex]
         : null;
   }
+
   bool get isPlaying => _isPlaying;
   Duration get position => _position;
   Duration get duration => _duration;
@@ -245,6 +494,7 @@ class PlayerProvider extends ChangeNotifier {
       return const [];
     }
   }
+
   String get mediaDiagnostics {
     try {
       return _audioHandler?.diagnostics ?? 'Обработчик не подключён';
@@ -258,17 +508,18 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  static const MethodChannel _deleteChannel =
-      MethodChannel('neonwave/deletion');
+  static const MethodChannel _deleteChannel = MethodChannel(
+    'neonwave/deletion',
+  );
 
   Future<bool> deleteTrack(AudioTrack track) async {
     try {
       final path = track.data ?? track.uri;
       if (path.isEmpty) return false;
-      final ok = await _deleteChannel.invokeMethod<bool>(
-            'deleteTrack',
-            {'path': path},
-          ) ??
+      final ok =
+          await _deleteChannel.invokeMethod<bool>('deleteTrack', {
+            'path': path,
+          }) ??
           false;
       if (!ok) return false;
 
@@ -378,66 +629,50 @@ class PlayerProvider extends ChangeNotifier {
       }
     });
 
+    // Единая обработка смены индекса из обоих стримов: playbackEventStream
+    // и currentIndexStream (just_audio может листать очередь нативно без
+    // playbackEvent, особенно при setAudioSources).
     _audioPlayer.playbackEventStream.listen((event) {
       if (_switchingSource) return;
-      final idx = event.currentIndex;
-      if (idx == null) return;
-      // Repeat-one: just_audio листает очередь нативно, минуя next().
-      // Ловим незапланированный автопереход и возвращаем трек в начало.
-      if (idx != _lastEventIndex &&
-          _repeatMode == PlayerRepeatMode.one &&
-          _lastEventIndex >= 0 &&
-          _lastEventIndex < _playlist.length) {
-        _audioPlayer.seek(Duration.zero, index: _lastEventIndex);
-        return;
-      }
-      final indexChanged = idx != _lastEventIndex;
-      _lastEventIndex = idx;
-      _currentIndex = idx;
-      if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
-        final t = _playlist[_currentIndex];
-        if (t.id != _lastHistoryTrackId) {
-          _lastHistoryTrackId = t.id;
-          _recordHistory(t);
-          _audioHandler?.setFavoriteState(isFavorite(t.id));
-        }
-      }
-      if (indexChanged) {
-        notifyListeners();
-        WidgetService.playerChanged(this);
-      }
+      _handleIndexEvent(event.currentIndex);
     });
 
-    // Синхронизация через currentIndexStream — just_audio может листать очередь
-    // нативно без playbackEvent (особенно при setAudioSources). Этот слушатель
-    // гарантирует, что _currentIndex/виджеты/история всегда совпадают с
-    // реальным индексом плеера, а next()/prev() считают следующий трек верно.
     _audioPlayer.currentIndexStream.listen((idx) {
-      if (idx == null || _switchingSource) return;
-      // Repeat-one: откатываем нативный автопереход
-      if (idx != _lastEventIndex &&
-          _repeatMode == PlayerRepeatMode.one &&
-          _lastEventIndex >= 0 &&
-          _lastEventIndex < _playlist.length) {
-        _audioPlayer.seek(Duration.zero, index: _lastEventIndex);
-        return;
-      }
-      if (idx == _currentIndex) return;
-      _currentIndex = idx;
-      _lastEventIndex = idx;
-      if (idx >= 0 && idx < _playlist.length) {
-        final t = _playlist[idx];
-        if (t.id != _lastHistoryTrackId) {
-          _lastHistoryTrackId = t.id;
-          _recordHistory(t);
-          _audioHandler?.setFavoriteState(isFavorite(t.id));
-        }
-      }
-      notifyListeners();
-      WidgetService.playerChanged(this);
+      if (_switchingSource) return;
+      _handleIndexEvent(idx);
     });
 
     _audioPlayer.setSpeed(_speed);
+  }
+
+  /// Общий обработчик смены индекса плеера: repeat-one, история,
+  /// избранное в уведомлении, нотификация UI и виджетов.
+  void _handleIndexEvent(int? idx) {
+    if (idx == null) return;
+    // Repeat-one: just_audio листает очередь нативно, минуя next().
+    // Ловим незапланированный автопереход и возвращаем трек в начало.
+    if (idx != _lastEventIndex &&
+        _repeatMode == PlayerRepeatMode.one &&
+        _lastEventIndex >= 0 &&
+        _lastEventIndex < _playlist.length) {
+      _audioPlayer.seek(Duration.zero, index: _lastEventIndex);
+      return;
+    }
+    final indexChanged = idx != _lastEventIndex;
+    _lastEventIndex = idx;
+    _currentIndex = idx;
+    if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+      final t = _playlist[_currentIndex];
+      if (t.id != _lastHistoryTrackId) {
+        _lastHistoryTrackId = t.id;
+        _recordHistory(t);
+        _audioHandler?.setFavoriteState(isFavorite(t.id));
+      }
+    }
+    if (indexChanged) {
+      notifyListeners();
+      WidgetService.playerChanged(this);
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -479,14 +714,14 @@ class PlayerProvider extends ChangeNotifier {
     if (savedContext != null && savedContext.isNotEmpty) {
       final names = savedContext.split(',');
       final parsed = names
-          .map((n) => ListeningContext.values.firstWhere(
-                (c) => c.name == n,
-                orElse: () => ListeningContext.balanced,
-              ))
+          .map(
+            (n) => ListeningContext.values.firstWhere(
+              (c) => c.name == n,
+              orElse: () => ListeningContext.balanced,
+            ),
+          )
           .toSet();
-      _activeContexts = parsed.isEmpty
-          ? {ListeningContext.balanced}
-          : parsed;
+      _activeContexts = parsed.isEmpty ? {ListeningContext.balanced} : parsed;
     }
 
     final savedWeights = prefs.getString('category_weights');
@@ -494,7 +729,10 @@ class PlayerProvider extends ChangeNotifier {
       try {
         final raw = jsonDecode(savedWeights) as Map;
         raw.forEach((k, v) {
-          final ctx = ListeningContext.values.firstWhere((c) => c.name == k, orElse: () => ListeningContext.balanced);
+          final ctx = ListeningContext.values.firstWhere(
+            (c) => c.name == k,
+            orElse: () => ListeningContext.balanced,
+          );
           final w = (v as num).toDouble();
           if (w >= 0.5 && w <= 2.5) _categoryWeights[ctx] = w;
         });
@@ -508,7 +746,14 @@ class PlayerProvider extends ChangeNotifier {
         raw.forEach((k, v) {
           final id = int.tryParse(k.toString());
           if (id == null) return;
-          final list = (v as List).map((e) => ListeningContext.values.firstWhere((c) => c.name == e, orElse: () => ListeningContext.balanced)).toSet();
+          final list = (v as List)
+              .map(
+                (e) => ListeningContext.values.firstWhere(
+                  (c) => c.name == e,
+                  orElse: () => ListeningContext.balanced,
+                ),
+              )
+              .toSet();
           if (list.isNotEmpty) _manualCategories[id] = list;
         });
       } catch (_) {
@@ -637,11 +882,13 @@ class PlayerProvider extends ChangeNotifier {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return null;
     final id = 'pl_${DateTime.now().millisecondsSinceEpoch}';
-    _playlists.add(CustomPlaylist(
-      id: id,
-      name: trimmed,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-    ));
+    _playlists.add(
+      CustomPlaylist(
+        id: id,
+        name: trimmed,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
     await _savePlaylists();
     notifyListeners();
     return id;
@@ -707,6 +954,7 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> setHideUnknownArtist(bool value) async {
     _hideUnknownArtist = value;
+    _invalidateFolderCache();
     _invalidateCategoryCache();
     await _prefs?.setBool('hide_unknown', value);
     notifyListeners();
@@ -893,10 +1141,10 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void _recordHistory(AudioTrack track) {
-    _historyRaw.insert(
-      0,
-      {'id': track.id, 'ts': DateTime.now().millisecondsSinceEpoch},
-    );
+    _historyRaw.insert(0, {
+      'id': track.id,
+      'ts': DateTime.now().millisecondsSinceEpoch,
+    });
     if (_historyRaw.length > 300) {
       _historyRaw.removeRange(300, _historyRaw.length);
     }
@@ -942,10 +1190,10 @@ class PlayerProvider extends ChangeNotifier {
     if (index >= 0) {
       _notNowRaw.removeAt(index);
     } else {
-      _notNowRaw.insert(
-        0,
-        {'id': track.id, 'ts': DateTime.now().millisecondsSinceEpoch},
-      );
+      _notNowRaw.insert(0, {
+        'id': track.id,
+        'ts': DateTime.now().millisecondsSinceEpoch,
+      });
       if (_notNowRaw.length > 200) {
         _notNowRaw.removeRange(200, _notNowRaw.length);
       }
@@ -979,14 +1227,18 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Category Weights & Manual Overrides ─────────────────────────────
-  Map<ListeningContext, double> get categoryWeights => Map.unmodifiable(_categoryWeights);
+  Map<ListeningContext, double> get categoryWeights =>
+      Map.unmodifiable(_categoryWeights);
 
   double categoryWeight(ListeningContext c) => _categoryWeights[c] ?? 1.0;
 
   void setCategoryWeight(ListeningContext c, double w) {
     final clamped = w.clamp(0.5, 2.5).toDouble();
     _categoryWeights[c] = clamped;
-    _prefs?.setString('category_weights', jsonEncode(_categoryWeights.map((k, v) => MapEntry(k.name, v))));
+    _prefs?.setString(
+      'category_weights',
+      jsonEncode(_categoryWeights.map((k, v) => MapEntry(k.name, v))),
+    );
     notifyListeners();
   }
 
@@ -1054,12 +1306,15 @@ class PlayerProvider extends ChangeNotifier {
       g = manual;
     } else {
       final online = _genreCache[t.id];
-      final norm = online == null ? null : GenreTaxonomy.normalizeOnline(online);
+      final norm = online == null
+          ? null
+          : GenreTaxonomy.normalizeOnline(online);
       if (norm != null) {
         g = norm;
       } else {
         g = GenreTaxonomy.guessFromText(
-            '${t.title} ${t.artist} ${t.album ?? ''}');
+          '${t.title} ${t.artist} ${t.album ?? ''}',
+        );
       }
     }
     _primaryGenreCache[t.id] = g;
@@ -1074,7 +1329,8 @@ class PlayerProvider extends ChangeNotifier {
       return 'online';
     }
     final guess = GenreTaxonomy.guessFromText(
-        '${t.title} ${t.artist} ${t.album ?? ''}');
+      '${t.title} ${t.artist} ${t.album ?? ''}',
+    );
     return guess == 'Прочее' ? 'none' : 'auto';
   }
 
@@ -1082,16 +1338,20 @@ class PlayerProvider extends ChangeNotifier {
     final g = genre.trim();
     if (g.isEmpty || g.length > 32) return;
     _manualGenre[id] = g[0].toUpperCase() + g.substring(1);
-    _prefs?.setString('manual_genre',
-        jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))));
+    _prefs?.setString(
+      'manual_genre',
+      jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))),
+    );
     _invalidateCategoryCache();
     notifyListeners();
   }
 
   void clearManualGenre(int id) {
     if (_manualGenre.remove(id) != null) {
-      _prefs?.setString('manual_genre',
-          jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))));
+      _prefs?.setString(
+        'manual_genre',
+        jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))),
+      );
       _invalidateCategoryCache();
       notifyListeners();
     }
@@ -1132,9 +1392,13 @@ class PlayerProvider extends ChangeNotifier {
     if (_genreFetching.contains(track.id)) return null;
     _genreFetching.add(track.id);
     try {
-      final term = Uri.encodeQueryComponent('${track.artist} ${track.title}'.trim());
+      final term = Uri.encodeQueryComponent(
+        '${track.artist} ${track.title}'.trim(),
+      );
       if (term.isEmpty) return null;
-      final url = Uri.parse('https://itunes.apple.com/search?term=$term&media=music&limit=1');
+      final url = Uri.parse(
+        'https://itunes.apple.com/search?term=$term&media=music&limit=1',
+      );
       final res = await http.get(url).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map;
@@ -1143,7 +1407,10 @@ class PlayerProvider extends ChangeNotifier {
           final genre = (list.first['primaryGenreName'] as String?)?.trim();
           if (genre != null && genre.isNotEmpty) {
             _genreCache[track.id] = genre;
-            _prefs?.setString('genre_cache', jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))));
+            _prefs?.setString(
+              'genre_cache',
+              jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))),
+            );
             _invalidateCategoryCache();
             notifyListeners();
             return genre;
@@ -1157,7 +1424,10 @@ class PlayerProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<void> fetchGenresForVisible({int batchSize = 12, bool force = false}) async {
+  Future<void> fetchGenresForVisible({
+    int batchSize = 12,
+    bool force = false,
+  }) async {
     if (_genreBatchRunning) return;
     final now = DateTime.now();
     if (!force &&
@@ -1168,7 +1438,14 @@ class PlayerProvider extends ChangeNotifier {
     _genreBatchLastRun = now;
     _genreBatchRunning = true;
     try {
-      final pending = visibleTracks.where((t) => !_genreCache.containsKey(t.id) && !_genreFetching.contains(t.id)).take(batchSize).toList();
+      final pending = visibleTracks
+          .where(
+            (t) =>
+                !_genreCache.containsKey(t.id) &&
+                !_genreFetching.contains(t.id),
+          )
+          .take(batchSize)
+          .toList();
       for (final t in pending) {
         await fetchGenreForTrack(t);
         await Future.delayed(const Duration(milliseconds: 400));
@@ -1179,14 +1456,22 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void _persistManualCategories() {
-    _prefs?.setString('manual_categories',
-        jsonEncode(_manualCategories.map((k, v) => MapEntry('$k', v.map((e) => e.name).toList()))));
+    _prefs?.setString(
+      'manual_categories',
+      jsonEncode(
+        _manualCategories.map(
+          (k, v) => MapEntry('$k', v.map((e) => e.name).toList()),
+        ),
+      ),
+    );
   }
 
   List<AudioTrack> tracksForCategory(ListeningContext ctx) {
     final cached = _categoryTracksCache[ctx];
     if (cached != null) return cached;
-    final list = visibleTracks.where((t) => categoriesForTrack(t).contains(ctx)).toList();
+    final list = visibleTracks
+        .where((t) => categoriesForTrack(t).contains(ctx))
+        .toList();
     _categoryTracksCache[ctx] = list;
     return list;
   }
@@ -1215,12 +1500,75 @@ class PlayerProvider extends ChangeNotifier {
 
     bool has(List<String> kws) => kws.any((k) => combined.contains(k));
 
-    const energyKws = ['energy','power','hard','beat','rock','metal','punk','electro','synth','phonk','trap','drill','bass','gym','workout','run','rage'];
-    const calmKws = ['calm','chill','relax','ambient','sleep','lullaby','piano','acoustic','soft','ballad','lofi','meditation','yoga','spa','rain','nature'];
-    const focusKws = ['focus','study','concentration','instrumental','classical','jazz','chillhop','reading','work','concentration'];
-    const partyKws = ['party','club','disco','pop','hit','dance','festival','celebration','summer','vibe','funk','soul','house','edm'];
+    const energyKws = [
+      'energy',
+      'power',
+      'hard',
+      'beat',
+      'rock',
+      'metal',
+      'punk',
+      'electro',
+      'synth',
+      'phonk',
+      'trap',
+      'drill',
+      'bass',
+      'gym',
+      'workout',
+      'run',
+      'rage',
+    ];
+    const calmKws = [
+      'calm',
+      'chill',
+      'relax',
+      'ambient',
+      'sleep',
+      'lullaby',
+      'piano',
+      'acoustic',
+      'soft',
+      'ballad',
+      'lofi',
+      'meditation',
+      'yoga',
+      'spa',
+      'rain',
+      'nature',
+    ];
+    const focusKws = [
+      'focus',
+      'study',
+      'concentration',
+      'instrumental',
+      'classical',
+      'jazz',
+      'chillhop',
+      'reading',
+      'work',
+      'concentration',
+    ];
+    const partyKws = [
+      'party',
+      'club',
+      'disco',
+      'pop',
+      'hit',
+      'dance',
+      'festival',
+      'celebration',
+      'summer',
+      'vibe',
+      'funk',
+      'soul',
+      'house',
+      'edm',
+    ];
 
-    if (has(energyKws) || (dur > 0 && dur < 210000 && !has(calmKws))) set.add(ListeningContext.energy);
+    if (has(energyKws) || (dur > 0 && dur < 210000 && !has(calmKws))) {
+      set.add(ListeningContext.energy);
+    }
     if (has(calmKws) || (dur > 300000)) set.add(ListeningContext.calm);
     if (has(focusKws)) set.add(ListeningContext.focus);
     if (has(partyKws)) set.add(ListeningContext.party);
@@ -1346,7 +1694,10 @@ class PlayerProvider extends ChangeNotifier {
     }
     final ranked = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    return ranked.take(limit).map((e) => (artist: e.key, plays: e.value)).toList();
+    return ranked
+        .take(limit)
+        .map((e) => (artist: e.key, plays: e.value))
+        .toList();
   }
 
   int get totalPlays => _historyRaw.length;
@@ -1411,8 +1762,12 @@ class PlayerProvider extends ChangeNotifier {
   Map<String, double> trackScoreBreakdown(AudioTrack t) {
     final out = <String, double>{};
 
-    final hasEnergy = _activeContexts.any((c) => c == ListeningContext.energy || c == ListeningContext.party);
-    final hasCalm = _activeContexts.any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
+    final hasEnergy = _activeContexts.any(
+      (c) => c == ListeningContext.energy || c == ListeningContext.party,
+    );
+    final hasCalm = _activeContexts.any(
+      (c) => c == ListeningContext.calm || c == ListeningContext.focus,
+    );
     double favWeight = 1.0;
     for (final c in _activeContexts) {
       final w = _categoryWeights[c] ?? 1.0;
@@ -1553,8 +1908,12 @@ class PlayerProvider extends ChangeNotifier {
     final usedArtistCount = <String, int>{};
     int seed = DateTime.now().millisecondsSinceEpoch;
 
-    final hasEnergy = activeCtx.any((c) => c == ListeningContext.energy || c == ListeningContext.party);
-    final hasCalm = activeCtx.any((c) => c == ListeningContext.calm || c == ListeningContext.focus);
+    final hasEnergy = activeCtx.any(
+      (c) => c == ListeningContext.energy || c == ListeningContext.party,
+    );
+    final hasCalm = activeCtx.any(
+      (c) => c == ListeningContext.calm || c == ListeningContext.focus,
+    );
     double favWeight = 1.0;
     for (final c in activeCtx) {
       final w = _categoryWeights[c] ?? 1.0;
@@ -1563,7 +1922,7 @@ class PlayerProvider extends ChangeNotifier {
 
     final discoveryF = (discovery ?? _discoveryLevel).factor;
 
-    int _nextRand() {
+    int nextRand() {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
       return seed;
     }
@@ -1610,7 +1969,9 @@ class PlayerProvider extends ChangeNotifier {
         score -= artistCount * 34;
 
         final sameAlbum =
-            currentTrack != null && t.album == currentTrack!.album && t.id != currentTrack!.id;
+            currentTrack != null &&
+            t.album == currentTrack!.album &&
+            t.id != currentTrack!.id;
         if (sameAlbum) score += 10;
 
         if (queue.contains(t)) score -= 40;
@@ -1631,16 +1992,14 @@ class PlayerProvider extends ChangeNotifier {
           score += (1 - known) * discoveryF * 20;
         }
 
-        if (hasEnergy &&
-            t.duration > 0 &&
-            t.duration < 3 * 60 * 1000) {
+        if (hasEnergy && t.duration > 0 && t.duration < 3 * 60 * 1000) {
           score += 12;
         }
         if (hasCalm && t.duration >= 3 * 60 * 1000) {
           score += 12;
         }
 
-        score += (_nextRand() % 400) / 100.0;
+        score += (nextRand() % 400) / 100.0;
 
         if (score > bestScore) {
           bestScore = score;
@@ -1700,12 +2059,14 @@ class PlayerProvider extends ChangeNotifier {
     final p = prompt.toLowerCase();
     final ctxs = <ListeningContext>{};
 
-    if (RegExp(r'энерг|бодр|быстр|спорт|тренир|пробежк|заряд|кача|ускор')
-        .hasMatch(p)) {
+    if (RegExp(
+      r'энерг|бодр|быстр|спорт|тренир|пробежк|заряд|кача|ускор',
+    ).hasMatch(p)) {
       ctxs.add(ListeningContext.energy);
     }
-    if (RegExp(r'спокойн|расслаб|медлен|сон|ночь|релакс|тих|уютн|дожд|лёгк')
-        .hasMatch(p)) {
+    if (RegExp(
+      r'спокойн|расслаб|медлен|сон|ночь|релакс|тих|уютн|дожд|лёгк',
+    ).hasMatch(p)) {
       ctxs.add(ListeningContext.calm);
     }
     if (RegExp(r'фокус|работ|учеб|концентрац|сосред|глуб|начит').hasMatch(p)) {
@@ -1715,12 +2076,12 @@ class PlayerProvider extends ChangeNotifier {
       ctxs.add(ListeningContext.party);
     }
 
-    final discovery = RegExp(r'нов|открыт|незнаком|эксперимент|свеж')
-            .hasMatch(p)
+    final discovery =
+        RegExp(r'нов|открыт|незнаком|эксперимент|свеж').hasMatch(p)
         ? DiscoveryLevel.experimental
         : (RegExp(r'знаком|любим|классик|привычн').hasMatch(p)
-            ? DiscoveryLevel.familiar
-            : _discoveryLevel);
+              ? DiscoveryLevel.familiar
+              : _discoveryLevel);
 
     final deepCuts = RegExp(r'малоизвестн|редк|андерграунд|скрыт').hasMatch(p);
 
@@ -1733,8 +2094,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Queue Snapshots ───────────────────────────────────────────────
-  List<QueueSnapshot> get queueSnapshots =>
-      List.unmodifiable(_queueSnapshots);
+  List<QueueSnapshot> get queueSnapshots => List.unmodifiable(_queueSnapshots);
 
   void _persistSnapshots() {
     _prefs?.setString(
@@ -1781,6 +2141,7 @@ class PlayerProvider extends ChangeNotifier {
   SortOrder get sortOrder => _sortOrder;
   set sortOrder(SortOrder value) {
     _sortOrder = value;
+    _invalidateFolderCache();
     _invalidateCategoryCache();
     _allTracks = sortTracks(_allTracks, value);
     _prefs?.setString('sort_order', value.name);
@@ -1792,11 +2153,13 @@ class PlayerProvider extends ChangeNotifier {
     switch (order) {
       case SortOrder.title:
         list.sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
         break;
       case SortOrder.artist:
         list.sort(
-            (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
+          (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()),
+        );
         break;
       case SortOrder.dateAddedNew:
         list.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
@@ -1812,21 +2175,51 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<AudioTrack> searchTracks(String query) {
+    if (_searchCacheQuery == query && _searchCacheResult != null) {
+      return _searchCacheResult!;
+    }
     final base = visibleTracks;
-    if (query.isEmpty) return base;
-    final q = query.toLowerCase();
-    return base.where((t) {
-      return t.title.toLowerCase().contains(q) ||
-          t.artist.toLowerCase().contains(q) ||
-          (t.album ?? '').toLowerCase().contains(q);
-    }).toList();
+    final List<AudioTrack> result;
+    if (query.isEmpty) {
+      result = base;
+    } else {
+      final q = query.toLowerCase();
+      result = base.where((t) {
+        return t.title.toLowerCase().contains(q) ||
+            t.artist.toLowerCase().contains(q) ||
+            (t.album ?? '').toLowerCase().contains(q);
+      }).toList();
+    }
+    _searchCacheQuery = query;
+    _searchCacheResult = result;
+    return result;
   }
 
-  List<String> get artists =>
-      visibleTracks.map((t) => t.artist).toSet().where((a) => a.isNotEmpty).toList()..sort();
+  List<String> get artists {
+    if (_artistsCache != null) return _artistsCache!;
+    final list =
+        visibleTracks
+            .map((t) => t.artist)
+            .toSet()
+            .where((a) => a.isNotEmpty)
+            .toList()
+          ..sort();
+    _artistsCache = list;
+    return list;
+  }
 
-  List<String> get albums =>
-      visibleTracks.where((t) => t.album != null && t.album!.isNotEmpty).map((t) => t.album!).toSet().toList()..sort();
+  List<String> get albums {
+    if (_albumsCache != null) return _albumsCache!;
+    final list =
+        visibleTracks
+            .where((t) => t.album != null && t.album!.isNotEmpty)
+            .map((t) => t.album!)
+            .toSet()
+            .toList()
+          ..sort();
+    _albumsCache = list;
+    return list;
+  }
 
   String? _folderPathOf(AudioTrack t) {
     final d = t.data;
@@ -1851,14 +2244,25 @@ class PlayerProvider extends ChangeNotifier {
   List<AudioTrack> tracksInFolder(String folder) {
     final cache = _folderTracksCache;
     if (cache != null && cache.containsKey(folder)) return cache[folder]!;
-    final list = visibleTracks.where((t) => _folderPathOf(t) == folder).toList();
+    final list = visibleTracks
+        .where((t) => _folderPathOf(t) == folder)
+        .toList();
     (_folderTracksCache ??= {})[folder] = list;
     return list;
   }
 
+  List<String>? _artistsCache;
+  List<String>? _albumsCache;
+  String? _searchCacheQuery;
+  List<AudioTrack>? _searchCacheResult;
+
   void _invalidateFolderCache() {
     _foldersCache = null;
     _folderTracksCache = null;
+    _artistsCache = null;
+    _albumsCache = null;
+    _searchCacheQuery = null;
+    _searchCacheResult = null;
   }
 
   Future<void> requestPermission() async {
@@ -1896,19 +2300,21 @@ class PlayerProvider extends ChangeNotifier {
     _allTracks = tracks
         .where((song) => song.isMusic != null ? song.isMusic! : true)
         .where((song) => song.duration != null && song.duration! > 5000)
-        .map((song) => AudioTrack(
-              id: song.id,
-              title: song.title,
-              artist: song.artist ?? 'Unknown Artist',
-              album: song.album,
-              uri: song.uri ?? '',
-              duration: song.duration ?? 0,
-              size: song.size,
-              dateAdded: song.dateAdded,
-              data: song.data,
-              albumId: song.albumId,
-              isFavorite: isFavorite(song.id),
-            ))
+        .map(
+          (song) => AudioTrack(
+            id: song.id,
+            title: song.title,
+            artist: song.artist ?? 'Unknown Artist',
+            album: song.album,
+            uri: song.uri ?? '',
+            duration: song.duration ?? 0,
+            size: song.size,
+            dateAdded: song.dateAdded,
+            data: song.data,
+            albumId: song.albumId,
+            isFavorite: isFavorite(song.id),
+          ),
+        )
         .toList();
 
     _allTracks = sortTracks(_allTracks, _sortOrder);
@@ -1967,9 +2373,7 @@ class PlayerProvider extends ChangeNotifier {
     _urlCounter += 1;
     final track = AudioTrack(
       id: -(_urlCounter),
-      title: (title == null || title.isEmpty)
-          ? trimmed.split('/').last
-          : title,
+      title: (title == null || title.isEmpty) ? trimmed.split('/').last : title,
       artist: 'Stream',
       uri: trimmed,
       duration: 0,
@@ -1977,8 +2381,11 @@ class PlayerProvider extends ChangeNotifier {
     await playFromPlaylist([track], 0);
   }
 
-  Future<void> playFromPlaylist(List<AudioTrack> tracks, int startIndex,
-      {bool radio = false}) async {
+  Future<void> playFromPlaylist(
+    List<AudioTrack> tracks,
+    int startIndex, {
+    bool radio = false,
+  }) async {
     if (tracks.isEmpty || startIndex < 0 || startIndex >= tracks.length) {
       return;
     }
@@ -2187,14 +2594,14 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addToQueueNext(AudioTrack track) {
+  Future<void> addToQueueNext(AudioTrack track) async {
     final insertIndex = _currentIndex + 1;
     _playlist.insert(insertIndex, track);
-    _rebuildPlaylist();
+    await _rebuildPlaylist();
     notifyListeners();
   }
 
-  void removeFromQueue(int index) {
+  Future<void> removeFromQueue(int index) async {
     if (index < 0 || index >= _playlist.length) return;
     _playlist.removeAt(index);
     if (index < _currentIndex) {
@@ -2205,26 +2612,31 @@ class PlayerProvider extends ChangeNotifier {
       } else if (_currentIndex >= _playlist.length) {
         _currentIndex = 0;
       }
-      _rebuildPlaylist();
-      playAt(_currentIndex);
+      await _rebuildPlaylist();
+      await playAt(_currentIndex);
       return;
     }
-    _rebuildPlaylist();
+    await _rebuildPlaylist();
     notifyListeners();
   }
 
   Future<void> _rebuildPlaylist() async {
-    if (_playlist.isEmpty) {
-      await _audioPlayer.stop();
-      return;
-    }
-    _audioHandler?.setQueue(_playlist);
-    await _audioPlayer.setAudioSources(
-      _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-    );
-    if (_currentIndex >= 0) {
-      await _audioPlayer.seek(_position, index: _currentIndex);
-      if (_isPlaying) await _audioPlayer.play();
+    try {
+      if (_playlist.isEmpty) {
+        await _audioPlayer.stop();
+        return;
+      }
+      _audioHandler?.setQueue(_playlist);
+      await _audioPlayer.setAudioSources(
+        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+      );
+      if (_currentIndex >= 0) {
+        await _audioPlayer.seek(_position, index: _currentIndex);
+        if (_isPlaying) await _audioPlayer.play();
+      }
+    } catch (_) {
+      // Очередь провайдера уже консистентна; ошибка нативного плеера
+      // не должна ронять UI — состояние досинхронизируется следующим событием.
     }
   }
 
@@ -2276,7 +2688,8 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> _applyEqualizerPreset(String name) async {
     try {
-      final gains = _eqPresetGains[name] ??
+      final gains =
+          _eqPresetGains[name] ??
           _eqPresetGains['Flat (Стандарт)'] ??
           const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       final params = await _equalizer.parameters;

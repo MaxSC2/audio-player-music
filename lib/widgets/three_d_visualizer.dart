@@ -102,11 +102,11 @@ class _VisualizerPainter extends CustomPainter {
   _VisualizerPainter({required this.heights, required this.barCount});
 
   static List<Color> get _stops => <Color>[
-        AppTheme.accentCyan,
-        Color.lerp(AppTheme.accentCyan, AppTheme.accent, 0.5)!,
-        AppTheme.accent,
-        AppTheme.accentPink,
-      ];
+    AppTheme.accentCyan,
+    Color.lerp(AppTheme.accentCyan, AppTheme.accent, 0.5)!,
+    AppTheme.accent,
+    AppTheme.accentPink,
+  ];
 
   static Color _colorAt(double t) {
     final u = (t + 1) / 2;
@@ -195,16 +195,16 @@ class _VisualizerPainter extends CustomPainter {
     final halfD = depth / 2;
 
     Offset pr(double lx, double ly, double lz) => _project(
-          lx,
-          ly,
-          lz,
-          x: x,
-          baseY: baseY,
-          zDepth: zDepth,
-          rotY: rotY,
-          scale: scale,
-          f: f,
-        );
+      lx,
+      ly,
+      lz,
+      x: x,
+      baseY: baseY,
+      zDepth: zDepth,
+      rotY: rotY,
+      scale: scale,
+      f: f,
+    );
 
     final pFL = pr(-halfW, 0, halfD);
     final pFR = pr(halfW, 0, halfD);
@@ -229,12 +229,16 @@ class _VisualizerPainter extends CustomPainter {
     canvas.drawRRect(
       RRect.fromRectAndRadius(glowRect, Radius.circular(w * scale * 0.5)),
       Paint()
-        ..color = color.withOpacity(0.15)
+        ..color = color.withValues(alpha: color.a * (0.15))
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
     );
 
     // Side face (one side per bar, turned into the scene).
-    final sideFill = Color.lerp(color, Colors.black, 0.52)!.withOpacity(0.9);
+    final sideFill = Color.lerp(
+      color,
+      Colors.black,
+      0.52,
+    )!.withValues(alpha: Color.lerp(color, Colors.black, 0.52)!.a * (0.9));
     if (nzRight > 0.02) {
       final path = Path()
         ..moveTo(pFR.dx, pFR.dy)
@@ -283,8 +287,11 @@ class _VisualizerPainter extends CustomPainter {
         pTL,
         pTR,
         Paint()
-          ..color = Color.lerp(color, Colors.white, 0.6)!
-              .withOpacity(0.9)
+          ..color = Color.lerp(
+            color,
+            Colors.white,
+            0.6,
+          )!.withValues(alpha: Color.lerp(color, Colors.white, 0.6)!.a * (0.9))
           ..strokeWidth = math.max(1.4, w * scale * 0.08)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       );
@@ -301,8 +308,9 @@ class _VisualizerPainter extends CustomPainter {
       canvas.drawPath(
         topPath,
         Paint()
-          ..color = Color.lerp(color, Colors.white, 0.3)!
-              .withOpacity(0.95),
+          ..color = Color.lerp(color, Colors.white, 0.3)!.withValues(
+            alpha: Color.lerp(color, Colors.white, 0.3)!.a * (0.95),
+          ),
       );
     }
   }
@@ -331,9 +339,9 @@ class _VisualizerPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          AppTheme.accentCyan.withOpacity(0),
-          AppTheme.accentCyan.withOpacity(0.10),
-          AppTheme.accent.withOpacity(0.16),
+          AppTheme.accentCyan.withValues(alpha: AppTheme.accentCyan.a * (0)),
+          AppTheme.accentCyan.withValues(alpha: AppTheme.accentCyan.a * (0.10)),
+          AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.16)),
         ],
       ).createShader(rect);
     canvas.drawRect(rect, g);

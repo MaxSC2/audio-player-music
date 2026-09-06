@@ -103,19 +103,20 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                 onSubmitted: (_) => _generate(player),
                 decoration: InputDecoration(
                   hintText: 'Например: энергичная музыка для пробежки',
-                  hintStyle:
-                      TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  hintStyle: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                   filled: true,
                   fillColor: AppTheme.surfaceLight,
-                  prefixIcon: Icon(Icons.auto_awesome_rounded,
-                      color: AppTheme.accentLight, size: 18),
+                  prefixIcon: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppTheme.accentLight,
+                    size: 18,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
                   ),
                 ),
-                style: TextStyle(
-                    color: AppTheme.textPrimary, fontSize: 14),
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
               ),
             ),
             const SizedBox(height: 10),
@@ -124,10 +125,14 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
               spacing: 6,
               children: [
                 _HintChip('спокойная ночь', () => _setHint('спокойная ночь')),
-                _HintChip('энергия для спорта',
-                    () => _setHint('энергия для спорта')),
-                _HintChip('фокус для работы',
-                    () => _setHint('фокус для работы')),
+                _HintChip(
+                  'энергия для спорта',
+                  () => _setHint('энергия для спорта'),
+                ),
+                _HintChip(
+                  'фокус для работы',
+                  () => _setHint('фокус для работы'),
+                ),
                 _HintChip('что-то новое', () => _setHint('что-то новое')),
                 _HintChip('редкие треки', () => _setHint('редкие треки')),
               ],
@@ -135,9 +140,11 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () => _generate(player),
-              icon: Icon(Icons.psychology_rounded, size: 18),
-              label: const Text('Собрать',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              icon: const Icon(Icons.psychology_rounded, size: 18),
+              label: const Text(
+                'Собрать',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.black,
@@ -155,7 +162,9 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                         ? 'Ничего не нашлось'
                         : 'Собрано треков: ${result.length}',
                     style: TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 12),
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),
@@ -193,14 +202,18 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              color: AppTheme.textPrimary, fontSize: 13),
+                            color: AppTheme.textPrimary,
+                            fontSize: 13,
+                          ),
                         ),
                         subtitle: Text(
                           t.artist,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              color: AppTheme.textMuted, fontSize: 11),
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                          ),
                         ),
                         onTap: () => player.playTrack(t),
                       );
@@ -214,10 +227,14 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                     OutlinedButton.icon(
                       onPressed: _saved ? null : () => _save(player),
                       icon: Icon(
-                        _saved ? Icons.check_rounded : Icons.playlist_add_rounded,
+                        _saved
+                            ? Icons.check_rounded
+                            : Icons.playlist_add_rounded,
                         size: 18,
                       ),
-                      label: Text(_saved ? 'Сохранено' : 'Сохранить в плейлисты'),
+                      label: Text(
+                        _saved ? 'Сохранено' : 'Сохранить в плейлисты',
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.accentLight,
                         side: BorderSide(color: AppTheme.cardBorder),
@@ -228,7 +245,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
                         player.playFromPlaylist(result, 0);
                         Navigator.of(context).pop();
                       },
-                      icon: Icon(Icons.play_arrow_rounded, size: 18),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 18),
                       label: const Text('Играть'),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.accent,
@@ -260,7 +277,7 @@ class _HintChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
+          color: Colors.white.withValues(alpha: Colors.white.a * (0.06)),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppTheme.cardBorder),
         ),

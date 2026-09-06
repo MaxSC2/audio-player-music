@@ -51,8 +51,10 @@ class SimpleHomeScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.auto_awesome_rounded,
-                color: AppTheme.textSecondary),
+            icon: Icon(
+              Icons.auto_awesome_rounded,
+              color: AppTheme.textSecondary,
+            ),
             onPressed: () {
               showModalBottomSheet(
                 context: context,
@@ -68,18 +70,17 @@ class SimpleHomeScreen extends StatelessWidget {
           ),
           IconButton(
             icon: Icon(Icons.album_rounded, color: AppTheme.textSecondary),
-            onPressed: () => context
-                .read<UiStyleController>()
-                .setStyle(PlayerUIStyle.coverFlow3D),
+            onPressed: () => context.read<UiStyleController>().setStyle(
+              PlayerUIStyle.coverFlow3D,
+            ),
             tooltip: '3D Cover Flow',
           ),
           IconButton(
-            icon: Icon(Icons.settings_rounded,
-                color: AppTheme.textSecondary),
+            icon: Icon(Icons.settings_rounded, color: AppTheme.textSecondary),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
             tooltip: 'Настройки',
           ),
@@ -100,13 +101,16 @@ class SimpleHomeScreen extends StatelessWidget {
                       return FadeTransition(
                         opacity: anim,
                         child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.4),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                                parent: anim, curve: Curves.easeOutCubic),
-                          ),
+                          position:
+                              Tween<Offset>(
+                                begin: const Offset(0, 0.4),
+                                end: Offset.zero,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: anim,
+                                  curve: Curves.easeOutCubic,
+                                ),
+                              ),
                           child: child,
                         ),
                       );

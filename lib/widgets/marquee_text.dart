@@ -53,8 +53,9 @@ class _MarqueeTextState extends State<MarqueeText>
       await Future.delayed(widget.pauseDuration);
       if (!mounted || !_scrollController.hasClients) break;
 
-      final duration =
-          Duration(milliseconds: ((maxScroll / widget.velocity) * 1000).round());
+      final duration = Duration(
+        milliseconds: ((maxScroll / widget.velocity) * 1000).round(),
+      );
 
       await _scrollController.animateTo(
         maxScroll,
@@ -87,11 +88,7 @@ class _MarqueeTextState extends State<MarqueeText>
       controller: _scrollController,
       scrollDirection: Axis.horizontal,
       physics: const NeverScrollableScrollPhysics(),
-      child: Text(
-        widget.text,
-        style: widget.style,
-        maxLines: 1,
-      ),
+      child: Text(widget.text, style: widget.style, maxLines: 1),
     );
   }
 }

@@ -34,7 +34,8 @@ class _CoverFlowCarouselState extends State<CoverFlowCarousel> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         PageController(
           viewportFraction: widget.viewportFraction,
           initialPage: widget.initialIndex,
@@ -75,7 +76,7 @@ class _CoverFlowCarouselState extends State<CoverFlowCarousel> {
               alignment: Alignment.center,
               transform: Matrix4.identity()
                 ..setEntry(3, 2, 0.0016)
-                ..translate(0.0, rise, -delta.abs() * 70)
+                ..translateByDouble(0.0, rise, -delta.abs() * 70, 1.0)
                 ..rotateY(angle),
               child: Transform.scale(
                 scale: scale,

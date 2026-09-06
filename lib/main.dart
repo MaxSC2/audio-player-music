@@ -15,15 +15,17 @@ import 'ui/theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.light,
-    systemNavigationBarDividerColor: Colors.transparent,
-    systemNavigationBarContrastEnforced: false,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
   final playerProvider = PlayerProvider();
   final uiStyle = UiStyleController();
   final palette = PaletteController();
@@ -53,11 +55,14 @@ Future<void> main() async {
     ),
   );
 
-  handlerFuture.then((handler) {
-    playerProvider.attachAudioHandler(handler);
-  }, onError: (Object e) {
-    playerProvider.setMediaServiceError('Ошибка: $e');
-  });
+  handlerFuture.then(
+    (handler) {
+      playerProvider.attachAudioHandler(handler);
+    },
+    onError: (Object e) {
+      playerProvider.setMediaServiceError('Ошибка: $e');
+    },
+  );
 
   try {
     await handlerFuture.timeout(const Duration(seconds: 10));

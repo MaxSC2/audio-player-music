@@ -81,19 +81,24 @@ class _SpinningVinylState extends State<SpinningVinyl>
               height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFF0F1017),
+                color: const Color(0xFF0F1017),
                 boxShadow: [
                   BoxShadow(
                     color: widget.isPlaying
-                        ? AppTheme.accent
-                            .withOpacity(0.25 + glow * 0.3)
-                        : Colors.black.withOpacity(0.4),
+                        ? AppTheme.accent.withValues(
+                            alpha: AppTheme.accent.a * (0.25 + glow * 0.3),
+                          )
+                        : Colors.black.withValues(
+                            alpha: Colors.black.a * (0.4),
+                          ),
                     blurRadius: widget.isPlaying ? 20 + glow * 18 : 16,
                     spreadRadius: widget.isPlaying ? 3 + glow * 4 : 1,
                   ),
                   BoxShadow(
                     color: widget.isPlaying
-                        ? AppTheme.accentCyan.withOpacity(0.12 + glow * 0.2)
+                        ? AppTheme.accentCyan.withValues(
+                            alpha: AppTheme.accentCyan.a * (0.12 + glow * 0.2),
+                          )
                         : Colors.transparent,
                     blurRadius: 30 + glow * 20,
                     spreadRadius: 2 + glow * 2,
@@ -138,7 +143,11 @@ class _SpinningVinylState extends State<SpinningVinyl>
                         center: const Alignment(-0.35, -0.45),
                         radius: 0.9,
                         colors: [
-                          Colors.white.withOpacity(widget.isPlaying ? 0.09 : 0.04),
+                          Colors.white.withValues(
+                            alpha:
+                                Colors.white.a *
+                                (widget.isPlaying ? 0.09 : 0.04),
+                          ),
                           Colors.transparent,
                           Colors.transparent,
                         ],
@@ -154,14 +163,13 @@ class _SpinningVinylState extends State<SpinningVinyl>
                       shape: BoxShape.circle,
                       color: AppTheme.background,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(
+                          alpha: Colors.white.a * (0.3),
+                        ),
                         width: 2,
                       ),
                       boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black54,
-                          blurRadius: 4,
-                        ),
+                        BoxShadow(color: Colors.black54, blurRadius: 4),
                       ],
                     ),
                   ),

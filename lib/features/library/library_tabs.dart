@@ -78,51 +78,53 @@ class _LibraryTabsState extends State<LibraryTabs>
           indicatorWeight: 3,
           labelColor: AppTheme.textPrimary,
           unselectedLabelColor: AppTheme.textMuted,
-          labelStyle:
-              const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
           tabs: const [
             Tab(text: 'Треки', icon: Icon(Icons.music_note_rounded, size: 18)),
             Tab(
-                text: 'Плейлисты',
-                icon: Icon(Icons.queue_music_rounded, size: 18)),
+              text: 'Плейлисты',
+              icon: Icon(Icons.queue_music_rounded, size: 18),
+            ),
             Tab(text: 'Альбомы', icon: Icon(Icons.album_rounded, size: 18)),
             Tab(
-                text: 'Исполнители',
-                icon: Icon(Icons.mic_external_on_rounded, size: 18)),
+              text: 'Исполнители',
+              icon: Icon(Icons.mic_external_on_rounded, size: 18),
+            ),
             Tab(text: 'Папки', icon: Icon(Icons.folder_rounded, size: 18)),
             Tab(
-                text: 'Избранное',
-                icon: Icon(Icons.favorite_rounded, size: 18)),
+              text: 'Избранное',
+              icon: Icon(Icons.favorite_rounded, size: 18),
+            ),
+            Tab(text: 'История', icon: Icon(Icons.history_rounded, size: 18)),
+            Tab(text: 'DNA', icon: Icon(Icons.fingerprint_rounded, size: 18)),
             Tab(
-                text: 'История',
-                icon: Icon(Icons.history_rounded, size: 18)),
-            Tab(
-                text: 'DNA',
-                icon: Icon(Icons.fingerprint_rounded, size: 18)),
-            Tab(
-                text: 'Категории',
-                icon: Icon(Icons.category_rounded, size: 18)),
+              text: 'Категории',
+              icon: Icon(Icons.category_rounded, size: 18),
+            ),
           ],
         ),
         Expanded(
           child: _permissionDenied && player.allTracks.isEmpty
               ? _buildPermissionDenied()
               : player.allTracks.isEmpty
-                  ? _buildLoading()
-                  : TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildTrackList(player),
-                        _buildPlaylistList(player),
-                        _buildAlbumList(player),
-                        _buildArtistList(player),
-                        _buildFolderList(player),
-                        _buildFavoriteList(player),
-                        _buildHistoryList(player),
-                        const MusicDnaTab(),
-                        const CategoryTab(),
-                      ],
-                    ),
+              ? _buildLoading()
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildTrackList(player),
+                    _buildPlaylistList(player),
+                    _buildAlbumList(player),
+                    _buildArtistList(player),
+                    _buildFolderList(player),
+                    _buildFavoriteList(player),
+                    _buildHistoryList(player),
+                    const MusicDnaTab(),
+                    const CategoryTab(),
+                  ],
+                ),
         ),
       ],
     );
@@ -142,28 +144,30 @@ class _LibraryTabsState extends State<LibraryTabs>
                 fontSize: 15,
               ),
             ),
-            Spacer(),
+            const Spacer(),
             IconButton(
-              icon: Icon(Icons.playlist_add_rounded,
-                  color: AppTheme.accentGreen),
+              icon: Icon(
+                Icons.playlist_add_rounded,
+                color: AppTheme.accentGreen,
+              ),
               onPressed: _pickPlaylistForSelected,
               tooltip: 'В плейлист',
             ),
             IconButton(
-              icon: Icon(Icons.favorite_rounded,
-                  color: AppTheme.accentPink),
+              icon: Icon(Icons.favorite_rounded, color: AppTheme.accentPink),
               onPressed: _addSelectedToFavorites,
               tooltip: 'В избранное',
             ),
             IconButton(
-              icon: Icon(Icons.delete_outline_rounded,
-                  color: AppTheme.accentPink),
+              icon: Icon(
+                Icons.delete_outline_rounded,
+                color: AppTheme.accentPink,
+              ),
               onPressed: _confirmDeleteSelected,
               tooltip: 'Удалить',
             ),
             IconButton(
-              icon: Icon(Icons.close_rounded,
-                  color: AppTheme.textSecondary),
+              icon: Icon(Icons.close_rounded, color: AppTheme.textSecondary),
               onPressed: _exitSelection,
               tooltip: 'Отмена',
             ),
@@ -188,12 +192,18 @@ class _LibraryTabsState extends State<LibraryTabs>
               decoration: InputDecoration(
                 hintText: 'Поиск...',
                 hintStyle: TextStyle(color: AppTheme.textMuted),
-                prefixIcon: Icon(Icons.search_rounded,
-                    color: AppTheme.textMuted, size: 20),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: AppTheme.textMuted,
+                  size: 20,
+                ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear_rounded,
-                            color: AppTheme.textMuted, size: 18),
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          color: AppTheme.textMuted,
+                          size: 18,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           setState(() {
@@ -222,12 +232,12 @@ class _LibraryTabsState extends State<LibraryTabs>
                       : Icons.grid_view_rounded,
                   color: AppTheme.textSecondary,
                 ),
-                onPressed: () => setState(() => _albumGridView = !_albumGridView),
+                onPressed: () =>
+                    setState(() => _albumGridView = !_albumGridView),
                 tooltip: _albumGridView ? 'Списком' : 'Сеткой',
               ),
             PopupMenuButton<String>(
-              icon: Icon(Icons.sort_rounded,
-                  color: AppTheme.textSecondary),
+              icon: Icon(Icons.sort_rounded, color: AppTheme.textSecondary),
               color: AppTheme.surfaceLight,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -253,15 +263,31 @@ class _LibraryTabsState extends State<LibraryTabs>
                 }
               },
               itemBuilder: (context) => [
-                _buildSortItem(SortOrder.title, player.sortOrder, 'По названию'),
                 _buildSortItem(
-                    SortOrder.artist, player.sortOrder, 'По исполнителю'),
-                _buildSortItem(SortOrder.dateAddedNew, player.sortOrder,
-                    'По дате добавления (новые)'),
-                _buildSortItem(SortOrder.dateAddedOld, player.sortOrder,
-                    'По дате добавления (старые)'),
+                  SortOrder.title,
+                  player.sortOrder,
+                  'По названию',
+                ),
                 _buildSortItem(
-                    SortOrder.duration, player.sortOrder, 'По длительности'),
+                  SortOrder.artist,
+                  player.sortOrder,
+                  'По исполнителю',
+                ),
+                _buildSortItem(
+                  SortOrder.dateAddedNew,
+                  player.sortOrder,
+                  'По дате добавления (новые)',
+                ),
+                _buildSortItem(
+                  SortOrder.dateAddedOld,
+                  player.sortOrder,
+                  'По дате добавления (старые)',
+                ),
+                _buildSortItem(
+                  SortOrder.duration,
+                  player.sortOrder,
+                  'По длительности',
+                ),
               ],
             ),
           ],
@@ -276,7 +302,7 @@ class _LibraryTabsState extends State<LibraryTabs>
         mainAxisSize: MainAxisSize.min,
         children: [
           CircularProgressIndicator(color: AppTheme.accent),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             'Сканируем музыку...',
             style: TextStyle(color: AppTheme.textSecondary),
@@ -320,14 +346,16 @@ class _LibraryTabsState extends State<LibraryTabs>
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _requestPermission,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 14),
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -402,8 +430,7 @@ class _LibraryTabsState extends State<LibraryTabs>
         final isCurrent = player.currentTrack?.id == track.id;
 
         return SwipeReveal(
-          actions:
-              _selectionMode ? const [] : _quickActions(player, track),
+          actions: _selectionMode ? const [] : _quickActions(player, track),
           child: TrackTile(
             track: track,
             isPlaying: isCurrent && player.isPlaying,
@@ -444,65 +471,92 @@ class _LibraryTabsState extends State<LibraryTabs>
     final items = <_PlaylistItem>[];
 
     if ('недавно добавленные'.contains(query)) {
-      items.add(_PlaylistItem(
-        id: 'smart_added',
-        name: 'Недавно добавленные',
-        count: player.smartRecentlyAdded.length,
-        icon: Icons.fiber_new_rounded,
-        gradient: AppTheme.cyanGreenGradient,
-        onPlay: () {
-          final t = player.smartRecentlyAdded;
-          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
-        },
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaylistDetailScreen(playlistId: 'smart_added'))),
-      ));
+      items.add(
+        _PlaylistItem(
+          id: 'smart_added',
+          name: 'Недавно добавленные',
+          count: player.smartRecentlyAdded.length,
+          icon: Icons.fiber_new_rounded,
+          gradient: AppTheme.cyanGreenGradient,
+          onPlay: () {
+            final t = player.smartRecentlyAdded;
+            if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const PlaylistDetailScreen(playlistId: 'smart_added'),
+            ),
+          ),
+        ),
+      );
     }
 
     if ('недавно сыгранные'.contains(query)) {
-      items.add(_PlaylistItem(
-        id: 'smart_played',
-        name: 'Недавно сыгранные',
-        count: player.smartRecentlyPlayed.length,
-        icon: Icons.history_toggle_off_rounded,
-        gradient: AppTheme.primaryGradient,
-        onPlay: () {
-          final t = player.smartRecentlyPlayed;
-          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
-        },
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaylistDetailScreen(playlistId: 'smart_played'))),
-      ));
+      items.add(
+        _PlaylistItem(
+          id: 'smart_played',
+          name: 'Недавно сыгранные',
+          count: player.smartRecentlyPlayed.length,
+          icon: Icons.history_toggle_off_rounded,
+          gradient: AppTheme.primaryGradient,
+          onPlay: () {
+            final t = player.smartRecentlyPlayed;
+            if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const PlaylistDetailScreen(playlistId: 'smart_played'),
+            ),
+          ),
+        ),
+      );
     }
 
     if ('часто прослушиваемые'.contains(query)) {
-      items.add(_PlaylistItem(
-        id: 'smart_most',
-        name: 'Часто прослушиваемые',
-        count: player.smartMostPlayed.length,
-        icon: Icons.auto_awesome_rounded,
-        gradient: AppTheme.pinkPurpleGradient,
-        onPlay: () {
-          final t = player.smartMostPlayed;
-          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
-        },
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaylistDetailScreen(playlistId: 'smart_most'))),
-      ));
+      items.add(
+        _PlaylistItem(
+          id: 'smart_most',
+          name: 'Часто прослушиваемые',
+          count: player.smartMostPlayed.length,
+          icon: Icons.auto_awesome_rounded,
+          gradient: AppTheme.pinkPurpleGradient,
+          onPlay: () {
+            final t = player.smartMostPlayed;
+            if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const PlaylistDetailScreen(playlistId: 'smart_most'),
+            ),
+          ),
+        ),
+      );
     }
 
     for (final p in playlists) {
-      items.add(_PlaylistItem(
-        id: p.id,
-        name: p.name,
-        count: p.trackIds.length,
-        icon: Icons.queue_music_rounded,
-        gradient: AppTheme.cyanGreenGradient,
-        onPlay: () {
-          final t = player.tracksOfPlaylist(p);
-          if (t.isNotEmpty) player.playFromPlaylist(t, 0);
-        },
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PlaylistDetailScreen(playlistId: p.id))),
-        isCustom: true,
-        custom: p,
-      ));
+      items.add(
+        _PlaylistItem(
+          id: p.id,
+          name: p.name,
+          count: p.trackIds.length,
+          icon: Icons.queue_music_rounded,
+          gradient: AppTheme.cyanGreenGradient,
+          onPlay: () {
+            final t = player.tracksOfPlaylist(p);
+            if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PlaylistDetailScreen(playlistId: p.id),
+            ),
+          ),
+          isCustom: true,
+          custom: p,
+        ),
+      );
     }
 
     return ListView.builder(
@@ -549,7 +603,10 @@ class _LibraryTabsState extends State<LibraryTabs>
               style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             trailing: IconButton(
-              icon: Icon(Icons.play_circle_fill_rounded, color: AppTheme.accent),
+              icon: Icon(
+                Icons.play_circle_fill_rounded,
+                color: AppTheme.accent,
+              ),
               onPressed: item.onPlay,
               tooltip: 'Слушать',
             ),
@@ -564,14 +621,14 @@ class _LibraryTabsState extends State<LibraryTabs>
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.accent.withOpacity(0.08),
+        color: AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.08)),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.accent.withOpacity(0.4)),
+        border: Border.all(
+          color: AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.4)),
+        ),
       ),
       child: ListTile(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         leading: Container(
           width: 44,
           height: 44,
@@ -579,7 +636,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             shape: BoxShape.circle,
             gradient: AppTheme.primaryGradient,
           ),
-          child: Icon(Icons.add_rounded, color: Colors.white, size: 26),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
         ),
         title: Text(
           'Создать плейлист',
@@ -633,15 +690,20 @@ class _LibraryTabsState extends State<LibraryTabs>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Отмена',
-                style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text('Создать',
-                style: TextStyle(
-                    color: AppTheme.accentLight,
-                    fontWeight: FontWeight.bold)),
+            child: Text(
+              'Создать',
+              style: TextStyle(
+                color: AppTheme.accentLight,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -664,12 +726,15 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Widget _buildArtistList(PlayerProvider player) {
     final query = _searchQuery.toLowerCase();
-    final artists =
-        player.artists.where((a) => a.toLowerCase().contains(query)).toList();
+    final artists = player.artists
+        .where((a) => a.toLowerCase().contains(query))
+        .toList();
 
     if (artists.isEmpty) {
       return _buildEmptyState(
-          'Исполнители не найдены', Icons.person_off_rounded);
+        'Исполнители не найдены',
+        Icons.person_off_rounded,
+      );
     }
 
     return ListView.builder(
@@ -677,8 +742,9 @@ class _LibraryTabsState extends State<LibraryTabs>
       itemCount: artists.length,
       itemBuilder: (context, index) {
         final artist = artists[index];
-        final tracks =
-            player.allTracks.where((t) => t.artist == artist).toList();
+        final tracks = player.allTracks
+            .where((t) => t.artist == artist)
+            .toList();
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -698,8 +764,11 @@ class _LibraryTabsState extends State<LibraryTabs>
                 shape: BoxShape.circle,
                 gradient: AppTheme.primaryGradient,
               ),
-              child: const Icon(Icons.person_rounded,
-                  color: Colors.white, size: 26),
+              child: const Icon(
+                Icons.person_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
             title: Text(
               artist,
@@ -726,8 +795,9 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Widget _buildFolderList(PlayerProvider player) {
     final query = _searchQuery.toLowerCase();
-    final folders =
-        player.folders.where((f) => f.toLowerCase().contains(query)).toList();
+    final folders = player.folders
+        .where((f) => f.toLowerCase().contains(query))
+        .toList();
 
     if (folders.isEmpty) {
       return _buildEmptyState('Папки не найдены', Icons.folder_off_rounded);
@@ -758,10 +828,13 @@ class _LibraryTabsState extends State<LibraryTabs>
               height: 44,
               decoration: BoxDecoration(
                 gradient: AppTheme.cyanGreenGradient,
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
               ),
-              child: const Icon(Icons.folder_rounded,
-                  color: Colors.white, size: 26),
+              child: const Icon(
+                Icons.folder_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
             title: Text(
               name,
@@ -778,8 +851,10 @@ class _LibraryTabsState extends State<LibraryTabs>
               style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
             trailing: IconButton(
-              icon: Icon(Icons.play_circle_fill_rounded,
-                  color: AppTheme.accent),
+              icon: Icon(
+                Icons.play_circle_fill_rounded,
+                color: AppTheme.accent,
+              ),
               onPressed: () {
                 if (tracks.isNotEmpty) {
                   player.playFromPlaylist(tracks, 0);
@@ -798,8 +873,9 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Widget _buildAlbumList(PlayerProvider player) {
     final query = _searchQuery.toLowerCase();
-    final albums =
-        player.albums.where((a) => a.toLowerCase().contains(query)).toList();
+    final albums = player.albums
+        .where((a) => a.toLowerCase().contains(query))
+        .toList();
 
     if (albums.isEmpty) {
       return _buildEmptyState('Альбомы не найдены', Icons.album_outlined);
@@ -837,9 +913,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       itemCount: albums.length,
       itemBuilder: (context, index) {
         final album = albums[index];
-        final tracks = player.allTracks
-            .where((t) => t.album == album)
-            .toList();
+        final tracks = player.allTracks.where((t) => t.album == album).toList();
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -857,10 +931,13 @@ class _LibraryTabsState extends State<LibraryTabs>
               height: 44,
               decoration: BoxDecoration(
                 gradient: AppTheme.pinkPurpleGradient,
-                borderRadius: BorderRadius.all(Radius.circular(10)),
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
               ),
-              child: const Icon(Icons.album_rounded,
-                  color: Colors.white, size: 26),
+              child: const Icon(
+                Icons.album_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
             title: Text(
               album,
@@ -885,8 +962,12 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
   }
 
-  Widget _buildAlbumCard(PlayerProvider player, String album,
-      List<AudioTrack> tracks, double cellW) {
+  Widget _buildAlbumCard(
+    PlayerProvider player,
+    String album,
+    List<AudioTrack> tracks,
+    double cellW,
+  ) {
     return InkWell(
       onTap: () => player.playFromPlaylist(tracks, 0),
       borderRadius: BorderRadius.circular(18),
@@ -923,9 +1004,11 @@ class _LibraryTabsState extends State<LibraryTabs>
   Widget _buildFavoriteList(PlayerProvider player) {
     final query = _searchQuery;
     final favs = player.favoriteTracks
-        .where((t) =>
-            t.title.toLowerCase().contains(query) ||
-            t.artist.toLowerCase().contains(query))
+        .where(
+          (t) =>
+              t.title.toLowerCase().contains(query) ||
+              t.artist.toLowerCase().contains(query),
+        )
         .toList();
 
     if (favs.isEmpty) {
@@ -976,9 +1059,11 @@ class _LibraryTabsState extends State<LibraryTabs>
   Widget _buildHistoryList(PlayerProvider player) {
     final query = _searchQuery.toLowerCase();
     final entries = player.historyEntries
-        .where((e) =>
-            e.track.title.toLowerCase().contains(query) ||
-            e.track.artist.toLowerCase().contains(query))
+        .where(
+          (e) =>
+              e.track.title.toLowerCase().contains(query) ||
+              e.track.artist.toLowerCase().contains(query),
+        )
         .toList();
 
     if (entries.isEmpty) {
@@ -994,8 +1079,12 @@ class _LibraryTabsState extends State<LibraryTabs>
     final yesterday = today.subtract(const Duration(days: 1));
 
     List<Widget> children = [];
-    Widget header(String title, List<({AudioTrack track, DateTime time})> items,
-        PlayerProvider p, int startIndex) {
+    Widget header(
+      String title,
+      List<({AudioTrack track, DateTime time})> items,
+      PlayerProvider p,
+      int startIndex,
+    ) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1039,9 +1128,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       );
     }
 
-    final todayItems = entries
-        .where((e) => e.time.isAfter(today))
-        .toList();
+    final todayItems = entries.where((e) => e.time.isAfter(today)).toList();
     final yesterdayItems = entries
         .where((e) => e.time.isAfter(yesterday) && !e.time.isAfter(today))
         .toList();
@@ -1076,8 +1163,11 @@ class _LibraryTabsState extends State<LibraryTabs>
         Center(
           child: TextButton.icon(
             onPressed: player.clearHistory,
-            icon: Icon(Icons.delete_sweep_outlined,
-                color: AppTheme.textMuted, size: 18),
+            icon: Icon(
+              Icons.delete_sweep_outlined,
+              color: AppTheme.textMuted,
+              size: 18,
+            ),
             label: Text(
               'Очистить историю',
               style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
@@ -1090,8 +1180,18 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   String _dayLabel(DateTime d) {
     const months = [
-      'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+      'января',
+      'февраля',
+      'марта',
+      'апреля',
+      'мая',
+      'июня',
+      'июля',
+      'августа',
+      'сентября',
+      'октября',
+      'ноября',
+      'декабря',
     ];
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -1118,9 +1218,12 @@ class _LibraryTabsState extends State<LibraryTabs>
         children: [
           Row(
             children: [
-              Icon(Icons.bookmark_rounded,
-                  color: AppTheme.accentLight, size: 18),
-              SizedBox(width: 8),
+              Icon(
+                Icons.bookmark_rounded,
+                color: AppTheme.accentLight,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
               Text(
                 'Мои моменты',
                 style: TextStyle(
@@ -1131,33 +1234,35 @@ class _LibraryTabsState extends State<LibraryTabs>
               ),
             ],
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           ...bookmarks.take(10).map((b) {
             return ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.bookmark_outline_rounded,
-                  color: AppTheme.accentLight, size: 18),
+              leading: Icon(
+                Icons.bookmark_outline_rounded,
+                color: AppTheme.accentLight,
+                size: 18,
+              ),
               title: Text(
                 b.track.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: AppTheme.textPrimary, fontSize: 13),
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 13),
               ),
               subtitle: Text(
                 b.track.artist,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
               ),
               trailing: Text(
                 AudioTrack.formatDuration(b.positionMs),
                 style: TextStyle(
-                    color: AppTheme.accentLight,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700),
+                  color: AppTheme.accentLight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               onTap: () {
                 player.playTrack(b.track);
@@ -1173,7 +1278,9 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildJourneyCard(
-      PlayerProvider player, List<({AudioTrack track, DateTime time})> all) {
+    PlayerProvider player,
+    List<({AudioTrack track, DateTime time})> all,
+  ) {
     if (all.isEmpty) return const SizedBox.shrink();
 
     final now = DateTime.now();
@@ -1189,7 +1296,9 @@ class _LibraryTabsState extends State<LibraryTabs>
     }
     final topArtist = topArtistToday.entries.isEmpty
         ? null
-        : topArtistToday.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+        : topArtistToday.entries
+              .reduce((a, b) => a.value >= b.value ? a : b)
+              .key;
     final totalPlays = all.length;
 
     String fmt(int n) {
@@ -1202,7 +1311,7 @@ class _LibraryTabsState extends State<LibraryTabs>
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: Colors.white.a * (0.05)),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
@@ -1220,8 +1329,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               const SizedBox(height: 2),
               Text(
                 label,
-                style: TextStyle(
-                    color: AppTheme.textMuted, fontSize: 10),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1239,20 +1347,28 @@ class _LibraryTabsState extends State<LibraryTabs>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.accent.withOpacity(0.16),
-            AppTheme.accentLight.withOpacity(0.12),
+            AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.16)),
+            AppTheme.accentLight.withValues(
+              alpha: AppTheme.accentLight.a * (0.12),
+            ),
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.accent.withOpacity(0.25)),
+        border: Border.all(
+          color: AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.25)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.insights_rounded, color: AppTheme.accentLight, size: 18),
-              SizedBox(width: 8),
+              Icon(
+                Icons.insights_rounded,
+                color: AppTheme.accentLight,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
               Text(
                 'Сегодня',
                 style: TextStyle(
@@ -1272,14 +1388,14 @@ class _LibraryTabsState extends State<LibraryTabs>
                 Icons.play_arrow_rounded,
                 AppTheme.accentCyan,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               stat(
                 'Уникальных',
                 '$uniqueToday',
                 Icons.music_note_rounded,
                 AppTheme.accentGreen,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               stat(
                 'Топ',
                 topArtist ?? '—',
@@ -1294,13 +1410,11 @@ class _LibraryTabsState extends State<LibraryTabs>
             children: [
               Text(
                 'Всего прослушиваний: $totalPlays',
-                style: TextStyle(
-                    color: AppTheme.textMuted, fontSize: 11),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
               ),
               Text(
                 '${fmt(today.length)} сегодня',
-                style: TextStyle(
-                    color: AppTheme.textMuted, fontSize: 11),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
               ),
             ],
           ),
@@ -1317,9 +1431,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   List<AudioTrack> _selectedTracksFrom(PlayerProvider player) {
-    return player.allTracks
-        .where((t) => _selectedIds.contains(t.id))
-        .toList();
+    return player.allTracks.where((t) => _selectedIds.contains(t.id)).toList();
   }
 
   void _addSelectedToFavorites() {
@@ -1373,15 +1485,20 @@ class _LibraryTabsState extends State<LibraryTabs>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Отмена',
-                style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Удалить',
-                style: TextStyle(
-                    color: AppTheme.accentPink,
-                    fontWeight: FontWeight.bold)),
+            child: Text(
+              'Удалить',
+              style: TextStyle(
+                color: AppTheme.accentPink,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -1441,8 +1558,10 @@ class _LibraryTabsState extends State<LibraryTabs>
                 children: [
                   for (final p in player.playlists)
                     ListTile(
-                      leading: Icon(Icons.queue_music_rounded,
-                          color: AppTheme.accentCyan),
+                      leading: Icon(
+                        Icons.queue_music_rounded,
+                        color: AppTheme.accentCyan,
+                      ),
                       title: Text(
                         p.name,
                         style: TextStyle(color: AppTheme.textPrimary),
@@ -1454,8 +1573,10 @@ class _LibraryTabsState extends State<LibraryTabs>
                       onTap: () => Navigator.pop(sheetCtx, p.id),
                     ),
                   ListTile(
-                    leading: Icon(Icons.add_rounded,
-                        color: AppTheme.accentGreen),
+                    leading: Icon(
+                      Icons.add_rounded,
+                      color: AppTheme.accentGreen,
+                    ),
                     title: Text(
                       'Новый плейлист',
                       style: TextStyle(color: AppTheme.textPrimary),
@@ -1486,7 +1607,8 @@ class _LibraryTabsState extends State<LibraryTabs>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              '${selected.length} ${_pluralTracks(selected.length)} добавлено в плейлист'),
+            '${selected.length} ${_pluralTracks(selected.length)} добавлено в плейлист',
+          ),
           duration: const Duration(seconds: 1),
           behavior: SnackBarBehavior.floating,
         ),
@@ -1529,15 +1651,20 @@ class _LibraryTabsState extends State<LibraryTabs>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: Text('Отмена',
-                style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, controller.text.trim()),
-            child: Text('Создать',
-                style: TextStyle(
-                    color: AppTheme.accentLight,
-                    fontWeight: FontWeight.bold)),
+            child: Text(
+              'Создать',
+              style: TextStyle(
+                color: AppTheme.accentLight,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -1545,7 +1672,10 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   void _showTrackActions(
-      BuildContext context, PlayerProvider player, AudioTrack track) {
+    BuildContext context,
+    PlayerProvider player,
+    AudioTrack track,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.card,
@@ -1571,32 +1701,39 @@ class _LibraryTabsState extends State<LibraryTabs>
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline_rounded,
-                  color: Colors.redAccent),
-              title: const Text('Удалить с устройства',
-                  style: TextStyle(color: Colors.redAccent)),
+              leading: const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.redAccent,
+              ),
+              title: const Text(
+                'Удалить с устройства',
+                style: TextStyle(color: Colors.redAccent),
+              ),
               onTap: () async {
                 Navigator.pop(sheetContext);
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (dialogContext) => AlertDialog(
                     backgroundColor: AppTheme.card,
-                    title: Text('Удалить трек?',
-                        style: TextStyle(color: AppTheme.textPrimary)),
+                    title: Text(
+                      'Удалить трек?',
+                      style: TextStyle(color: AppTheme.textPrimary),
+                    ),
                     content: Text(
                       'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
                       style: TextStyle(color: AppTheme.textMuted),
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () =>
-                            Navigator.pop(dialogContext, false),
+                        onPressed: () => Navigator.pop(dialogContext, false),
                         child: const Text('Отмена'),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(dialogContext, true),
-                        child: const Text('Удалить',
-                            style: TextStyle(color: Colors.redAccent)),
+                        child: const Text(
+                          'Удалить',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
                       ),
                     ],
                   ),
@@ -1606,9 +1743,9 @@ class _LibraryTabsState extends State<LibraryTabs>
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(ok
-                          ? 'Трек удалён'
-                          : 'Не удалось удалить трек'),
+                      content: Text(
+                        ok ? 'Трек удалён' : 'Не удалось удалить трек',
+                      ),
                     ),
                   );
                 }
@@ -1643,8 +1780,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               child: Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: AppTheme.textMuted, fontSize: 13),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
               ),
             ),
           ],
@@ -1654,7 +1790,10 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   PopupMenuItem<String> _buildSortItem(
-      SortOrder order, SortOrder current, String label) {
+    SortOrder order,
+    SortOrder current,
+    String label,
+  ) {
     return PopupMenuItem(
       value: order.name,
       child: Row(

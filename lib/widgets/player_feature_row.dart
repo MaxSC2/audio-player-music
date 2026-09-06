@@ -47,9 +47,11 @@ class PlayerFeatureRow extends StatelessWidget {
                 final has = player.bookmarksFor(track.id).contains(pos);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(has
-                        ? 'Закладка: ${AudioTrack.formatDuration(pos)}'
-                        : 'Закладка убрана'),
+                    content: Text(
+                      has
+                          ? 'Закладка: ${AudioTrack.formatDuration(pos)}'
+                          : 'Закладка убрана',
+                    ),
                     duration: const Duration(milliseconds: 900),
                     behavior: SnackBarBehavior.floating,
                   ),
@@ -172,13 +174,18 @@ class PlayerFeatureRow extends StatelessWidget {
 }
 
 Future<void> _confirmDeleteTrack(
-    BuildContext context, PlayerProvider player, AudioTrack track) async {
+  BuildContext context,
+  PlayerProvider player,
+  AudioTrack track,
+) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: AppTheme.surface,
-      title: Text('Удалить трек?',
-          style: TextStyle(color: AppTheme.textPrimary)),
+      title: Text(
+        'Удалить трек?',
+        style: TextStyle(color: AppTheme.textPrimary),
+      ),
       content: Text(
         'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
         style: TextStyle(color: AppTheme.textMuted),
@@ -190,7 +197,10 @@ Future<void> _confirmDeleteTrack(
         ),
         TextButton(
           onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+          child: const Text(
+            'Удалить',
+            style: TextStyle(color: Colors.redAccent),
+          ),
         ),
       ],
     ),
@@ -207,7 +217,10 @@ Future<void> _confirmDeleteTrack(
 }
 
 void _showTrackBookmarks(
-    BuildContext context, PlayerProvider player, AudioTrack track) {
+  BuildContext context,
+  PlayerProvider player,
+  AudioTrack track,
+) {
   final bookmarks = player.bookmarksFor(track.id);
   showModalBottomSheet<void>(
     context: context,
@@ -258,18 +271,25 @@ void _showTrackBookmarks(
                 itemBuilder: (ctx, index) {
                   final ms = bookmarks[index];
                   return ListTile(
-                    leading: Icon(Icons.bookmark_rounded,
-                        color: AppTheme.accentLight, size: 20),
+                    leading: Icon(
+                      Icons.bookmark_rounded,
+                      color: AppTheme.accentLight,
+                      size: 20,
+                    ),
                     title: Text(
                       AudioTrack.formatDuration(ms),
                       style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600),
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     trailing: IconButton(
-                      icon: Icon(Icons.close_rounded,
-                          color: AppTheme.textMuted, size: 20),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: AppTheme.textMuted,
+                        size: 20,
+                      ),
                       onPressed: () {
                         player.removeBookmark(track.id, ms);
                       },
@@ -365,7 +385,9 @@ class _SpeedBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isCustom
-              ? AppTheme.accentCyan.withOpacity(0.15)
+              ? AppTheme.accentCyan.withValues(
+                  alpha: AppTheme.accentCyan.a * (0.15),
+                )
               : AppTheme.surfaceLight,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(

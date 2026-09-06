@@ -26,11 +26,11 @@ class CustomPlaylist {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'trackIds': trackIds,
-        'createdAt': createdAt,
-      };
+    'id': id,
+    'name': name,
+    'trackIds': trackIds,
+    'createdAt': createdAt,
+  };
 
   factory CustomPlaylist.fromJson(Map<String, dynamic> json) {
     return CustomPlaylist(

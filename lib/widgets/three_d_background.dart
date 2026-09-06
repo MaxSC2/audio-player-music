@@ -33,21 +33,31 @@ class ThreeDBackground extends StatelessWidget {
           top: -80,
           left: -60,
           child: GlowBlob(
-              size: 260, color: AppTheme.accent.withOpacity(blobOpacity)),
+            size: 260,
+            color: AppTheme.accent.withValues(
+              alpha: AppTheme.accent.a * (blobOpacity),
+            ),
+          ),
         ),
         Positioned(
           top: 90,
           right: -70,
           child: GlowBlob(
-              size: 220,
-              color: AppTheme.accentCyan.withOpacity(blobOpacity)),
+            size: 220,
+            color: AppTheme.accentCyan.withValues(
+              alpha: AppTheme.accentCyan.a * (blobOpacity),
+            ),
+          ),
         ),
         Positioned(
           bottom: 60,
           right: -90,
           child: GlowBlob(
-              size: 320,
-              color: AppTheme.accentPink.withOpacity(blobOpacity)),
+            size: 320,
+            color: AppTheme.accentPink.withValues(
+              alpha: AppTheme.accentPink.a * (blobOpacity),
+            ),
+          ),
         ),
         if (child != null) child!,
       ],
@@ -70,7 +80,10 @@ class GlowBlob extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: RadialGradient(
-            colors: [color, color.withOpacity(0)],
+            colors: [
+              color,
+              color.withValues(alpha: color.a * (0)),
+            ],
           ),
         ),
       ),

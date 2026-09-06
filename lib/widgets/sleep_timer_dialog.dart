@@ -40,7 +40,11 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
               gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.nightlight_round, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.nightlight_round,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Column(
@@ -57,7 +61,11 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
               if (activeMinutes > 0)
                 Text(
                   'Активен: $activeMinutes мин',
-                  style: TextStyle(color: AppTheme.accentLight, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: AppTheme.accentLight,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
             ],
           ),
@@ -82,7 +90,9 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.textSecondary,
                         side: BorderSide(color: AppTheme.cardBorder),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text('Отмена'),
                     ),
@@ -101,7 +111,9 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accent,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: Text(_minutes == 0 ? 'Выключить' : 'Старт'),
                     ),

@@ -21,8 +21,8 @@ class SimpleMiniPlayer extends StatelessWidget {
 
     final progress = player.duration.inMilliseconds > 0
         ? (player.position.inMilliseconds / player.duration.inMilliseconds)
-            .clamp(0.0, 1.0)
-            .toDouble()
+              .clamp(0.0, 1.0)
+              .toDouble()
         : 0.0;
 
     return Padding(
@@ -34,7 +34,9 @@ class SimpleMiniPlayer extends StatelessWidget {
           border: Border.all(color: AppTheme.cardBorder, width: 0.8),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.accent.withOpacity(0.15),
+              color: AppTheme.accent.withValues(
+                alpha: AppTheme.accent.a * (0.15),
+              ),
               blurRadius: 20,
               spreadRadius: 2,
             ),
@@ -50,7 +52,9 @@ class SimpleMiniPlayer extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       // Mini Album Art
@@ -111,7 +115,7 @@ class SimpleMiniPlayer extends StatelessWidget {
                       // Play/Pause Button
                       InkWell(
                         onTap: player.togglePlay,
-                        customBorder: CircleBorder(),
+                        customBorder: const CircleBorder(),
                         child: Container(
                           width: 42,
                           height: 42,
@@ -139,8 +143,10 @@ class SimpleMiniPlayer extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: AppTheme.surfaceLight,
-                            border:
-                                Border.all(color: AppTheme.cardBorder, width: 0.8),
+                            border: Border.all(
+                              color: AppTheme.cardBorder,
+                              width: 0.8,
+                            ),
                           ),
                           child: Icon(
                             Icons.skip_next_rounded,
@@ -155,14 +161,18 @@ class SimpleMiniPlayer extends StatelessWidget {
 
                 // Progress Line
                 AnimatedContainer(
-                  duration: Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 300),
                   height: 3,
                   margin: const EdgeInsets.only(top: 2),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        AppTheme.accent.withOpacity(0.1),
-                        AppTheme.accentCyan.withOpacity(0.1),
+                        AppTheme.accent.withValues(
+                          alpha: AppTheme.accent.a * (0.1),
+                        ),
+                        AppTheme.accentCyan.withValues(
+                          alpha: AppTheme.accentCyan.a * (0.1),
+                        ),
                       ],
                     ),
                   ),
@@ -172,7 +182,7 @@ class SimpleMiniPlayer extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.only(
+                        borderRadius: const BorderRadius.only(
                           bottomLeft: Radius.circular(20),
                           bottomRight: Radius.circular(20),
                         ),

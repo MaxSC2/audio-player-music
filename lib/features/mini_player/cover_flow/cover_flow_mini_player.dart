@@ -29,7 +29,9 @@ class CoverFlowMiniPlayer extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.accent.withOpacity(0.25),
+                color: AppTheme.accent.withValues(
+                  alpha: AppTheme.accent.a * (0.25),
+                ),
                 blurRadius: 18,
                 spreadRadius: 1,
               ),

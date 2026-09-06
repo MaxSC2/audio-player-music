@@ -52,8 +52,11 @@ class EqualizerDialog extends StatelessWidget {
               gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(10),
             ),
-            child:
-                const Icon(Icons.graphic_eq_rounded, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.graphic_eq_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
@@ -78,7 +81,9 @@ class EqualizerDialog extends StatelessWidget {
               margin: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.accent.withOpacity(0.18)
+                    ? AppTheme.accent.withValues(
+                        alpha: AppTheme.accent.a * (0.18),
+                      )
                     : AppTheme.surfaceLight,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
@@ -112,19 +117,24 @@ class EqualizerDialog extends StatelessWidget {
                           decoration: BoxDecoration(
                             gradient: isSelected
                                 ? AppTheme.primaryGradient
-                                : LinearGradient(colors: [
-                                    AppTheme.textMuted,
-                                    AppTheme.textSecondary,
-                                  ]),
+                                : LinearGradient(
+                                    colors: [
+                                      AppTheme.textMuted,
+                                      AppTheme.textSecondary,
+                                    ],
+                                  ),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         );
                       }).toList(),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     if (isSelected)
-                      Icon(Icons.check_circle_rounded,
-                          color: AppTheme.accent, size: 20),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: AppTheme.accent,
+                        size: 20,
+                      ),
                   ],
                 ),
                 onTap: () {

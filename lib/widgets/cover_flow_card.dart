@@ -39,19 +39,26 @@ class CoverFlowCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: isCurrent
-                    ? AppTheme.accentLight.withOpacity(0.85)
+                    ? AppTheme.accentLight.withValues(
+                        alpha: AppTheme.accentLight.a * (0.85),
+                      )
                     : Colors.white12,
                 width: isCurrent ? 1.6 : 0.8,
               ),
               boxShadow: [
                 BoxShadow(
                   color: (isCurrent ? AppTheme.accentLight : AppTheme.accent)
-                      .withOpacity(isCurrent ? 0.45 : 0.22),
+                      .withValues(
+                        alpha:
+                            (isCurrent ? AppTheme.accentLight : AppTheme.accent)
+                                .a *
+                            (isCurrent ? 0.45 : 0.22),
+                      ),
                   blurRadius: isCurrent ? 34 : 22,
                   spreadRadius: isCurrent ? 2 : 1,
                 ),
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: Colors.black.a * (0.5)),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -77,10 +84,16 @@ class CoverFlowCard extends StatelessWidget {
                           end: Alignment.bottomRight,
                           stops: const [0.0, 0.35, 0.55, 1.0],
                           colors: [
-                            Colors.white.withOpacity(0.14),
-                            Colors.white.withOpacity(0.04),
+                            Colors.white.withValues(
+                              alpha: Colors.white.a * (0.14),
+                            ),
+                            Colors.white.withValues(
+                              alpha: Colors.white.a * (0.04),
+                            ),
                             Colors.transparent,
-                            Colors.black.withOpacity(0.12),
+                            Colors.black.withValues(
+                              alpha: Colors.black.a * (0.12),
+                            ),
                           ],
                         ),
                       ),
@@ -92,9 +105,7 @@ class CoverFlowCard extends StatelessWidget {
           ),
         ),
         if (showReflection) ...[
-          SizedBox(
-            height: gap,
-          ),
+          SizedBox(height: gap),
           SizedBox(
             width: width,
             height: reflectionHeight,
@@ -104,7 +115,7 @@ class CoverFlowCard extends StatelessWidget {
                   Positioned.fill(
                     child: Transform(
                       alignment: Alignment.topCenter,
-                      transform: Matrix4.identity()..scale(1.0, -1.0),
+                      transform: Matrix4.identity()..scaleByDouble(1.0, -1.0, 1.0, 1.0),
                       child: Opacity(
                         opacity: 0.28,
                         child: CachedArtwork(
@@ -124,7 +135,9 @@ class CoverFlowCard extends StatelessWidget {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              AppTheme.background.withOpacity(0.2),
+                              AppTheme.background.withValues(
+                                alpha: AppTheme.background.a * (0.2),
+                              ),
                               AppTheme.background,
                             ],
                           ),

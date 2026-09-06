@@ -78,21 +78,30 @@ class MusicDnaTab extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.accent.withOpacity(0.2),
-                AppTheme.accentPink.withOpacity(0.15),
+                AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.2)),
+                AppTheme.accentPink.withValues(
+                  alpha: AppTheme.accentPink.a * (0.15),
+                ),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+            border: Border.all(
+              color: AppTheme.accent.withValues(
+                alpha: AppTheme.accent.a * (0.3),
+              ),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.fingerprint_rounded,
-                      color: AppTheme.accentLight, size: 20),
-                  SizedBox(width: 8),
+                  Icon(
+                    Icons.fingerprint_rounded,
+                    color: AppTheme.accentLight,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     'Твоя музыкальная ДНК',
                     style: TextStyle(
@@ -103,17 +112,29 @@ class MusicDnaTab extends StatelessWidget {
                   ),
                 ],
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  _stat('Прослушано', '$hours ч $minutes м',
-                      Icons.timer_outlined, AppTheme.accentCyan),
-                  SizedBox(width: 8),
-                  _stat('Треков', '${player.totalPlays}',
-                      Icons.play_arrow_rounded, AppTheme.accentGreen),
-                  SizedBox(width: 8),
-                  _stat('Уникальных', '${player.uniqueTracksListened}',
-                      Icons.music_note_rounded, AppTheme.accentPink),
+                  _stat(
+                    'Прослушано',
+                    '$hours ч $minutes м',
+                    Icons.timer_outlined,
+                    AppTheme.accentCyan,
+                  ),
+                  const SizedBox(width: 8),
+                  _stat(
+                    'Треков',
+                    '${player.totalPlays}',
+                    Icons.play_arrow_rounded,
+                    AppTheme.accentGreen,
+                  ),
+                  const SizedBox(width: 8),
+                  _stat(
+                    'Уникальных',
+                    '${player.uniqueTracksListened}',
+                    Icons.music_note_rounded,
+                    AppTheme.accentPink,
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -125,7 +146,7 @@ class MusicDnaTab extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -152,9 +173,12 @@ class MusicDnaTab extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.history_toggle_off_rounded,
-                      color: AppTheme.accentLight, size: 18),
-                  SizedBox(width: 8),
+                  Icon(
+                    Icons.history_toggle_off_rounded,
+                    color: AppTheme.accentLight,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     'Машина времени',
                     style: TextStyle(
@@ -175,7 +199,7 @@ class MusicDnaTab extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () => _pickDay(context, player),
-                  icon: Icon(Icons.calendar_month_rounded, size: 18),
+                  icon: const Icon(Icons.calendar_month_rounded, size: 18),
                   label: const Text('Выбрать день'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppTheme.accent,
@@ -225,11 +249,13 @@ class MusicDnaTab extends StatelessWidget {
               ),
               subtitle: Text(
                 '${item.plays} ${_plural(item.plays)}',
-                style: TextStyle(
-                    color: AppTheme.textMuted, fontSize: 12),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
               ),
-              trailing: Icon(Icons.play_circle_outline_rounded,
-                  color: AppTheme.accentLight, size: 22),
+              trailing: Icon(
+                Icons.play_circle_outline_rounded,
+                color: AppTheme.accentLight,
+                size: 22,
+              ),
               onTap: () {
                 final tracks = player.visibleTracks
                     .where((t) => t.artist == item.artist)
@@ -282,11 +308,13 @@ class MusicDnaTab extends StatelessWidget {
                 '${item.track.artist} • ${item.plays} ${_plural(item.plays)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: AppTheme.textMuted, fontSize: 12),
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
               ),
-              trailing: Icon(Icons.play_circle_outline_rounded,
-                  color: AppTheme.accentLight, size: 22),
+              trailing: Icon(
+                Icons.play_circle_outline_rounded,
+                color: AppTheme.accentLight,
+                size: 22,
+              ),
               onTap: () => player.playTrack(item.track),
             );
           }),
@@ -324,7 +352,7 @@ class MusicDnaTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
+          color: Colors.white.withValues(alpha: Colors.white.a * (0.06)),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -342,8 +370,7 @@ class MusicDnaTab extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style:
-                  TextStyle(color: AppTheme.textMuted, fontSize: 10),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
             ),
           ],
         ),
@@ -358,15 +385,18 @@ class MusicDnaTab extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.fingerprint_rounded,
-                color: AppTheme.textMuted, size: 48),
-            SizedBox(height: 12),
+            Icon(
+              Icons.fingerprint_rounded,
+              color: AppTheme.textMuted,
+              size: 48,
+            ),
+            const SizedBox(height: 12),
             Text(
               'Здесь появится твоя музыкальная ДНК',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
             ),
-            SizedBox(height: 6),
+            const SizedBox(height: 6),
             Text(
               'Слушай музыку, и приложение изучит твой вкус',
               textAlign: TextAlign.center,
@@ -396,16 +426,17 @@ class MusicDnaTab extends StatelessWidget {
 
     if (dayTracks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('В этот день ты ничего не слушал'),
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
-    final dateLabel = '${picked.day.toString().padLeft(2, '0')}.'
+    final dateLabel =
+        '${picked.day.toString().padLeft(2, '0')}.'
         '${picked.month.toString().padLeft(2, '0')}.${picked.year}';
 
     showModalBottomSheet<void>(
@@ -466,14 +497,15 @@ class MusicDnaTab extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: AppTheme.textPrimary, fontSize: 14),
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Text(
                       t.artist,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: AppTheme.textMuted, fontSize: 12),
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                     ),
                     onTap: () => player.playTrack(t),
                   );
@@ -487,14 +519,15 @@ class MusicDnaTab extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () {
-                    final list =
-                        dayTracks.map((e) => e.track).toList();
+                    final list = dayTracks.map((e) => e.track).toList();
                     player.playFromPlaylist(list, 0);
                     Navigator.of(ctx).pop();
                   },
-                  icon: Icon(Icons.play_arrow_rounded, size: 20),
-                  label: const Text('Прожить этот день снова',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                  label: const Text(
+                    'Прожить этот день снова',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppTheme.accent,
                     foregroundColor: Colors.black,

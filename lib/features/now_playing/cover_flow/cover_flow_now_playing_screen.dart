@@ -37,8 +37,9 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
       final p = context.read<PlayerProvider>();
       // Пока свайп доезжал, трек переключили иначе (тап/автопереход) — не мешаем.
       if (p.currentIndex != expected) return;
-      final settled =
-          (_controller?.hasClients ?? false) ? _controller!.page!.round() : index;
+      final settled = (_controller?.hasClients ?? false)
+          ? _controller!.page!.round()
+          : index;
       if (settled == index && p.currentIndex != index) {
         p.playAt(index);
       }
@@ -70,10 +71,9 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
       );
     }
 
-    final currentIndex =
-        (player.currentIndex < 0 ? 0 : player.currentIndex)
-            .clamp(0, playlist.length - 1)
-            .toInt();
+    final currentIndex = (player.currentIndex < 0 ? 0 : player.currentIndex)
+        .clamp(0, playlist.length - 1)
+        .toInt();
 
     _controller ??= PageController(
       viewportFraction: 0.72,
@@ -95,259 +95,278 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
     final cardW = (screenW * 0.70 - 12).clamp(180.0, 270.0).toDouble();
     final posMs = player.position.inMilliseconds;
     final durMs = player.duration.inMilliseconds;
-    final posFrac = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0).toDouble() : 0.0;
+    final posFrac = durMs > 0
+        ? (posMs / durMs).clamp(0.0, 1.0).toDouble()
+        : 0.0;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: ThreeDBackground(
         child: SafeArea(
           child: Column(
-          children: [
-            // Top bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.keyboard_arrow_down_rounded,
-                        color: AppTheme.textSecondary, size: 30),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: 'Свернуть',
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.view_agenda_outlined,
-                        color: AppTheme.textSecondary, size: 22),
-                    onPressed: () =>
-                        context.read<UiStyleController>().setStyle(
-                            PlayerUIStyle.simple),
-                    tooltip: 'Простой интерфейс',
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Сейчас играет',
-                    style: TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
+            children: [
+              // Top bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppTheme.textSecondary,
+                        size: 30,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Свернуть',
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(
-                      track.isFavorite
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      color: track.isFavorite
-                          ? AppTheme.accentPink
-                          : AppTheme.textSecondary,
-                      size: 24,
+                    IconButton(
+                      icon: Icon(
+                        Icons.view_agenda_outlined,
+                        color: AppTheme.textSecondary,
+                        size: 22,
+                      ),
+                      onPressed: () => context
+                          .read<UiStyleController>()
+                          .setStyle(PlayerUIStyle.simple),
+                      tooltip: 'Простой интерфейс',
                     ),
-                    onPressed: player.toggleFavoriteCurrent,
-                    tooltip: 'В избранное',
-                  ),
-                ],
+                    const Spacer(),
+                    Text(
+                      'Сейчас играет',
+                      style: TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: Icon(
+                        track.isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: track.isFavorite
+                            ? AppTheme.accentPink
+                            : AppTheme.textSecondary,
+                        size: 24,
+                      ),
+                      onPressed: player.toggleFavoriteCurrent,
+                      tooltip: 'В избранное',
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            // 3D Cover Flow
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cardH = (cardW * 1.26)
-                      .clamp(0.0, constraints.maxHeight - 12)
-                      .toDouble();
-                  final barsW = constraints.maxWidth;
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      IgnorePointer(
-                        child: Center(
-                          child: ThreeDVisualizer(
-                            isPlaying: player.isPlaying,
-                            width: barsW,
-                            height: constraints.maxHeight,
-                            barCount: 19,
+              // 3D Cover Flow
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cardH = (cardW * 1.26)
+                        .clamp(0.0, constraints.maxHeight - 12)
+                        .toDouble();
+                    final barsW = constraints.maxWidth;
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IgnorePointer(
+                          child: Center(
+                            child: ThreeDVisualizer(
+                              isPlaying: player.isPlaying,
+                              width: barsW,
+                              height: constraints.maxHeight,
+                              barCount: 19,
+                            ),
                           ),
                         ),
-                      ),
-                      CoverFlowCarousel(
-                        itemCount: playlist.length,
-                        initialIndex: currentIndex,
-                        controller: _controller,
-                        cardWidth: cardW,
-                        cardHeight: cardH,
-                        onPageChanged: _onPageChanged,
-                        itemBuilder: (context, index) {
-                          return CoverFlowCard(
-                            track: playlist[index],
-                            width: cardW,
-                            height: cardH,
-                            isCurrent: playlist[index].id == track.id,
-                            onTap: () => player.playAt(index),
-                          );
-                        },
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-            // Track info
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                children: [
-                  MarqueeText(
-                    text: track.title,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    track.artist,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-              ),
-            ),
-
-            // Progress slider
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                children: [
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 4,
-                      activeTrackColor: AppTheme.accent,
-                      inactiveTrackColor: AppTheme.surfaceLight,
-                      thumbColor: AppTheme.accentLight,
-                      thumbShape: RoundSliderThumbShape(
-                          enabledThumbRadius: 7),
-                      overlayColor: AppTheme.accent.withOpacity(0.15),
-                    ),
-                    child: Slider(
-                      value: posFrac,
-                      onChanged: (v) =>
-                          player.seek(Duration(milliseconds: (durMs * v).round())),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _fmt(player.position),
-                          style: TextStyle(
-                              color: AppTheme.textMuted, fontSize: 11),
-                        ),
-                        Text(
-                          '-${_fmt(player.duration - player.position)}',
-                          style: TextStyle(
-                              color: AppTheme.textMuted, fontSize: 11),
+                        CoverFlowCarousel(
+                          itemCount: playlist.length,
+                          initialIndex: currentIndex,
+                          controller: _controller,
+                          cardWidth: cardW,
+                          cardHeight: cardH,
+                          onPageChanged: _onPageChanged,
+                          itemBuilder: (context, index) {
+                            return CoverFlowCard(
+                              track: playlist[index],
+                              width: cardW,
+                              height: cardH,
+                              isCurrent: playlist[index].id == track.id,
+                              onTap: () => player.playAt(index),
+                            );
+                          },
                         ),
                       ],
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                ),
               ),
-            ),
 
-            // Controls
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.shuffle_rounded),
-                    color: player.shuffleMode
-                        ? AppTheme.accentCyan
-                        : AppTheme.textSecondary,
-                    iconSize: 26,
-                    onPressed: player.toggleShuffle,
-                    tooltip: 'Перемешать',
-                  ),
-                  const SizedBox(width: 22),
-                  IconButton(
-                    icon: Icon(Icons.skip_previous_rounded,
-                        color: AppTheme.textPrimary),
-                    iconSize: 42,
-                    onPressed: player.previous,
-                    tooltip: 'Предыдущий',
-                  ),
-                  SizedBox(width: 20),
-                  IconButton(
-                    icon: Icon(
-                      player.isPlaying
-                          ? Icons.pause_circle_filled_rounded
-                          : Icons.play_circle_filled_rounded,
-                      color: AppTheme.accentLight,
+              // Track info
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  children: [
+                    MarqueeText(
+                      text: track.title,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
                     ),
-                    iconSize: 74,
-                    onPressed: player.togglePlay,
-                    tooltip: player.isPlaying ? 'Пауза' : 'Играть',
-                  ),
-                  const SizedBox(width: 20),
-                  IconButton(
-                    icon: Icon(Icons.skip_next_rounded,
-                        color: AppTheme.textPrimary),
-                    iconSize: 42,
-                    onPressed: player.next,
-                    tooltip: 'Следующий',
-                  ),
-                  const SizedBox(width: 22),
-                  IconButton(
-                    icon: Icon(
-                      player.repeatMode == PlayerRepeatMode.one
-                          ? Icons.repeat_one_rounded
-                          : Icons.repeat_rounded,
-                      color: player.repeatMode != PlayerRepeatMode.off
+                    const SizedBox(height: 6),
+                    Text(
+                      track.artist,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+
+              // Progress slider
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  children: [
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 4,
+                        activeTrackColor: AppTheme.accent,
+                        inactiveTrackColor: AppTheme.surfaceLight,
+                        thumbColor: AppTheme.accentLight,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 7,
+                        ),
+                        overlayColor: AppTheme.accent.withValues(
+                          alpha: AppTheme.accent.a * (0.15),
+                        ),
+                      ),
+                      child: Slider(
+                        value: posFrac,
+                        onChanged: (v) => player.seek(
+                          Duration(milliseconds: (durMs * v).round()),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _fmt(player.position),
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                          Text(
+                            '-${_fmt(player.duration - player.position)}',
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Controls
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shuffle_rounded),
+                      color: player.shuffleMode
                           ? AppTheme.accentCyan
                           : AppTheme.textSecondary,
+                      iconSize: 26,
+                      onPressed: player.toggleShuffle,
+                      tooltip: 'Перемешать',
                     ),
-                    iconSize: 26,
-                    onPressed: player.toggleRepeat,
-                    tooltip: 'Повтор',
-                  ),
-                ],
+                    const SizedBox(width: 22),
+                    IconButton(
+                      icon: Icon(
+                        Icons.skip_previous_rounded,
+                        color: AppTheme.textPrimary,
+                      ),
+                      iconSize: 42,
+                      onPressed: player.previous,
+                      tooltip: 'Предыдущий',
+                    ),
+                    const SizedBox(width: 20),
+                    IconButton(
+                      icon: Icon(
+                        player.isPlaying
+                            ? Icons.pause_circle_filled_rounded
+                            : Icons.play_circle_filled_rounded,
+                        color: AppTheme.accentLight,
+                      ),
+                      iconSize: 74,
+                      onPressed: player.togglePlay,
+                      tooltip: player.isPlaying ? 'Пауза' : 'Играть',
+                    ),
+                    const SizedBox(width: 20),
+                    IconButton(
+                      icon: Icon(
+                        Icons.skip_next_rounded,
+                        color: AppTheme.textPrimary,
+                      ),
+                      iconSize: 42,
+                      onPressed: player.next,
+                      tooltip: 'Следующий',
+                    ),
+                    const SizedBox(width: 22),
+                    IconButton(
+                      icon: Icon(
+                        player.repeatMode == PlayerRepeatMode.one
+                            ? Icons.repeat_one_rounded
+                            : Icons.repeat_rounded,
+                        color: player.repeatMode != PlayerRepeatMode.off
+                            ? AppTheme.accentCyan
+                            : AppTheme.textSecondary,
+                      ),
+                      iconSize: 26,
+                      onPressed: player.toggleRepeat,
+                      tooltip: 'Повтор',
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            // Thin progress line
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-              child: LinearProgressIndicator(
-                value: posFrac,
-                minHeight: 3,
-                backgroundColor: AppTheme.surfaceLight,
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(AppTheme.accent),
-                borderRadius: BorderRadius.circular(4),
+              // Thin progress line
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
+                child: LinearProgressIndicator(
+                  value: posFrac,
+                  minHeight: 3,
+                  backgroundColor: AppTheme.surfaceLight,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
 
-            // Feature Actions Row (те же функции, что и в простом интерфейсе)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: PlayerFeatureRow(track: track),
-            ),
-          ],
-        ),
+              // Feature Actions Row (те же функции, что и в простом интерфейсе)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: PlayerFeatureRow(track: track),
+              ),
+            ],
+          ),
         ),
       ),
     );

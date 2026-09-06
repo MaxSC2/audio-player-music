@@ -23,8 +23,11 @@ class TrackInfoDialog extends StatelessWidget {
               gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.info_outline_rounded,
-                color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
