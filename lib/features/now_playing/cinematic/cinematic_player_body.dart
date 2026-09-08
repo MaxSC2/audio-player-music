@@ -237,63 +237,92 @@ class _CinematicAmbientState extends State<CinematicAmbient>
           to.length > 1 ? to[1] : to[0],
           t,
         )!;
-        return AnimatedBuilder(
-          animation: _drift,
-          builder: (context, _) {
-            final dx = math.sin(_drift.value * 2 * math.pi) * 26;
-            final dy = math.cos(_drift.value * 2 * math.pi) * 18;
-            return Container(
-              color: CinematicTheme.bg,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Верхнее пятно — основной цвет обложки, очень слабо.
-                  Positioned(
-                    top: -120 + dy,
-                    left: -80 + dx,
-                    right: -80 - dx,
-                    height: 420,
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment.center,
-                            radius: 0.75,
-                            colors: [
-                              c1.withValues(alpha: c1.a * 0.16),
-                              c1.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
+        // Важно: child пробрасывается как есть, иначе дрейф перестраивал
+        // бы весь экран 60 раз в секунду (это и были лаги).
+        return _AmbientGlow(
+          c1: c1,
+          c2: c2,
+          drift: _drift,
+          child: widget.child,
+        );
+      },
+    );
+  }
+}
+
+/// Только пятна света перерисовываются каждый тик дрейфа,
+/// контент (child) собирается один раз и переиспользуется.
+class _AmbientGlow extends StatelessWidget {
+  final Color c1;
+  final Color c2;
+  final Animation<double> drift;
+  final Widget child;
+
+  const _AmbientGlow({
+    required this.c1,
+    required this.c2,
+    required this.drift,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: drift,
+      child: child,
+      builder: (context, glowChild) {
+        final dx = math.sin(drift.value * 2 * math.pi) * 26;
+        final dy = math.cos(drift.value * 2 * math.pi) * 18;
+        return Container(
+          color: CinematicTheme.bg,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Верхнее пятно — основной цвет обложки, очень слабо.
+              Positioned(
+                top: -120 + dy,
+                left: -80 + dx,
+                right: -80 - dx,
+                height: 420,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment.center,
+                        radius: 0.75,
+                        colors: [
+                          c1.withValues(alpha: c1.a * 0.16),
+                          c1.withValues(alpha: 0.0),
+                        ],
                       ),
                     ),
                   ),
-                  // Нижнее пятно — вторичный цвет.
-                  Positioned(
-                    bottom: -140 - dy,
-                    left: -60 - dx,
-                    right: -60 + dx,
-                    height: 380,
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment.center,
-                            radius: 0.75,
-                            colors: [
-                              c2.withValues(alpha: c2.a * 0.12),
-                              c2.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  widget.child,
-                ],
+                ),
               ),
-            );
-          },
+              // Нижнее пятно — вторичный цвет.
+              Positioned(
+                bottom: -140 - dy,
+                left: -60 - dx,
+                right: -60 + dx,
+                height: 380,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment.center,
+                        radius: 0.75,
+                        colors: [
+                          c2.withValues(alpha: c2.a * 0.12),
+                          c2.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              glowChild!,
+            ],
+          ),
         );
       },
     );
@@ -452,7 +481,9 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
                     final dim = (ad * 0.52).clamp(0.0, 0.62);
                     final saturation =
                         (1.0 - ad * 0.45).clamp(0.4, 1.0);
-                    final blur = ad > 0.6 ? (ad - 0.6) * 4.0 : 0.0;
+                    // Блюр только самым дальним и слабый: saveLayer дорог.
+                    final blur =
+                        ad > 0.8 ? math.min(1.5, (ad - 0.8) * 4.0) : 0.0;
                     Widget card = _CinematicCard(
                       track: widget.playlist[index],
                       width: cardW,
@@ -488,7 +519,11 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
                         ..rotateY(angle),
                       child: Transform.scale(
                         scale: scale,
-                        child: Center(child: card),
+                        // Изолируем фильтры в свой слой: перестроения
+                        // родителя не тянут за собой перерастр фильтров.
+                        child: Center(
+                          child: RepaintBoundary(child: card),
+                        ),
                       ),
                     );
                   },

@@ -1430,21 +1430,57 @@ class PlayerProvider extends ChangeNotifier {
           final list = data['results'] as List;
           final genre = (list.first['primaryGenreName'] as String?)?.trim();
           if (genre != null && genre.isNotEmpty) {
-            _genreCache[track.id] = genre;
-            _prefs?.setString(
-              'genre_cache',
-              jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))),
-            );
-            _invalidateCategoryCache();
-            notifyListeners();
-            return genre;
+            return _storeGenre(track.id, genre);
           }
         }
       }
+      // iTunes пуст — фолбэк на MusicBrainz (теги записи).
+      final mbGenre = await _genreFromMusicBrainz(track);
+      if (mbGenre != null) return _storeGenre(track.id, mbGenre);
     } catch (_) {
     } finally {
       _genreFetching.remove(track.id);
     }
+    return null;
+  }
+
+  String? _storeGenre(int trackId, String genre) {
+    _genreCache[trackId] = genre;
+    _prefs?.setString(
+      'genre_cache',
+      jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))),
+    );
+    _invalidateCategoryCache();
+    notifyListeners();
+    return genre;
+  }
+
+  /// MusicBrainz: ищем запись, берём первый тег, маппящийся в таксономию.
+  /// Нужен User-Agent, иначе сервер режет запросы.
+  Future<String?> _genreFromMusicBrainz(AudioTrack track) async {
+    try {
+      final q = Uri.encodeQueryComponent(
+        'artist:"${track.artist}" AND recording:"${track.title}"',
+      );
+      final url = Uri.parse(
+        'https://musicbrainz.org/ws/2/recording/?query=$q&fmt=json&limit=1',
+      );
+      final res = await http
+          .get(url, headers: {'User-Agent': 'NeonWave/1.0 (local-player)'})
+          .timeout(const Duration(seconds: 6));
+      if (res.statusCode != 200) return null;
+      final data = jsonDecode(res.body) as Map;
+      final recordings = data['recordings'] as List?;
+      if (recordings == null || recordings.isEmpty) return null;
+      final tags = (recordings.first as Map)['tags'] as List?;
+      if (tags == null) return null;
+      for (final t in tags) {
+        final name = ((t as Map)['name'] as String?)?.trim();
+        if (name == null || name.isEmpty) continue;
+        final norm = GenreTaxonomy.normalizeOnline(name);
+        if (norm != null) return norm;
+      }
+    } catch (_) {}
     return null;
   }
 
@@ -2439,8 +2475,11 @@ class PlayerProvider extends ChangeNotifier {
         _playlist.map((t) => t.id.toString()).toList(),
       );
       _prefs?.setInt('last_index', startIndex);
+      // preload:false — грузим только текущий трек (seek ниже),
+      // иначе подготовка тысяч источников фризит первый тап.
       await _audioPlayer.setAudioSources(
         _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+        preload: false,
       );
       _audioHandler?.setQueue(_playlist);
     }
@@ -2661,8 +2700,10 @@ class PlayerProvider extends ChangeNotifier {
         return;
       }
       _audioHandler?.setQueue(_playlist);
+      // preload:false — следующий seek сам подтянет нужный трек.
       await _audioPlayer.setAudioSources(
         _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+        preload: false,
       );
       if (_currentIndex >= 0) {
         await _audioPlayer.seek(_position, index: _currentIndex);

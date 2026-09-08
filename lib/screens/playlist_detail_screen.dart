@@ -4,6 +4,7 @@ import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
+import '../widgets/cached_artwork.dart';
 import '../widgets/track_tile.dart';
 
 class PlaylistDetailScreen extends StatelessWidget {
@@ -147,19 +148,28 @@ class PlaylistDetailScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppTheme.pinkPurpleGradient,
-                  ),
-                  child: const Icon(
-                    Icons.queue_music_rounded,
-                    color: Colors.white,
-                    size: 36,
-                  ),
-                ),
+                tracks.isNotEmpty
+                    ? ClipOval(
+                        child: CachedArtwork(
+                          trackId: tracks.first.id,
+                          width: 72,
+                          height: 72,
+                          radius: 0,
+                        ),
+                      )
+                    : Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: AppTheme.pinkPurpleGradient,
+                        ),
+                        child: const Icon(
+                          Icons.queue_music_rounded,
+                          color: Colors.white,
+                          size: 36,
+                        ),
+                      ),
                 const SizedBox(height: 12),
                 Text(
                   playlist.name,
