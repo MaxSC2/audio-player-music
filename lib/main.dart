@@ -92,11 +92,14 @@ class NeonWaveApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showFps =
+        context.select<PlayerProvider, bool>((p) => p.perfOverlay.value);
     return MaterialApp(
       title: 'NeonWave',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       home: const HomeScreen(),
+      showPerformanceOverlay: showFps,
     );
   }
 }

@@ -545,6 +545,30 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                 const SizedBox(height: 8),
+                ValueListenableBuilder<bool>(
+                  valueListenable: player.perfOverlay,
+                  builder: (_, show, __) => SwitchListTile(
+                    secondary: const _TileIcon(Icons.speed_rounded),
+                    title: Text(
+                      'FPS-метр',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Оверлей производительности для замера лагов',
+                      style: TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    value: show,
+                    activeThumbColor: AppTheme.accent,
+                    onChanged: player.setPerfOverlay,
+                  ),
+                ),
               ],
             ),
           ),

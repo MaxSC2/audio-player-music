@@ -561,6 +561,15 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  /// FPS-оверлей для замера лагов (Настройки → Диагностика).
+  final ValueNotifier<bool> perfOverlay = ValueNotifier(false);
+
+  void setPerfOverlay(bool v) {
+    perfOverlay.value = v;
+    _prefs?.setBool('perf_overlay', v);
+    notifyListeners();
+  }
+
   bool get notifCustomActions => _notifCustomActions;
 
   void setNotifCustomActions(bool v) {
@@ -680,6 +689,7 @@ class PlayerProvider extends ChangeNotifier {
     if (prefs == null) return;
 
     _defaultSpeed = prefs.getDouble('default_speed') ?? 1.0;
+    perfOverlay.value = prefs.getBool('perf_overlay') ?? false;
     _hideUnknownArtist = prefs.getBool('hide_unknown') ?? false;
     _resumePlayback = prefs.getBool('resume_playback') ?? false;
     _notifCustomActions = prefs.getBool('notif_custom_actions') ?? true;

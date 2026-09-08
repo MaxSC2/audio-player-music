@@ -64,14 +64,18 @@ class _AnimatedArtworkBackdropState extends State<AnimatedArtworkBackdrop>
           final t = _kenBurns.value;
           return Transform.scale(scale: 1.05 + 0.12 * t, child: child);
         },
-        child: ImageFiltered(
-          imageFilter: ui.ImageFilter.blur(sigmaX: 48, sigmaY: 48),
-          child: Image.memory(
-            _bytes!,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-            filterQuality: FilterQuality.low,
+        // Изоляция: блур растеризуется один раз и кешируется слоем,
+        // иначе фулскрин-блур перерисовывался бы каждый кадр Ken Burns.
+        child: RepaintBoundary(
+          child: ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            child: Image.memory(
+              _bytes!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              filterQuality: FilterQuality.low,
+            ),
           ),
         ),
       ),

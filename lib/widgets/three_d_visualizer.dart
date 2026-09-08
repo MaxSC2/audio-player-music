@@ -40,9 +40,23 @@ class _ThreeDVisualizerState extends State<ThreeDVisualizer>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat();
+    );
+    if (widget.isPlaying) {
+      _controller.repeat();
+    }
     _heights = List.filled(widget.barCount, 0.08);
     _controller.addListener(_onTick);
+  }
+
+  @override
+  void didUpdateWidget(covariant ThreeDVisualizer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Не крутим анимацию на паузе: лишний перерисов каждый кадр.
+    if (widget.isPlaying && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!widget.isPlaying && _controller.isAnimating) {
+      _controller.stop();
+    }
   }
 
   @override
