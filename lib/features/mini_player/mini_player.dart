@@ -20,6 +20,7 @@ class MiniPlayer extends StatelessWidget {
         PlayerUIStyle.simple => SimpleMiniPlayer(onExpand: onExpand),
         PlayerUIStyle.coverFlow3D => CoverFlowMiniPlayer(onExpand: onExpand),
         PlayerUIStyle.cinematic => CinematicMiniPlayer(onExpand: onExpand),
+        PlayerUIStyle.neon => CinematicMiniPlayer(onExpand: onExpand),
       },
     );
   }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/ui_style.dart';
 import 'cinematic/cinematic_now_playing_screen.dart';
 import 'cover_flow/cover_flow_now_playing_screen.dart';
+import 'neon/neon_now_playing_screen.dart';
 import 'simple/simple_now_playing_screen.dart';
 
 class NowPlayingScreen extends StatelessWidget {
@@ -15,6 +16,7 @@ class NowPlayingScreen extends StatelessWidget {
       PlayerUIStyle.simple => const SimpleNowPlayingScreen(),
       PlayerUIStyle.coverFlow3D => const CoverFlowNowPlayingScreen(),
       PlayerUIStyle.cinematic => const CinematicNowPlayingScreen(),
+      PlayerUIStyle.neon => const NeonNowPlayingScreen(),
     };
   }
 }

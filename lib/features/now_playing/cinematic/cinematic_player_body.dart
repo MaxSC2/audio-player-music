@@ -41,10 +41,18 @@ class CinematicPlayerBody extends StatelessWidget {
   final bool showFeatures;
   final Widget? features;
 
+  /// Neon-режим: 5 кнопок, неоновая кромка центра, кольца сцены.
+  final bool fullControls;
+  final bool edgeGlow;
+  final bool stageRings;
+
   const CinematicPlayerBody({
     super.key,
     this.showFeatures = false,
     this.features,
+    this.fullControls = false,
+    this.edgeGlow = false,
+    this.stageRings = false,
   });
 
   @override
@@ -59,6 +67,7 @@ class CinematicPlayerBody extends StatelessWidget {
       );
     }
 
+    final accent = cinematicAccent(context, track.id);
     return Column(
       children: [
         Expanded(
@@ -67,6 +76,9 @@ class CinematicPlayerBody extends StatelessWidget {
             key: ValueKey('carousel-${playlist.length}'),
             playlist: playlist,
             currentIndex: player.currentIndex,
+            accent: accent,
+            edgeGlow: edgeGlow,
+            stageRings: stageRings,
           ),
         ),
         CinematicVisualizer(
@@ -75,7 +87,7 @@ class CinematicPlayerBody extends StatelessWidget {
         ),
         _TrackInfo(track: track),
         const _ProgressRow(),
-        const _ControlsRow(),
+        _ControlsRow(full: fullControls),
         if (showFeatures && features != null) features!,
       ],
     );
@@ -293,11 +305,17 @@ class _CinematicAmbientState extends State<CinematicAmbient>
 class _CinematicCarousel extends StatefulWidget {
   final List<AudioTrack> playlist;
   final int currentIndex;
+  final Color accent;
+  final bool edgeGlow;
+  final bool stageRings;
 
   const _CinematicCarousel({
     super.key,
     required this.playlist,
     required this.currentIndex,
+    required this.accent,
+    this.edgeGlow = false,
+    this.stageRings = false,
   });
 
   @override
@@ -318,7 +336,17 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
       return;
     }
     if (index < 0 || index >= widget.playlist.length) return;
-    context.read<PlayerProvider>().playAt(index);
+    // Фиксируем ключ СРАЗУ, иначе rebuild от playAt дернет animateToPage
+    // навстречу drag'у — отсюда был глитч прокрутки.
+    _lastSyncedKey = index;
+    final player = context.read<PlayerProvider>();
+    // Предзагрузка соседних обложек — меньше вспышек при свайпе.
+    for (final n in [index - 2, index - 1, index + 1, index + 2]) {
+      if (n >= 0 && n < widget.playlist.length) {
+        ArtworkCache.load(widget.playlist[n].id);
+      }
+    }
+    player.playAt(index);
   }
 
   @override
@@ -380,6 +408,19 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
                 ),
               ),
             ),
+            // Кольца сцены под каруселью (neon-режим).
+            if (widget.stageRings)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 90,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _StageRingsPainter(accent: accent),
+                  ),
+                ),
+              ),
             ListenableBuilder(
               listenable: _controller!,
               builder: (context, _) {
@@ -412,6 +453,8 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
                       isCenter: ad < 0.5,
                       dim: dim,
                       delta: delta,
+                      edgeColor:
+                          widget.edgeGlow && ad < 0.5 ? accent : null,
                     );
                     if (saturation < 0.99) {
                       card = ColorFiltered(
@@ -452,6 +495,36 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
   }
 }
 
+/// Эллиптические кольца сцены под каруселью (neon-режим).
+/// Статичная отрисовка — дёшево, без анимаций.
+class _StageRingsPainter extends CustomPainter {
+  final Color accent;
+
+  _StageRingsPainter({required this.accent});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    for (var i = 0; i < 3; i++) {
+      final t = i / 2; // 0 ближнее → 1 дальнее
+      final w = size.width * (0.86 - t * 0.22);
+      final h = 34.0 - t * 9;
+      final y = size.height - 12 - t * 22;
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6 - t * 0.5
+        ..color = accent.withValues(
+          alpha: accent.a * (0.30 - t * 0.10),
+        );
+      canvas.drawOval(Rect.fromCenter(center: Offset(cx, y), width: w, height: h), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StageRingsPainter old) =>
+      old.accent != accent;
+}
+
 /// Матрица насыщенности 0..1.
 List<double> _saturationMatrix(double s) {
   const lumR = 0.2126;
@@ -479,6 +552,9 @@ class _CinematicCard extends StatefulWidget {
   /// Смещение от центра (-1.2..1.2) для parallax.
   final double delta;
 
+  /// Неоновая кромка центральной карточки (neon-режим).
+  final Color? edgeColor;
+
   const _CinematicCard({
     required this.track,
     required this.width,
@@ -486,6 +562,7 @@ class _CinematicCard extends StatefulWidget {
     required this.isCenter,
     required this.dim,
     this.delta = 0.0,
+    this.edgeColor,
   });
 
   @override
@@ -542,21 +619,29 @@ class _CinematicCardState extends State<_CinematicCard>
               decoration: BoxDecoration(
                 borderRadius:
                     BorderRadius.circular(CinematicTheme.radiusCard),
-                boxShadow: widget.isCenter
-                    ? const [
-                        BoxShadow(
-                          color: Color(0x66000000),
-                          blurRadius: 34,
-                          offset: Offset(0, 16),
+                border: widget.edgeColor == null
+                    ? null
+                    : Border.all(
+                        color: widget.edgeColor!.withValues(
+                          alpha: widget.edgeColor!.a * 0.85,
                         ),
-                      ]
-                    : const [
-                        BoxShadow(
-                          color: Color(0x55000000),
-                          blurRadius: 18,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
+                        width: 1.5,
+                      ),
+                boxShadow: [
+                  if (widget.edgeColor != null)
+                    BoxShadow(
+                      color: widget.edgeColor!.withValues(
+                        alpha: widget.edgeColor!.a * 0.45,
+                      ),
+                      blurRadius: 30,
+                      spreadRadius: 1,
+                    ),
+                  BoxShadow(
+                    color: const Color(0x66000000),
+                    blurRadius: widget.isCenter ? 34 : 18,
+                    offset: Offset(0, widget.isCenter ? 16 : 10),
+                  ),
+                ],
               ),
               child: ClipRRect(
                 borderRadius:
@@ -1091,7 +1176,10 @@ class _ProgressRowState extends State<_ProgressRow> {
 /// Компактные контролы: стеклянный play + prev/next (п.8).
 /// Свечение — цветом темы, press — с scale-анимацией.
 class _ControlsRow extends StatefulWidget {
-  const _ControlsRow();
+  /// Neon-режим: shuffle + repeat по бокам (ряд из 5, как в референсе).
+  final bool full;
+
+  const _ControlsRow({this.full = false});
 
   @override
   State<_ControlsRow> createState() => _ControlsRowState();
@@ -1127,6 +1215,19 @@ class _ControlsRowState extends State<_ControlsRow>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          if (widget.full)
+            IconButton(
+              onPressed: player.toggleShuffle,
+              icon: Icon(
+                Icons.shuffle_rounded,
+                color: player.shuffleMode
+                    ? accent
+                    : CinematicTheme.textDim,
+                size: 22,
+              ),
+              tooltip: 'Перемешать',
+            ),
+          if (widget.full) const SizedBox(width: 6),
           IconButton(
             onPressed: player.previous,
             icon: const Icon(
@@ -1188,6 +1289,21 @@ class _ControlsRowState extends State<_ControlsRow>
             ),
             tooltip: 'Следующий',
           ),
+          if (widget.full) const SizedBox(width: 6),
+          if (widget.full)
+            IconButton(
+              onPressed: player.toggleRepeat,
+              icon: Icon(
+                player.repeatMode == PlayerRepeatMode.one
+                    ? Icons.repeat_one_rounded
+                    : Icons.repeat_rounded,
+                color: player.repeatMode == PlayerRepeatMode.off
+                    ? CinematicTheme.textDim
+                    : accent,
+                size: 22,
+              ),
+              tooltip: 'Повтор',
+            ),
         ],
       ),
     );

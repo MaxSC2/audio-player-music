@@ -71,7 +71,8 @@ class _CachedArtworkState extends State<CachedArtwork> {
   void didUpdateWidget(covariant CachedArtwork oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.trackId != widget.trackId) {
-      _bytes = null;
+      // Stale-while-revalidate: старый арт висит до загрузки нового,
+      // чтобы при прокрутке не мигал встроенный плейсхолдер.
       _load();
     }
   }

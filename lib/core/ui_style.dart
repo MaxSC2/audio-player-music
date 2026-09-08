@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum PlayerUIStyle { simple, coverFlow3D, cinematic }
+enum PlayerUIStyle { simple, coverFlow3D, cinematic, neon }
 
 /// Фиксированные темы Cinematic + Auto (цвета из обложки).
 enum CinematicThemeMode { auto, crimson, ocean, emerald, violet, mono }

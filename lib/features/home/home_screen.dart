@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/ui_style.dart';
 import 'cinematic/cinematic_home_screen.dart';
 import 'cover_flow/cover_flow_home_screen.dart';
+import 'neon/neon_home_screen.dart';
 import 'simple/simple_home_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -15,6 +16,7 @@ class HomeScreen extends StatelessWidget {
       PlayerUIStyle.simple => const SimpleHomeScreen(),
       PlayerUIStyle.coverFlow3D => const CoverFlowHomeScreen(),
       PlayerUIStyle.cinematic => const CinematicHomeScreen(),
+      PlayerUIStyle.neon => const NeonHomeScreen(),
     };
   }
 }
