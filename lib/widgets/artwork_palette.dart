@@ -18,6 +18,9 @@ class ArtworkPalette {
     Color(0xFF232936),
   ];
 
+  /// Синхронное чтение из кеша (null — ещё не загружено).
+  static List<Color>? cached(int trackId) => _cache[trackId];
+
   static Future<List<Color>> forTrack(int trackId) async {
     final hit = _cache.remove(trackId);
     if (hit != null) {

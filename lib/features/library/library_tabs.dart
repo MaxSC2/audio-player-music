@@ -17,7 +17,17 @@ import 'music_dna_tab.dart';
 class LibraryTabs extends StatefulWidget {
   final bool threeD;
 
-  const LibraryTabs({super.key, this.threeD = false});
+  /// Внешний контроллер (для нижней навигации). Если задан — созданием
+  /// и dispose занимается владелец, TabBar можно скрыть через [showTabBar].
+  final TabController? controller;
+  final bool showTabBar;
+
+  const LibraryTabs({
+    super.key,
+    this.threeD = false,
+    this.controller,
+    this.showTabBar = true,
+  });
 
   @override
   State<LibraryTabs> createState() => _LibraryTabsState();
@@ -36,16 +46,22 @@ class _LibraryTabsState extends State<LibraryTabs>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 9, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) setState(() {});
-    });
+    _tabController =
+        widget.controller ?? TabController(length: 9, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _requestPermission();
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging && mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController.removeListener(_onTabChanged);
+    if (widget.controller == null) {
+      _tabController.dispose();
+    }
     _searchController.dispose();
     super.dispose();
   }
@@ -69,7 +85,8 @@ class _LibraryTabsState extends State<LibraryTabs>
     return Column(
       children: [
         _buildHeaderRow(player),
-        TabBar(
+        if (widget.showTabBar)
+          TabBar(
           controller: _tabController,
           isScrollable: true,
           tabAlignment: TabAlignment.start,

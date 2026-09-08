@@ -1,14 +1,26 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/ui_style.dart';
 import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/artwork_palette.dart';
 import '../../../widgets/cached_artwork.dart';
 import '../../../widgets/marquee_text.dart';
+import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/queue_sheet.dart';
+
+/// Текущий акцент cinematic: тема (Auto/фикс) + кеш палитры обложки.
+Color cinematicAccent(BuildContext context, int? trackId) {
+  final ui = context.watch<UiStyleController>();
+  final art = (trackId == null)
+      ? ArtworkPalette.fallback
+      : (ArtworkPalette.cached(trackId) ?? ArtworkPalette.fallback);
+  return ui.resolveCinematic(art)[0];
+}
 
 /// Фиксированная тёмная система Cinematic (п.14): near black, белый текст,
 /// акцент — только из обложки. Не зависит от AppTheme/palette.
@@ -197,16 +209,20 @@ class _CinematicAmbientState extends State<CinematicAmbient>
 
   @override
   Widget build(BuildContext context) {
+    // Тема (Auto/фикс) применяется поверх цветов обложки.
+    final ui = context.watch<UiStyleController>();
+    final from = ui.resolveCinematic(_from);
+    final to = ui.resolveCinematic(_to);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 900),
       curve: Curves.easeInOut,
-      key: ValueKey(widget.trackId),
+      key: ValueKey('${widget.trackId}-${ui.cinematicTheme.name}'),
       builder: (context, t, _) {
-        final c1 = Color.lerp(_from[0], _to[0], t)!;
+        final c1 = Color.lerp(from[0], to[0], t)!;
         final c2 = Color.lerp(
-          _from.length > 1 ? _from[1] : _from[0],
-          _to.length > 1 ? _to[1] : _to[0],
+          from.length > 1 ? from[1] : from[0],
+          to.length > 1 ? to[1] : to[0],
           t,
         )!;
         return AnimatedBuilder(
@@ -336,57 +352,120 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
       });
     }
 
+    final accent = cinematicAccent(
+      context,
+      widget.playlist[target].id,
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cardW = math.min(constraints.maxWidth * 0.62, 300.0);
+        final cardW = math.min(constraints.maxWidth * 0.66, 320.0);
         final cardH = math.min(constraints.maxHeight * 0.88, cardW * 1.18);
-        return ListenableBuilder(
-          listenable: _controller!,
-          builder: (context, _) {
-            final double center;
-            if (_controller!.hasClients) {
-              center = _controller!.page ?? target.toDouble();
-            } else {
-              center = target.toDouble();
-            }
-            return PageView.builder(
-              controller: _controller,
-              itemCount: widget.playlist.length,
-              onPageChanged: _onPageChanged,
-              physics: const PageScrollPhysics(),
-              itemBuilder: (context, index) {
-                final delta =
-                    (center - index).clamp(-1.2, 1.2).toDouble();
-                final ad = delta.abs();
-                final angle = delta * 0.55;
-                final scale = 1.0 - ad * 0.17;
-                final dim = (ad * 0.52).clamp(0.0, 0.62);
-                return Transform(
-                  alignment: Alignment.center,
-                  transform: Matrix4.identity()
-                    ..setEntry(3, 2, 0.0016)
-                    ..translateByDouble(0.0, ad * 10, -ad * 90, 1.0)
-                    ..rotateY(angle),
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Center(
-                      child: _CinematicCard(
-                        track: widget.playlist[index],
-                        width: cardW,
-                        height: cardH,
-                        isCenter: ad < 0.5,
-                        dim: dim,
-                      ),
-                    ),
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Локальное свечение под центральной обложкой.
+            IgnorePointer(
+              child: Container(
+                width: cardW * 1.25,
+                height: cardH * 0.9,
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.7,
+                    colors: [
+                      accent.withValues(alpha: accent.a * 0.20),
+                      accent.withValues(alpha: 0.0),
+                    ],
                   ),
+                ),
+              ),
+            ),
+            ListenableBuilder(
+              listenable: _controller!,
+              builder: (context, _) {
+                final double center;
+                if (_controller!.hasClients) {
+                  center = _controller!.page ?? target.toDouble();
+                } else {
+                  center = target.toDouble();
+                }
+                return PageView.builder(
+                  controller: _controller,
+                  itemCount: widget.playlist.length,
+                  onPageChanged: _onPageChanged,
+                  physics: const PageScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final delta = (center - index)
+                        .clamp(-1.2, 1.2)
+                        .toDouble();
+                    final ad = delta.abs();
+                    final angle = delta * 0.55;
+                    final scale = 1.0 - ad * 0.17;
+                    final dim = (ad * 0.52).clamp(0.0, 0.62);
+                    final saturation =
+                        (1.0 - ad * 0.45).clamp(0.4, 1.0);
+                    final blur = ad > 0.6 ? (ad - 0.6) * 4.0 : 0.0;
+                    Widget card = _CinematicCard(
+                      track: widget.playlist[index],
+                      width: cardW,
+                      height: cardH,
+                      isCenter: ad < 0.5,
+                      dim: dim,
+                      delta: delta,
+                    );
+                    if (saturation < 0.99) {
+                      card = ColorFiltered(
+                        colorFilter: ColorFilter.matrix(
+                          _saturationMatrix(saturation),
+                        ),
+                        child: card,
+                      );
+                    }
+                    if (blur > 0.01) {
+                      card = ImageFiltered(
+                        imageFilter: ui.ImageFilter.blur(
+                          sigmaX: blur,
+                          sigmaY: blur,
+                        ),
+                        child: card,
+                      );
+                    }
+                    return Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0016)
+                        ..translateByDouble(0.0, ad * 10, -ad * 90, 1.0)
+                        ..rotateY(angle),
+                      child: Transform.scale(
+                        scale: scale,
+                        child: Center(child: card),
+                      ),
+                    );
+                  },
                 );
               },
-            );
-          },
+            ),
+          ],
         );
       },
     );
   }
+}
+
+/// Матрица насыщенности 0..1.
+List<double> _saturationMatrix(double s) {
+  const lumR = 0.2126;
+  const lumG = 0.7152;
+  const lumB = 0.0722;
+  final ir = (1 - s) * lumR;
+  final ig = (1 - s) * lumG;
+  final ib = (1 - s) * lumB;
+  return [
+    ir + s, ig, ib, 0, 0,
+    ir, ig + s, ib, 0, 0,
+    ir, ig, ib + s, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
 }
 
 /// Центральная карточка: чёткая, приподнята, мягкая тень + лёгкий reflection.
@@ -397,12 +476,16 @@ class _CinematicCard extends StatefulWidget {
   final bool isCenter;
   final double dim;
 
+  /// Смещение от центра (-1.2..1.2) для parallax.
+  final double delta;
+
   const _CinematicCard({
     required this.track,
     required this.width,
     required this.height,
     required this.isCenter,
     required this.dim,
+    this.delta = 0.0,
   });
 
   @override
@@ -481,11 +564,15 @@ class _CinematicCardState extends State<_CinematicCard>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    CachedArtwork(
-                      trackId: widget.track.id,
-                      width: widget.width,
-                      height: widget.height,
-                      radius: 0,
+                    // Лёгкий parallax обложки при свайпе.
+                    Transform.translate(
+                      offset: Offset(-widget.delta * 14, 0),
+                      child: CachedArtwork(
+                        trackId: widget.track.id,
+                        width: widget.width + 28,
+                        height: widget.height,
+                        radius: 0,
+                      ),
                     ),
                     // Затемнение боковых карточек (яркость/насыщенность ↓).
                     if (widget.dim > 0.01)
@@ -539,7 +626,7 @@ class CinematicVisualizer extends StatefulWidget {
   State<CinematicVisualizer> createState() => _CinematicVisualizerState();
 }
 
-enum _VizMode { bars, wave, particles }
+enum _VizMode { bars, wave, particles, minimal }
 
 class _CinematicVisualizerState extends State<CinematicVisualizer>
     with SingleTickerProviderStateMixin {
@@ -551,6 +638,7 @@ class _CinematicVisualizerState extends State<CinematicVisualizer>
     _VizMode.bars: Icons.bar_chart_rounded,
     _VizMode.wave: Icons.waves_rounded,
     _VizMode.particles: Icons.blur_on_rounded,
+    _VizMode.minimal: Icons.horizontal_rule_rounded,
   };
 
   @override
@@ -614,6 +702,13 @@ class _CinematicVisualizerState extends State<CinematicVisualizer>
                           phase: _anim.value,
                           energy: _energy,
                           seed: widget.trackId,
+                        ),
+                      );
+                    case _VizMode.minimal:
+                      return CustomPaint(
+                        painter: _MinimalPainter(
+                          phase: _anim.value * 2 * math.pi,
+                          energy: _energy,
                         ),
                       );
                   }
@@ -733,6 +828,33 @@ class _ParticlesPainter extends CustomPainter {
       old.phase != phase || old.energy != energy || old.seed != seed;
 }
 
+/// Почти статичная тонкая линия (п.7, Minimal).
+class _MinimalPainter extends CustomPainter {
+  final double phase;
+  final double energy;
+
+  _MinimalPainter({required this.phase, required this.energy});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: Colors.white.a * 0.30)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+    final midY = size.height / 2;
+    canvas.drawLine(Offset(0, midY), Offset(size.width, midY), paint);
+    final dotPaint = Paint()
+      ..color = Colors.white.withValues(alpha: Colors.white.a * 0.55);
+    final x = (0.5 + 0.42 * math.sin(phase * 0.5)) * size.width;
+    final y = midY + math.sin(phase) * 3 * (0.3 + energy);
+    canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MinimalPainter old) =>
+      old.phase != phase || old.energy != energy;
+}
+
 /// Информация о треке: крупное название, исполнитель, альбом, favorite (п.10).
 class _TrackInfo extends StatelessWidget {
   final AudioTrack track;
@@ -789,6 +911,31 @@ class _TrackInfo extends StatelessWidget {
           _FavButton(
             isFavorite: track.isFavorite,
             onTap: () => player.toggleFavorite(track),
+          ),
+          IconButton(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: const Color(0xFF101014),
+                shape: const RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (_) => SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                    child: PlayerFeatureRow(track: track),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              color: CinematicTheme.textDim,
+              size: 22,
+            ),
+            tooltip: 'Действия с треком',
           ),
         ],
       ),
@@ -865,13 +1012,21 @@ String _fmt(Duration d) {
   return '$m:$s';
 }
 
-/// Тонкий luminous progress (п.9).
-class _ProgressRow extends StatelessWidget {
+/// Тонкий luminous progress (п.9): акцент темы, крупный thumb при drag.
+class _ProgressRow extends StatefulWidget {
   const _ProgressRow();
+
+  @override
+  State<_ProgressRow> createState() => _ProgressRowState();
+}
+
+class _ProgressRowState extends State<_ProgressRow> {
+  bool _dragging = false;
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
+    final accent = cinematicAccent(context, player.currentTrack?.id);
     final durMs = player.duration.inMilliseconds;
     final posMs = player.position.inMilliseconds;
     final frac = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0).toDouble() : 0.0;
@@ -893,21 +1048,23 @@ class _ProgressRow extends StatelessWidget {
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 2.5,
-                activeTrackColor: Colors.white,
+                activeTrackColor: accent,
                 inactiveTrackColor: const Color(0x3DFFFFFF),
                 thumbColor: Colors.white,
-                thumbShape: const RoundSliderThumbShape(
-                  enabledThumbRadius: 6,
+                thumbShape: RoundSliderThumbShape(
+                  enabledThumbRadius: _dragging ? 9 : 6,
                 ),
                 overlayShape: const RoundSliderOverlayShape(
-                  overlayRadius: 16,
+                  overlayRadius: 18,
                 ),
-                overlayColor: Colors.white.withValues(
-                  alpha: Colors.white.a * 0.12,
+                overlayColor: accent.withValues(
+                  alpha: accent.a * 0.18,
                 ),
               ),
               child: Slider(
                 value: frac,
+                onChangeStart: (_) => setState(() => _dragging = true),
+                onChangeEnd: (_) => setState(() => _dragging = false),
                 onChanged: (v) => player.seek(
                   Duration(milliseconds: (durMs * v).round()),
                 ),
@@ -932,12 +1089,39 @@ class _ProgressRow extends StatelessWidget {
 }
 
 /// Компактные контролы: стеклянный play + prev/next (п.8).
-class _ControlsRow extends StatelessWidget {
+/// Свечение — цветом темы, press — с scale-анимацией.
+class _ControlsRow extends StatefulWidget {
   const _ControlsRow();
+
+  @override
+  State<_ControlsRow> createState() => _ControlsRowState();
+}
+
+class _ControlsRowState extends State<_ControlsRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press;
+
+  @override
+  void initState() {
+    super.initState();
+    _press = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+      lowerBound: 0.92,
+      upperBound: 1.0,
+    )..value = 1.0;
+  }
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
+    final accent = cinematicAccent(context, player.currentTrack?.id);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 2, 0, 6),
       child: Row(
@@ -954,35 +1138,43 @@ class _ControlsRow extends StatelessWidget {
           ),
           const SizedBox(width: 18),
           GestureDetector(
+            onTapDown: (_) => _press.reverse(),
+            onTapUp: (_) => _press.forward(),
+            onTapCancel: () => _press.forward(),
             onTap: player.togglePlay,
-            child: Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(
-                  alpha: Colors.white.a * 0.10,
-                ),
-                border: Border.all(
+            child: ScaleTransition(
+              scale: _press,
+              child: Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                   color: Colors.white.withValues(
-                    alpha: Colors.white.a * 0.22,
+                    alpha: Colors.white.a * 0.10,
                   ),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
+                  border: Border.all(
                     color: Colors.white.withValues(
-                      alpha: Colors.white.a * 0.08,
+                      alpha: Colors.white.a * 0.22,
                     ),
-                    blurRadius: 24,
-                    spreadRadius: 2,
+                    width: 1.2,
                   ),
-                ],
-              ),
-              child: Icon(
-                player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 34,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(
+                        alpha: accent.a * 0.35,
+                      ),
+                      blurRadius: 28,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  player.isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 34,
+                ),
               ),
             ),
           ),

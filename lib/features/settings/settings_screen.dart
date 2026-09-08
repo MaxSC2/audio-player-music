@@ -108,6 +108,15 @@ class SettingsScreen extends StatelessWidget {
                     'Долгое нажатие на мини-плеер — быстрый переключатель.',
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                   ),
+                  if (uiStyle.style == PlayerUIStyle.cinematic) ...[
+                    const SizedBox(height: 12),
+                    const _TileTitle(
+                      icon: Icons.movie_outlined,
+                      title: 'Тема Cinematic',
+                    ),
+                    const SizedBox(height: 8),
+                    _CinematicThemePicker(uiStyle: uiStyle),
+                  ],
                 ],
               ),
             ),
@@ -1301,6 +1310,84 @@ class _PalettePreview extends StatelessWidget {
         label,
         style: TextStyle(color: c, fontSize: 10, fontWeight: FontWeight.w700),
       ),
+    );
+  }
+}
+
+/// Пикер темы Cinematic: Auto (цвета обложки) + 5 фиксированных.
+class _CinematicThemePicker extends StatelessWidget {
+  final UiStyleController uiStyle;
+
+  const _CinematicThemePicker({required this.uiStyle});
+
+  @override
+  Widget build(BuildContext context) {
+    final current = uiStyle.cinematicTheme;
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: CinematicThemeMode.values.map((mode) {
+        final selected = current == mode;
+        final isAuto = mode == CinematicThemeMode.auto;
+        final colors = isAuto
+            ? const [Color(0xFFA855F7), Color(0xFF06B6D4)]
+            : cinematicThemeColors[mode]!;
+        return GestureDetector(
+          onTap: () => uiStyle.setCinematicTheme(mode),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: colors,
+                  ),
+                  border: Border.all(
+                    color: selected
+                        ? AppTheme.textPrimary
+                        : AppTheme.cardBorder,
+                    width: selected ? 2.5 : 1,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: colors[0].withValues(
+                              alpha: colors[0].a * 0.45,
+                            ),
+                            blurRadius: 12,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: isAuto
+                    ? const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                cinematicThemeNames[mode]!,
+                style: TextStyle(
+                  color: selected
+                      ? AppTheme.textPrimary
+                      : AppTheme.textMuted,
+                  fontSize: 11,
+                  fontWeight:
+                      selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }
