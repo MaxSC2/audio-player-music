@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../library/library_bottom_nav.dart';
 import '../../library/library_tabs.dart';
+import '../../mini_player/cinematic/cinematic_mini_player.dart';
 import '../../now_playing/cinematic/cinematic_player_body.dart';
+import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../../../widgets/queue_sheet.dart';
 
-/// Cinematic home: музыкальное пространство сверху, нижняя навигация,
-/// компактная библиотека снизу.
+/// Cinematic home: библиотека отдельным экраном, внизу мини-плеер,
+/// под ним пилюля-навигация. Плеер — отдельный full-экран.
 class CinematicHomeScreen extends StatefulWidget {
   const CinematicHomeScreen({super.key});
 
@@ -39,63 +41,39 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
     super.dispose();
   }
 
+  void _expand(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NowPlayingScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
-    final track = player.currentTrack;
-    final bottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       backgroundColor: CinematicTheme.bg,
-      body: CinematicAmbient(
-        trackId: track?.id,
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _TopBar(hasQueue: player.playlist.isNotEmpty),
-              Expanded(
-                flex: 6,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: CinematicPlayerBody(
-                    key: ValueKey('home-${track?.id}'),
-                  ),
-                ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _TopBar(hasQueue: player.playlist.isNotEmpty),
+            Expanded(
+              child: LibraryTabs(
+                controller: _tabs,
+                showTabBar: false,
               ),
-              LibraryBottomNav(
-                current: _tabs.index.clamp(0, 8),
-                accent: cinematicAccent(context, track?.id),
-                onSelect: (i) {
-                  if (_tabs.index != i) {
-                    setState(() => _tabs.index = i);
-                  }
-                },
-              ),
-              Expanded(
-                flex: 5,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xCC050507),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(24),
-                    ),
-                    border: Border(
-                      top: BorderSide(color: CinematicTheme.border),
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: bottom > 0 ? 0 : 8),
-                    child: LibraryTabs(
-                      controller: _tabs,
-                      showTabBar: false,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+            CinematicMiniPlayer(onExpand: () => _expand(context)),
+            LibraryBottomNav(
+              current: _tabs.index.clamp(0, 8),
+              accent: cinematicAccent(context, player.currentTrack?.id),
+              onSelect: (i) {
+                if (_tabs.index != i) {
+                  setState(() => _tabs.index = i);
+                }
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -149,8 +127,9 @@ class _TopBar extends StatelessWidget {
                 context: context,
                 backgroundColor: const Color(0xFF101014),
                 shape: const RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                 ),
                 builder: (_) => const QueueSheet(),
               );

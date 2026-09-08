@@ -341,7 +341,14 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
     _lastSyncedKey = index;
     final player = context.read<PlayerProvider>();
     // Предзагрузка соседних обложек — меньше вспышек при свайпе.
-    for (final n in [index - 2, index - 1, index + 1, index + 2]) {
+    for (final n in [
+      index - 3,
+      index - 2,
+      index - 1,
+      index + 1,
+      index + 2,
+      index + 3,
+    ]) {
       if (n >= 0 && n < widget.playlist.length) {
         ArtworkCache.load(widget.playlist[n].id);
       }

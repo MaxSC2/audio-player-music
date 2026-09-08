@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/audio_track.dart';
 import '../../providers/player_provider.dart';
+import '../../screens/artist_detail_screen.dart';
 import '../../screens/playlist_detail_screen.dart';
 import '../../ui/theme.dart';
 import '../../widgets/cached_artwork.dart';
+import '../../widgets/collection_cards.dart';
 import '../../widgets/swipe_reveal.dart';
 import '../../models/custom_playlist.dart';
 import '../../widgets/track_tile.dart';
@@ -479,11 +481,28 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
   }
 
+  int _playlistSort = 0; // 0 имя, 1 новые, 2 старые, 3 треков
+  static const _playlistSortNames = ['По имени', 'Сначала новые', 'Сначала старые', 'По трекам'];
+
   Widget _buildPlaylistList(PlayerProvider player) {
     final query = _searchQuery.toLowerCase();
     final playlists = player.playlists
         .where((p) => p.name.toLowerCase().contains(query))
         .toList();
+    switch (_playlistSort) {
+      case 1:
+        playlists.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case 2:
+        playlists.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      case 3:
+        playlists.sort(
+          (a, b) => b.trackIds.length.compareTo(a.trackIds.length),
+        );
+      default:
+        playlists.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+    }
 
     final items = <_PlaylistItem>[];
 
@@ -495,6 +514,9 @@ class _LibraryTabsState extends State<LibraryTabs>
           count: player.smartRecentlyAdded.length,
           icon: Icons.fiber_new_rounded,
           gradient: AppTheme.cyanGreenGradient,
+          artTrackId: player.smartRecentlyAdded.isNotEmpty
+              ? player.smartRecentlyAdded.first.id
+              : null,
           onPlay: () {
             final t = player.smartRecentlyAdded;
             if (t.isNotEmpty) player.playFromPlaylist(t, 0);
@@ -517,6 +539,9 @@ class _LibraryTabsState extends State<LibraryTabs>
           count: player.smartRecentlyPlayed.length,
           icon: Icons.history_toggle_off_rounded,
           gradient: AppTheme.primaryGradient,
+          artTrackId: player.smartRecentlyPlayed.isNotEmpty
+              ? player.smartRecentlyPlayed.first.id
+              : null,
           onPlay: () {
             final t = player.smartRecentlyPlayed;
             if (t.isNotEmpty) player.playFromPlaylist(t, 0);
@@ -539,6 +564,9 @@ class _LibraryTabsState extends State<LibraryTabs>
           count: player.smartMostPlayed.length,
           icon: Icons.auto_awesome_rounded,
           gradient: AppTheme.pinkPurpleGradient,
+          artTrackId: player.smartMostPlayed.isNotEmpty
+              ? player.smartMostPlayed.first.id
+              : null,
           onPlay: () {
             final t = player.smartMostPlayed;
             if (t.isNotEmpty) player.playFromPlaylist(t, 0);
@@ -553,121 +581,288 @@ class _LibraryTabsState extends State<LibraryTabs>
       );
     }
 
-    for (final p in playlists) {
+    for (final pl in playlists) {
+      final pts = player.tracksOfPlaylist(pl);
       items.add(
         _PlaylistItem(
-          id: p.id,
-          name: p.name,
-          count: p.trackIds.length,
+          id: pl.id,
+          name: pl.name,
+          count: pl.trackIds.length,
           icon: Icons.queue_music_rounded,
           gradient: AppTheme.cyanGreenGradient,
+          artTrackId: pts.isNotEmpty ? pts.first.id : null,
           onPlay: () {
-            final t = player.tracksOfPlaylist(p);
-            if (t.isNotEmpty) player.playFromPlaylist(t, 0);
+            if (pts.isNotEmpty) player.playFromPlaylist(pts, 0);
           },
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => PlaylistDetailScreen(playlistId: p.id),
+              builder: (_) => PlaylistDetailScreen(playlistId: pl.id),
             ),
           ),
           isCustom: true,
-          custom: p,
+          custom: pl,
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 6, bottom: 16),
-      itemCount: items.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _buildCreatePlaylistTile();
-        }
-        final item = items[index - 1];
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.cardBorder),
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: _buildPlaylistHeader()),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
+          sliver: SliverGrid(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildPlaylistCard(player, items[index]),
+              childCount: items.length,
+            ),
+            gridDelegate:
+                const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 220,
+                  childAspectRatio: 0.86,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
           ),
-          child: ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: item.gradient,
-              ),
-              child: Icon(item.icon, color: Colors.white, size: 22),
-            ),
-            title: Text(
-              item.name,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${item.count} ${_pluralTracks(item.count)}',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-            ),
-            trailing: IconButton(
-              icon: Icon(
-                Icons.play_circle_fill_rounded,
-                color: AppTheme.accent,
-              ),
-              onPressed: item.onPlay,
-              tooltip: 'Слушать',
-            ),
-            onTap: item.onTap,
-          ),
-        );
-      },
+        ),
+      ],
     );
   }
 
-  Widget _buildCreatePlaylistTile() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.08)),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.4)),
-        ),
+  Widget _buildPlaylistHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Плейлисты',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Ваши музыкальные коллекции',
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accent.withValues(
+                    alpha: AppTheme.accent.a * 0.4,
+                  ),
+                  blurRadius: 12,
+                ),
+              ],
+            ),
+            child: IconButton(
+              onPressed: _createPlaylistDialog,
+              icon: const Icon(Icons.add_rounded, color: Colors.white),
+              tooltip: 'Создать плейлист',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceLight,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: PopupMenuButton<int>(
+              icon: Icon(
+                Icons.sort_rounded,
+                color: AppTheme.textSecondary,
+                size: 20,
+              ),
+              tooltip: 'Сортировка',
+              color: AppTheme.surfaceLight,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: AppTheme.cardBorder),
+              ),
+              onSelected: (v) => setState(() => _playlistSort = v),
+              itemBuilder: (context) => [
+                for (var i = 0; i < _playlistSortNames.length; i++)
+                  PopupMenuItem(
+                    value: i,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _playlistSort == i
+                              ? Icons.check_circle_rounded
+                              : Icons.circle_outlined,
+                          color: _playlistSort == i
+                              ? AppTheme.accent
+                              : AppTheme.textMuted,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(_playlistSortNames[i]),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: AppTheme.primaryGradient,
+    );
+  }
+
+  Widget _buildPlaylistCard(PlayerProvider player, _PlaylistItem item) {
+    return GestureDetector(
+      onTap: item.onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: Colors.black.a * 0.3,
+              ),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (item.artTrackId != null)
+                CachedArtwork(
+                  trackId: item.artTrackId!,
+                  width: 220,
+                  height: 256,
+                  radius: 0,
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(gradient: item.gradient),
+                  child: Center(
+                    child: Icon(
+                      item.icon,
+                      color: Colors.white.withValues(
+                        alpha: Colors.white.a * 0.85,
+                      ),
+                      size: 48,
+                    ),
+                  ),
+                ),
+              // Затемнение снизу для читаемости.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x00000000),
+                      Color(0xCC000000),
+                    ],
+                    stops: [0.45, 1.0],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 10,
+                right: 10,
+                bottom: 8,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: item.gradient,
+                        border: Border.all(
+                          color: Colors.white.withValues(
+                            alpha: Colors.white.a * 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Icon(
+                        item.icon,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            item.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            '${item.count} ${_pluralTracks(item.count)}',
+                            style: TextStyle(
+                              color: Colors.white.withValues(
+                                alpha: Colors.white.a * 0.7,
+                              ),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: item.onPlay,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(
+                            alpha: Colors.white.a * 0.18,
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(
+                              alpha: Colors.white.a * 0.45,
+                            ),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
         ),
-        title: Text(
-          'Создать плейлист',
-          style: TextStyle(
-            color: AppTheme.accentLight,
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
-          ),
-        ),
-        subtitle: Text(
-          'Соберите свою подборку',
-          style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-        ),
-        onTap: () => _createPlaylistDialog(),
       ),
     );
   }
@@ -762,49 +957,28 @@ class _LibraryTabsState extends State<LibraryTabs>
         final tracks = player.allTracks
             .where((t) => t.artist == artist)
             .toList();
+        final albumCount = tracks
+            .map((t) => t.album ?? '')
+            .where((a) => a.isNotEmpty)
+            .toSet()
+            .length;
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.cardBorder),
-          ),
-          child: ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppTheme.primaryGradient,
+        return ArtistRow(
+          artist: artist,
+          tracks: tracks,
+          albumCount: albumCount,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ArtistDetailScreen(artist: artist),
               ),
-              child: const Icon(
-                Icons.person_rounded,
-                color: Colors.white,
-                size: 26,
-              ),
-            ),
-            title: Text(
-              artist,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${tracks.length} треков',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-            ),
-            onTap: () {
+            );
+          },
+          onPlay: () {
+            if (tracks.isNotEmpty) {
               player.playFromPlaylist(tracks, 0);
-            },
-          ),
+            }
+          },
         );
       },
     );
@@ -888,6 +1062,9 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
   }
 
+  int _albumFilter = 0; // 0 все, 1 недавние, 2 популярные, 3 A-Z
+  static const _albumFilterNames = ['Все', 'Недавние', 'Популярные', 'A–Z'];
+
   Widget _buildAlbumList(PlayerProvider player) {
     final query = _searchQuery.toLowerCase();
     final albums = player.albums
@@ -898,84 +1075,164 @@ class _LibraryTabsState extends State<LibraryTabs>
       return _buildEmptyState('Альбомы не найдены', Icons.album_outlined);
     }
 
-    if (_albumGridView) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          const pad = 14.0;
-          const spacing = 12.0;
-          final cellW = (constraints.maxWidth - pad * 2 - spacing) / 2;
-          return GridView.builder(
-            padding: const EdgeInsets.all(pad),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.74,
-              crossAxisSpacing: spacing,
-              mainAxisSpacing: spacing,
-            ),
-            itemCount: albums.length,
-            itemBuilder: (context, index) {
-              final album = albums[index];
-              final tracks = player.allTracks
-                  .where((t) => t.album == album)
-                  .toList();
-              return _buildAlbumCard(player, album, tracks, cellW);
-            },
-          );
-        },
-      );
+    final entries = <({String album, List<AudioTrack> tracks})>[
+      for (final a in albums)
+        (
+          album: a,
+          tracks: player.allTracks.where((t) => t.album == a).toList(),
+        ),
+    ];
+    final counts = player.playCounts;
+    switch (_albumFilter) {
+      case 1:
+        entries.sort((a, b) {
+          final da = a.tracks
+              .map((t) => t.dateAdded ?? 0)
+              .fold<int>(0, (p, e) => e > p ? e : p);
+          final db = b.tracks
+              .map((t) => t.dateAdded ?? 0)
+              .fold<int>(0, (p, e) => e > p ? e : p);
+          return db.compareTo(da);
+        });
+      case 2:
+        int plays(List<AudioTrack> ts) =>
+            ts.fold<int>(0, (p, t) => p + (counts[t.id] ?? 0));
+        entries.sort((a, b) => plays(b.tracks).compareTo(plays(a.tracks)));
+      case 3:
+        entries.sort(
+          (a, b) => a.album.toLowerCase().compareTo(b.album.toLowerCase()),
+        );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 6, bottom: 16),
-      itemCount: albums.length,
-      itemBuilder: (context, index) {
-        final album = albums[index];
-        final tracks = player.allTracks.where((t) => t.album == album).toList();
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.cardBorder),
-          ),
-          child: ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: AppTheme.pinkPurpleGradient,
-                borderRadius: const BorderRadius.all(Radius.circular(10)),
-              ),
-              child: const Icon(
-                Icons.album_rounded,
-                color: Colors.white,
-                size: 26,
-              ),
-            ),
-            title: Text(
-              album,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${tracks.length} треков',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-            ),
-            onTap: () {
-              player.playFromPlaylist(tracks, 0);
+    return Column(
+      children: [
+        SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemCount: _albumFilterNames.length,
+            itemBuilder: (context, i) {
+              final selected = _albumFilter == i;
+              return ChoiceChip(
+                label: Text(_albumFilterNames[i]),
+                selected: selected,
+                onSelected: (_) => setState(() => _albumFilter = i),
+                selectedColor: AppTheme.accent.withValues(
+                  alpha: AppTheme.accent.a * 0.2,
+                ),
+                backgroundColor: AppTheme.surfaceLight,
+                labelStyle: TextStyle(
+                  color: selected
+                      ? AppTheme.accentLight
+                      : AppTheme.textSecondary,
+                  fontWeight:
+                      selected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 12,
+                ),
+                side: BorderSide(
+                  color: selected ? AppTheme.accent : Colors.transparent,
+                ),
+              );
             },
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: _albumGridView
+              ? GridView.builder(
+                  padding: const EdgeInsets.all(14),
+                  gridDelegate:
+                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 220,
+                        childAspectRatio: 0.72,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final e = entries[index];
+                    return _buildAlbumCard(player, e.album, e.tracks);
+                  },
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 2, bottom: 16),
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final e = entries[index];
+                    final artist = e.tracks.isNotEmpty
+                        ? e.tracks.first.artist
+                        : '';
+                    return Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.card,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.cardBorder),
+                      ),
+                      child: ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        leading: e.tracks.isNotEmpty
+                            ? CachedArtwork(
+                                trackId: e.tracks.first.id,
+                                width: 44,
+                                height: 44,
+                                radius: 10,
+                              )
+                            : Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  gradient: AppTheme.pinkPurpleGradient,
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(10),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.album_rounded,
+                                  color: Colors.white,
+                                  size: 26,
+                                ),
+                              ),
+                        title: Text(
+                          e.album,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          artist.isEmpty
+                              ? '${e.tracks.length} треков'
+                              : '$artist • ${e.tracks.length} треков',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: AlbumMenu(
+                          tracks: e.tracks,
+                          iconColor: AppTheme.textSecondary,
+                        ),
+                        onTap: () {
+                          player.playFromPlaylist(e.tracks, 0);
+                        },
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -983,39 +1240,8 @@ class _LibraryTabsState extends State<LibraryTabs>
     PlayerProvider player,
     String album,
     List<AudioTrack> tracks,
-    double cellW,
   ) {
-    return InkWell(
-      onTap: () => player.playFromPlaylist(tracks, 0),
-      borderRadius: BorderRadius.circular(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CachedArtwork(
-            trackId: tracks.first.id,
-            width: cellW,
-            height: cellW,
-            radius: 18,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            album,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${tracks.length} треков',
-            style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
-          ),
-        ],
-      ),
-    );
+    return AlbumCard(player: player, album: album, tracks: tracks);
   }
 
   Widget _buildFavoriteList(PlayerProvider player) {
@@ -1836,6 +2062,9 @@ class _PlaylistItem {
   final int count;
   final IconData icon;
   final LinearGradient gradient;
+
+  /// id трека для обложки карточки (первый трек), null — градиент+иконка.
+  final int? artTrackId;
   final VoidCallback onPlay;
   final VoidCallback onTap;
   final bool isCustom;
@@ -1849,6 +2078,7 @@ class _PlaylistItem {
     required this.gradient,
     required this.onPlay,
     required this.onTap,
+    this.artTrackId,
     this.isCustom = false,
     this.custom,
   });

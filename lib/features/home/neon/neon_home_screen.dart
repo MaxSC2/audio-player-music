@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../providers/player_provider.dart';
+import '../../collection/neon_collection_screen.dart';
 import '../../library/library_bottom_nav.dart';
 import '../../library/library_tabs.dart';
 import '../../mini_player/cinematic/cinematic_mini_player.dart';
@@ -17,8 +18,8 @@ String _pluralTracks(int n) {
   return 'треков';
 }
 
-/// Neon home: библиотека отдельным экраном + пилюля-навигация +
-/// persistent мини-плеер. Плеер — на отдельном full-экране.
+/// Neon home: библиотека отдельным экраном, внизу мини-плеер,
+/// под ним пилюля-навигация. Порядок как в референсе 02.
 class NeonHomeScreen extends StatefulWidget {
   const NeonHomeScreen({super.key});
 
@@ -58,12 +59,10 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
     final count = player.visibleTracks.length;
-    final bottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       backgroundColor: CinematicTheme.bg,
       body: SafeArea(
-        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -71,16 +70,47 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
               padding: const EdgeInsets.fromLTRB(20, 10, 12, 0),
               child: Row(
                 children: [
-                  const Text(
-                    'NEONWAVE',
-                    style: TextStyle(
-                      color: CinematicTheme.text,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2.0,
+                  ShaderMask(
+                    shaderCallback: (bounds) =>
+                        const LinearGradient(
+                          colors: [
+                            Color(0xFFA855F7),
+                            Color(0xFF38BDF8),
+                          ],
+                        ).createShader(
+                          Rect.fromLTWH(
+                            0,
+                            0,
+                            bounds.width,
+                            bounds.height,
+                          ),
+                        ),
+                    child: const Text(
+                      'NEONWAVE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2.0,
+                      ),
                     ),
                   ),
                   const Spacer(),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NeonCollectionScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.grid_view_rounded,
+                      color: CinematicTheme.textSoft,
+                      size: 22,
+                    ),
+                    tooltip: 'Коллекция',
+                  ),
                   IconButton(
                     onPressed: () {
                       Navigator.of(context).push(
@@ -115,6 +145,7 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
                 showTabBar: false,
               ),
             ),
+            CinematicMiniPlayer(onExpand: () => _expand(context)),
             LibraryBottomNav(
               current: _tabs.index.clamp(0, 8),
               accent: cinematicAccent(context, player.currentTrack?.id),
@@ -123,12 +154,6 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
                   setState(() => _tabs.index = i);
                 }
               },
-            ),
-            Padding(
-              padding: EdgeInsets.only(bottom: bottom > 0 ? 4 : 10),
-              child: CinematicMiniPlayer(
-                onExpand: () => _expand(context),
-              ),
             ),
           ],
         ),

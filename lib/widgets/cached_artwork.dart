@@ -5,10 +5,22 @@ import 'package:on_audio_query_pluse/on_audio_query.dart';
 import '../ui/theme.dart';
 
 class ArtworkCache {
-  static const int _maxEntries = 100;
+  static const int _maxEntries = 200;
   static final LinkedHashMap<int, Uint8List?> _cache = LinkedHashMap();
   static final Map<int, Future<Uint8List?>> _pending = {};
   static final OnAudioQuery _query = OnAudioQuery();
+
+  /// Есть ли запись в кеше (включая закэшированное отсутствие арта).
+  static bool has(int trackId) => _cache.containsKey(trackId);
+
+  /// Синхронное чтение с LRU-поднятием. null = нет записи ИЛИ арта нет
+  /// (различать через has()).
+  static Uint8List? getSync(int trackId) {
+    if (!_cache.containsKey(trackId)) return null;
+    final bytes = _cache.remove(trackId);
+    _cache[trackId] = bytes;
+    return bytes;
+  }
 
   static Future<Uint8List?> load(int trackId, {int size = 400}) {
     if (_cache.containsKey(trackId)) {
@@ -64,16 +76,27 @@ class _CachedArtworkState extends State<CachedArtwork> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // Мгновенный хит из кеша — карточка никогда не стартует с плейсхолдера,
+    // если арт уже грузили (ключевое для карусели при быстром скролле).
+    _bytes = ArtworkCache.getSync(widget.trackId);
+    if (_bytes == null && !ArtworkCache.has(widget.trackId)) {
+      _load();
+    }
   }
 
   @override
   void didUpdateWidget(covariant CachedArtwork oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.trackId != widget.trackId) {
-      // Stale-while-revalidate: старый арт висит до загрузки нового,
-      // чтобы при прокрутке не мигал встроенный плейсхолдер.
-      _load();
+      if (ArtworkCache.has(widget.trackId)) {
+        // Хит — мгновенная подмена без вспышки (setState не нужен,
+        // build и так идёт следом за didUpdateWidget).
+        _bytes = ArtworkCache.getSync(widget.trackId);
+      } else {
+        // Stale-while-revalidate: старый арт висит до загрузки нового,
+        // чтобы при прокрутке не мигал встроенный плейсхолдер.
+        _load();
+      }
     }
   }
 

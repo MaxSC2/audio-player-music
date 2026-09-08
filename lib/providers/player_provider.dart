@@ -1155,10 +1155,28 @@ class PlayerProvider extends ChangeNotifier {
       _historyRaw.removeRange(300, _historyRaw.length);
     }
     _prefs?.setString('history', jsonEncode(_historyRaw));
+    _playCountsCache = null;
+  }
+
+  Map<int, int>? _playCountsCache;
+
+  /// id трека -> число воспроизведений (кешируется, сбрасывается записью истории).
+  Map<int, int> get playCounts {
+    final cached = _playCountsCache;
+    if (cached != null) return cached;
+    final map = <int, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      map[id] = (map[id] ?? 0) + 1;
+    }
+    _playCountsCache = map;
+    return map;
   }
 
   Future<void> clearHistory() async {
     _historyRaw = [];
+    _playCountsCache = null;
     await _prefs?.remove('history');
     notifyListeners();
   }
