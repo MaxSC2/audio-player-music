@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/player_feature_row.dart';
 import 'cinematic_player_body.dart';
+import '../../../core/debug_log.dart';
 
 /// Полноэкранный cinematic-плеер: то же пространство + все функции.
 class CinematicNowPlayingScreen extends StatelessWidget {
@@ -11,6 +12,7 @@ class CinematicNowPlayingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('CinematicNowPlaying');
     final track = context.watch<PlayerProvider>().currentTrack;
     final bottom = MediaQuery.paddingOf(context).bottom;
 

@@ -9,6 +9,7 @@ import '../../mini_player/cinematic/cinematic_mini_player.dart';
 import '../../now_playing/cinematic/cinematic_player_body.dart';
 import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
+import '../../../core/debug_log.dart';
 
 String _pluralTracks(int n) {
   final m10 = n % 10;
@@ -57,6 +58,7 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('NeonHome');
     final player = context.watch<PlayerProvider>();
     final count = player.visibleTracks.length;
 

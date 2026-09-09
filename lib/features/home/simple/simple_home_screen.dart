@@ -8,12 +8,14 @@ import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../../library/library_tabs.dart';
 import '../../library/personal_dj_sheet.dart';
+import '../../../core/debug_log.dart';
 
 class SimpleHomeScreen extends StatelessWidget {
   const SimpleHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('SimpleHome');
     final player = context.watch<PlayerProvider>();
 
     return Scaffold(

@@ -4,6 +4,7 @@ import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/animated_waveform.dart';
 import '../../../widgets/cached_artwork.dart';
+import '../../../core/debug_log.dart';
 
 class SimpleMiniPlayer extends StatelessWidget {
   final VoidCallback onExpand;
@@ -12,6 +13,7 @@ class SimpleMiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('SimpleMini');
     final player = context.watch<PlayerProvider>();
     final track = player.currentTrack;
 

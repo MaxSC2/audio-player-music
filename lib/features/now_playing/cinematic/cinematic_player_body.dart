@@ -12,6 +12,7 @@ import '../../../widgets/cached_artwork.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/queue_sheet.dart';
+import '../../../core/debug_log.dart';
 
 /// Текущий акцент cinematic: тема (Auto/фикс) + кеш палитры обложки.
 Color cinematicAccent(BuildContext context, int? trackId) {
@@ -58,6 +59,7 @@ class CinematicPlayerBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
+    DebugLog.rebuild('CinematicBody');
     final track = player.currentTrack;
     final playlist = player.playlist;
 

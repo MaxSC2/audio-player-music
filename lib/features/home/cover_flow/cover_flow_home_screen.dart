@@ -12,6 +12,7 @@ import '../../library/library_tabs.dart';
 import '../../library/personal_dj_sheet.dart';
 import 'cover_flow_player_sheet.dart';
 import '../../settings/settings_screen.dart';
+import '../../../core/debug_log.dart';
 
 class CoverFlowHomeScreen extends StatefulWidget {
   const CoverFlowHomeScreen({super.key});
@@ -124,6 +125,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('CoverFlowHome');
     final player = context.watch<PlayerProvider>();
     final track = player.currentTrack;
 

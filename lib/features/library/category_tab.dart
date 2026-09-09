@@ -4,6 +4,7 @@ import '../../models/audio_track.dart';
 import '../../providers/player_provider.dart';
 import '../../ui/theme.dart';
 import '../../widgets/track_tile.dart';
+import '../../core/debug_log.dart';
 
 class CategoryTab extends StatefulWidget {
   const CategoryTab({super.key});
@@ -81,6 +82,7 @@ class _CategoryTabState extends State<CategoryTab> {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('CategoryTab');
     final player = context.watch<PlayerProvider>();
     final tracks = player.tracksForCategory(_selected);
     final genreCounts = player.genreCounts();

@@ -5,6 +5,7 @@ import '../../../providers/player_provider.dart';
 import '../../../widgets/cached_artwork.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../now_playing/cinematic/cinematic_player_body.dart';
+import '../../../core/debug_log.dart';
 
 /// Компактный cinematic-мини: арт, название, play/pause, тонкий прогресс.
 class CinematicMiniPlayer extends StatelessWidget {
@@ -14,6 +15,7 @@ class CinematicMiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('CinematicMini');
     final player = context.watch<PlayerProvider>();
     final track = player.currentTrack;
     if (track == null) return const SizedBox.shrink();

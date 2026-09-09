@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/player_feature_row.dart';
 import '../cinematic/cinematic_player_body.dart';
+import '../../../core/debug_log.dart';
 
 /// Neon now playing: отдельное музыкальное пространство —
 /// неоновая кромка, кольца сцены, ряд из 5 кнопок, все функции.
@@ -12,6 +13,7 @@ class NeonNowPlayingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('NeonNowPlaying');
     final track = context.watch<PlayerProvider>().currentTrack;
     final bottom = MediaQuery.paddingOf(context).bottom;
 

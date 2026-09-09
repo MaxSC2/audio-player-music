@@ -9,6 +9,7 @@ import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/three_d_background.dart';
+import '../../../core/debug_log.dart';
 
 class CoverFlowNowPlayingScreen extends StatefulWidget {
   const CoverFlowNowPlayingScreen({super.key});
@@ -54,6 +55,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('CoverFlowNowPlaying');
     final player = context.watch<PlayerProvider>();
     final playlist = player.playlist;
     final track = player.currentTrack;

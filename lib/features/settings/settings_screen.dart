@@ -9,6 +9,7 @@ import '../../state/palette_controller.dart';
 import '../../ui/theme.dart';
 import '../../widgets/color_picker_dialog.dart';
 import '../../widgets/equalizer_dialog.dart';
+import '../../core/debug_log.dart';
 import '../../core/ui_style.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -580,6 +581,149 @@ class SettingsScreen extends StatelessWidget {
                       height: 1.5,
                     ),
                   ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Ребилды виджетов (всего):',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: DebugLog.resetRebuilds,
+                        icon: const Icon(Icons.refresh_rounded, size: 14),
+                        label: const Text(
+                          'Сброс',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.accent,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ValueListenableBuilder<int>(
+                  valueListenable: DebugLog.version,
+                  builder: (_, __, ___) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      DebugLog.rebuildsReport,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Лог ошибок:',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () {
+                          final text = DebugLog.entries.join('\n');
+                          if (text.isEmpty) return;
+                          Clipboard.setData(ClipboardData(text: text));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Лог скопирован'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 14),
+                        label: const Text(
+                          'Копировать',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.accent,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: DebugLog.clear,
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 14,
+                        ),
+                        label: const Text(
+                          'Очистить',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.textMuted,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ValueListenableBuilder<int>(
+                  valueListenable: DebugLog.version,
+                  builder: (_, __, ___) {
+                    final entries = DebugLog.entries.take(30).toList();
+                    if (entries.isEmpty) {
+                      return Padding(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Ошибок не зафиксировано',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: entries
+                          .map(
+                            (line) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 1,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  line,
+                                  style: TextStyle(
+                                    color: line.startsWith('  ↳')
+                                        ? AppTheme.textMuted
+                                        : AppTheme.accentPink,
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 _DebugSwitch(

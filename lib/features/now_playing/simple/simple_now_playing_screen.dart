@@ -8,6 +8,7 @@ import '../../../widgets/marquee_text.dart';
 import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/queue_sheet.dart';
 import '../../../widgets/spinning_vinyl.dart';
+import '../../../core/debug_log.dart';
 
 class SimpleNowPlayingScreen extends StatefulWidget {
   const SimpleNowPlayingScreen({super.key});
@@ -19,6 +20,7 @@ class SimpleNowPlayingScreen extends StatefulWidget {
 class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('SimpleNowPlaying');
     final player = context.watch<PlayerProvider>();
     final track = player.currentTrack;
 

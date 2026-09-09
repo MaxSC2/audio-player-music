@@ -12,6 +12,7 @@ import '../../models/custom_playlist.dart';
 import '../../widgets/track_tile.dart';
 import 'category_tab.dart';
 import 'music_dna_tab.dart';
+import '../../core/debug_log.dart';
 
 /// Shared library content: search, 6 tabs (tracks, playlists, albums,
 /// artists, folders, favorites), sort, grid toggle, multi-select.
@@ -82,6 +83,7 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('LibraryTabs');
     final player = context.watch<PlayerProvider>();
 
     return Column(

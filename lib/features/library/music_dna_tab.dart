@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/player_provider.dart';
 import '../../ui/theme.dart';
+import '../../core/debug_log.dart';
 
 class MusicDnaTab extends StatelessWidget {
   const MusicDnaTab({super.key});
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('MusicDnaTab');
     final player = context.watch<PlayerProvider>();
 
     if (player.totalPlays == 0) {

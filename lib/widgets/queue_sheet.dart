@@ -5,12 +5,14 @@ import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'animated_waveform.dart';
 import 'numpad_sheet.dart';
+import '../core/debug_log.dart';
 
 class QueueSheet extends StatelessWidget {
   const QueueSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('QueueSheet');
     final player = context.watch<PlayerProvider>();
     final queue = player.playlist;
     final currentIndex = player.currentIndex;

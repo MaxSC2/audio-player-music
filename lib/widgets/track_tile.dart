@@ -7,6 +7,7 @@ import 'animated_waveform.dart';
 import 'cached_artwork.dart';
 import 'playlist_picker_sheet.dart';
 import 'track_info_dialog.dart';
+import '../core/debug_log.dart';
 
 class TrackTile extends StatelessWidget {
   final AudioTrack track;
@@ -30,6 +31,7 @@ class TrackTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('TrackTile');
     final player = context.read<PlayerProvider>();
 
     final tile = Container(

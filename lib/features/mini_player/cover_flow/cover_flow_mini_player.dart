@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/cached_artwork.dart';
+import '../../../core/debug_log.dart';
 
 class CoverFlowMiniPlayer extends StatelessWidget {
   final VoidCallback onExpand;
@@ -11,6 +12,7 @@ class CoverFlowMiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('CoverFlowMini');
     final player = context.watch<PlayerProvider>();
     final track = player.currentTrack;
 

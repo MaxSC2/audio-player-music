@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'core/debug_log.dart';
 import 'core/ui_style.dart';
 import 'features/home/home_screen.dart';
 import 'providers/player_provider.dart';
@@ -14,6 +16,24 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Мега-логер: ловим ВСЕ ошибки (Flutter, async, platform).
+  final prevFlutterError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    DebugLog.log(
+      'FlutterError: ${details.exception}',
+      details.exception,
+      details.stack,
+    );
+    if (prevFlutterError != null) {
+      prevFlutterError(details);
+    } else {
+      FlutterError.presentError(details);
+    }
+  };
+  ui.PlatformDispatcher.instance.onError = (error, stack) {
+    DebugLog.log('AsyncError: $error', error, stack);
+    return true;
+  };
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

@@ -9,6 +9,7 @@ import '../../now_playing/cinematic/cinematic_player_body.dart';
 import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../../../widgets/queue_sheet.dart';
+import '../../../core/debug_log.dart';
 
 /// Cinematic home: библиотека отдельным экраном, внизу мини-плеер,
 /// под ним пилюля-навигация. Плеер — отдельный full-экран.
@@ -49,6 +50,7 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    DebugLog.rebuild('CinematicHome');
     final player = context.watch<PlayerProvider>();
 
     return Scaffold(
