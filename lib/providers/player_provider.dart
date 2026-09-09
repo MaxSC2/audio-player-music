@@ -2616,6 +2616,36 @@ class PlayerProvider extends ChangeNotifier {
     _notify('loadTracks');
     await _maybeResume();
     await _prepareInitialPlaylist();
+    // Прогрев тяжёлых агрегатов в простое: иначе первый заход на вкладки
+    // DNA/Категории/Плейлисты даёт синхронный фриз 0.3–1.5с прямо в build.
+    unawaited(_precomputeAggregates());
+  }
+
+  /// Фоновая предвыборка агрегатов после загрузки библиотеки.
+  /// Идёт один раз на стабильном списке; кеши делают повтор дешёвым.
+  Future<void> _precomputeAggregates() async {
+    try {
+      await Future.delayed(const Duration(seconds: 4));
+      final stamp = _allTracks.length;
+      topTracks();
+      if (_allTracks.length != stamp) return;
+      await Future.delayed(const Duration(milliseconds: 300));
+      topArtists();
+      if (_allTracks.length != stamp) return;
+      await Future.delayed(const Duration(milliseconds: 300));
+      genreCounts();
+      if (_allTracks.length != stamp) return;
+      await Future.delayed(const Duration(milliseconds: 300));
+      for (final c in ListeningContext.values) {
+        tracksForCategory(c);
+        if (_allTracks.length != stamp) return;
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+      // Обращение через .length форсирует вычисление геттеров.
+      smartRecentlyAdded.length;
+      favoriteTracks.length;
+      historyEntries.length;
+    } catch (_) {}
   }
 
   Future<void> _prepareInitialPlaylist() async {
