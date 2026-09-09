@@ -726,6 +726,112 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Автозапись сессии:',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () {
+                          final text = DebugLog.sessionText;
+                          if (text.isEmpty) return;
+                          Clipboard.setData(ClipboardData(text: text));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Сессия скопирована'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 14),
+                        label: const Text(
+                          'Копировать',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.accent,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: DebugLog.clearSession,
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 14,
+                        ),
+                        label: const Text(
+                          'Очистить',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.textMuted,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ValueListenableBuilder<int>(
+                  valueListenable: DebugLog.version,
+                  builder: (_, __, ___) {
+                    final lines =
+                        DebugLog.session.reversed.take(12).toList();
+                    return SwitchListTile(
+                      secondary:
+                          const _TileIcon(Icons.fiber_smart_record_rounded),
+                      title: Text(
+                        DebugLog.recording
+                            ? 'Запись идёт (${lines.length} строк)'
+                            : 'Запись сессии замеров',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Раз в секунду: UI/растр avg+max, notify/s, топы',
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (lines.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            ...lines.map(
+                              (line) => Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Text(
+                                  line,
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      value: DebugLog.recording,
+                      activeThumbColor: AppTheme.accentPink,
+                      onChanged: DebugLog.setRecording,
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
                 _DebugSwitch(
                   icon: Icons.notifications_off_rounded,
                   title: 'Выключить нотификации провайдера',

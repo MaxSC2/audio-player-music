@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/debug_log.dart';
 import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../models/queue_snapshot.dart';
@@ -540,7 +541,9 @@ class PlayerProvider extends ChangeNotifier {
   void _notify([String source = 'other']) {
     _notifySources[source] = (_notifySources[source] ?? 0) + 1;
     if (debugNoNotify) return;
-    _notify('_notify');
+    // ВАЖНО: здесь именно notifyListeners() (оверрайд со счётчиком),
+    // а не _notify — иначе бесконечная рекурсия.
+    notifyListeners();
   }
 
   @override
@@ -553,6 +556,9 @@ class PlayerProvider extends ChangeNotifier {
       notifyPerSecond = (_notifyCount * 1000 / elapsed).round();
       _notifyCount = 0;
       _notifyWindowStart = now;
+      // Для автозаписи сессии в мега-логер.
+      DebugLog.externalNotifyRate = notifyPerSecond;
+      DebugLog.externalNotifySources = Map.of(_notifySources);
     }
   }
 
