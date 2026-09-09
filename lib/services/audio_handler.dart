@@ -109,6 +109,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   };
 
   void setShuffleState(bool on) {
+    if (_shuffleOn == on) return;
     _shuffleOn = on;
     final state = _state.copyWith(
       controls: _buildControls(_state.playing),
@@ -123,6 +124,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void setFavoriteState(bool on) {
+    if (_favoriteOn == on) return;
     _favoriteOn = on;
     final state = _state.copyWith(controls: _buildControls(_state.playing));
     _log('FAVORITE=$on controls=[${_controlsSummary(state.controls)}]');
@@ -130,6 +132,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void setRepeatState(int mode) {
+    if (_repeat == mode) return;
     _repeat = mode;
     final state = _state.copyWith(
       controls: _buildControls(_state.playing),
