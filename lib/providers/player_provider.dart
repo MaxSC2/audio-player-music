@@ -428,6 +428,47 @@ class PlayerProvider extends ChangeNotifier {
   bool _notifCustomActions = true;
   bool _switchingSource = false;
 
+  // ── Treadmill ──
+  // В нативном плеере держим окно ±40 вокруг текущего трека, а не все
+  // тысячи: маршалинг полного списка и ExoPlayer вешают UI-поток
+  // (см. just_audio #294). Полный список живёт в _playlist для UI/логики.
+  static const int _windowRadius = 40;
+  int _nativeOffset = 0; // provider-индекс трека, лежащего в native[0]
+  int _nativeLength = 0;
+
+  int toProviderIndex(int nativeIndex) => nativeIndex + _nativeOffset;
+
+  /// Строит нативное окно вокруг provider-индекса. Без гарда —
+  /// вызывать только под гардом _switchingSource.
+  Future<void> _buildNativeSlice(int centerProvider, {bool force = false}) async {
+    final len = _playlist.length;
+    if (len == 0) {
+      _nativeOffset = 0;
+      _nativeLength = 0;
+      return;
+    }
+    final center = centerProvider.clamp(0, len - 1);
+    const span = _windowRadius * 2 + 1;
+    var start = center - _windowRadius;
+    if (start < 0) start = 0;
+    var end = start + span;
+    if (end > len) {
+      end = len;
+      start = math.max(0, end - span);
+    }
+    if (!force && start == _nativeOffset && (end - start) == _nativeLength) {
+      return; // покрытие то же — пересборка не нужна, без гэпа
+    }
+    final slice = _playlist.sublist(start, end);
+    // Окно маленькое — грузим целиком и упорядоченно (никаких гонок seek/play).
+    await _audioPlayer.setAudioSources(
+      slice.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
+      preload: true,
+    );
+    _nativeOffset = start;
+    _nativeLength = end - start;
+  }
+
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -447,6 +488,23 @@ class PlayerProvider extends ChangeNotifier {
   bool _resumePlayback = false;
   DateTime _lastPersist = DateTime.fromMillisecondsSinceEpoch(0);
   int _lastPositionSecond = -1;
+
+  int _notifyCount = 0;
+  DateTime _notifyWindowStart = DateTime.now();
+  int notifyPerSecond = 0;
+
+  @override
+  void notifyListeners() {
+    super.notifyListeners();
+    _notifyCount++;
+    final now = DateTime.now();
+    final elapsed = now.difference(_notifyWindowStart).inMilliseconds;
+    if (elapsed >= 1000) {
+      notifyPerSecond = (_notifyCount * 1000 / elapsed).round();
+      _notifyCount = 0;
+      _notifyWindowStart = now;
+    }
+  }
 
   /// Тики позиции для прогресс-виджетов (ValueListenableBuilder).
   /// Обновляется на каждый тик плеера без notifyListeners.
@@ -672,15 +730,19 @@ class PlayerProvider extends ChangeNotifier {
 
   /// Общий обработчик смены индекса плеера: repeat-one, история,
   /// избранное в уведомлении, нотификация UI и виджетов.
-  void _handleIndexEvent(int? idx) {
-    if (idx == null) return;
+  void _handleIndexEvent(int? nativeIdx) {
+    if (nativeIdx == null) return;
+    final idx = nativeIdx + _nativeOffset;
     // Repeat-one: just_audio листает очередь нативно, минуя next().
     // Ловим незапланированный автопереход и возвращаем трек в начало.
     if (idx != _lastEventIndex &&
         _repeatMode == PlayerRepeatMode.one &&
         _lastEventIndex >= 0 &&
         _lastEventIndex < _playlist.length) {
-      _audioPlayer.seek(Duration.zero, index: _lastEventIndex);
+      final int back = _lastEventIndex - _nativeOffset;
+      if (back >= 0 && back < _nativeLength) {
+        _audioPlayer.seek(Duration.zero, index: back);
+      }
       return;
     }
     final indexChanged = idx != _lastEventIndex;
@@ -1032,12 +1094,13 @@ class PlayerProvider extends ChangeNotifier {
     _playlist = tracks;
     _switchingSource = true;
     try {
-      await _audioPlayer.setAudioSources(
-        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-      );
+      await _buildNativeSlice(index, force: true);
       _currentIndex = index;
       _lastEventIndex = index;
-      await _audioPlayer.seek(Duration(milliseconds: positionMs), index: index);
+      await _audioPlayer.seek(
+        Duration(milliseconds: positionMs),
+        index: index - _nativeOffset,
+      );
     } finally {
       _switchingSource = false;
     }
@@ -2458,12 +2521,10 @@ class PlayerProvider extends ChangeNotifier {
     _playlist = initial;
     _switchingSource = true;
     try {
-      await _audioPlayer.setAudioSources(
-        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-      );
+      await _buildNativeSlice(0, force: true);
       _currentIndex = 0;
       _lastEventIndex = 0;
-      await _audioPlayer.seek(Duration.zero, index: 0);
+      await _audioPlayer.seek(Duration.zero, index: 0 - _nativeOffset);
     } finally {
       _switchingSource = false;
     }
@@ -2532,12 +2593,8 @@ class PlayerProvider extends ChangeNotifier {
         _playlist.map((t) => t.id.toString()).toList(),
       );
       _prefs?.setInt('last_index', startIndex);
-      // preload:false — грузим только текущий трек (seek ниже),
-      // иначе подготовка тысяч источников фризит первый тап.
-      await _audioPlayer.setAudioSources(
-        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-        preload: false,
-      );
+      // Только окно вокруг старта: маршалинг ~81 трека вместо тысяч.
+      await _buildNativeSlice(startIndex, force: true);
       _audioHandler?.setQueue(_playlist);
     }
 
@@ -2558,7 +2615,14 @@ class PlayerProvider extends ChangeNotifier {
     _currentIndex = index;
     _lastEventIndex = index;
     _lastHistoryTrackId = _playlist[index].id;
-    await _audioPlayer.seek(Duration.zero, index: index);
+    _switchingSource = true;
+    try {
+      await _buildNativeSlice(index);
+    } finally {
+      _lastEventIndex = _currentIndex;
+      _switchingSource = false;
+    }
+    await _audioPlayer.seek(Duration.zero, index: index - _nativeOffset);
     await _audioPlayer.play();
     _audioHandler?.setFavoriteState(isFavorite(_playlist[index].id));
     notifyListeners();
@@ -2753,17 +2817,21 @@ class PlayerProvider extends ChangeNotifier {
     _switchingSource = true;
     try {
       if (_playlist.isEmpty) {
+        _nativeOffset = 0;
+        _nativeLength = 0;
         await _audioPlayer.stop();
         return;
       }
       _audioHandler?.setQueue(_playlist);
-      // preload:false — следующий seek сам подтянет нужный трек.
-      await _audioPlayer.setAudioSources(
-        _playlist.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
-        preload: false,
+      await _buildNativeSlice(
+        _currentIndex >= 0 ? _currentIndex : 0,
+        force: true,
       );
       if (_currentIndex >= 0) {
-        await _audioPlayer.seek(_position, index: _currentIndex);
+        await _audioPlayer.seek(
+          _position,
+          index: _currentIndex - _nativeOffset,
+        );
         if (_isPlaying) await _audioPlayer.play();
       }
     } catch (_) {
@@ -2823,7 +2891,13 @@ class PlayerProvider extends ChangeNotifier {
     return result;
   }
 
+  String? _lastEqApplied;
+
   Future<void> _applyEqualizerPreset(String name) async {
+    // Повторное применение тех же ганов на каждый ready даёт слышимый
+    // щелчок/провал в начале трека — применяем только при смене пресета.
+    if (name == _lastEqApplied) return;
+    _lastEqApplied = name;
     try {
       final gains =
           _eqPresetGains[name] ??

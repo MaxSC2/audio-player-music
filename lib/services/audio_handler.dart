@@ -17,6 +17,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final Future<void> Function(int index) onPlayAt;
   final Future<void> Function(bool on) onApplyShuffle;
   final Future<void> Function(int mode) onApplyRepeat;
+  final int Function(int nativeIndex) translateIndex;
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
   bool _favoriteOn = false;
@@ -34,6 +35,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     required this.onPlayAt,
     required this.onApplyShuffle,
     required this.onApplyRepeat,
+    required this.translateIndex,
   }) {
     _listen();
   }
@@ -228,7 +230,8 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         await file.writeAsBytes(bytes, flush: true);
         _artPaths[track.id] = file.path;
       }
-      final idx = player.currentIndex;
+      final nativeIdx = player.currentIndex;
+      final idx = nativeIdx == null ? null : translateIndex(nativeIdx);
       if (idx != null &&
           idx >= 0 &&
           idx < _queueTracks.length &&
@@ -265,7 +268,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   void setQueue(List<AudioTrack> tracks) {
     _queueTracks = List.of(tracks);
     queue.add(_queueTracks.map(_toMediaItem).toList());
-    playbackState.add(_state.copyWith(queueIndex: player.currentIndex));
+    final nativeIdx = player.currentIndex;
+    playbackState.add(
+      _state.copyWith(
+        queueIndex:
+            nativeIdx == null ? null : translateIndex(nativeIdx),
+      ),
+    );
   }
 
   void _listen() {
@@ -292,7 +301,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         shuffleMode: _shuffleOn
             ? AudioServiceShuffleMode.all
             : AudioServiceShuffleMode.none,
-        queueIndex: player.currentIndex,
+        queueIndex: player.currentIndex == null
+            ? null
+            : translateIndex(player.currentIndex!),
       );
       _log(
         'PUBLISH playing=$playing processing=${state.processingState} '
@@ -304,7 +315,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       playbackState.add(state);
     });
 
-    player.currentIndexStream.listen((index) {
+    player.currentIndexStream.listen((nativeIndex) {
+      // Нативный индекс относится к окну treadmill — переводим в провайдерный
+      // (очередь _queueTracks полная).
+      final index =
+          nativeIndex == null ? null : translateIndex(nativeIndex);
       if (index != null && index >= 0 && index < _queueTracks.length) {
         final track = _queueTracks[index];
         mediaItem.add(_toMediaItem(track));

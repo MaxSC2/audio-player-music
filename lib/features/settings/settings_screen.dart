@@ -521,6 +521,22 @@ class SettingsScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
+                    'UI-нагрузка: ${player.notifyPerSecond} notify/s '
+                    '(норма <5; десятки = шторм перестроений)',
+                    style: TextStyle(
+                      color: player.notifyPerSecond > 10
+                          ? AppTheme.accentPink
+                          : AppTheme.textSecondary,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
                     'Журнал публикации состояния (последние записи сверху):',
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                   ),
