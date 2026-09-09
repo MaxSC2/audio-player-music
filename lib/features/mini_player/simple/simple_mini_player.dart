@@ -99,7 +99,7 @@ class SimpleMiniPlayer extends StatelessWidget {
 
                       // Animated Waveform (playing indicator)
                       AnimatedWaveform(
-                        isPlaying: player.isPlaying,
+                        isPlaying: player.playingVisuals,
                         barCount: 4,
                         height: 20,
                         width: 24,

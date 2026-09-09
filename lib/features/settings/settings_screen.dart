@@ -561,6 +561,56 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                 const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Источники нотификаций (всего):',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    player.notifySourcesReport,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _DebugSwitch(
+                  icon: Icons.notifications_off_rounded,
+                  title: 'Выключить нотификации провайдера',
+                  subtitle: 'Kill-switch: rebuild storm?',
+                  value: player.debugNoNotify,
+                  onChanged: player.setDebugNoNotify,
+                ),
+                _DebugSwitch(
+                  icon: Icons.bar_chart_rounded,
+                  title: 'Выключить визуализаторы',
+                  subtitle: 'Kill-switch: анимации виджетов?',
+                  value: player.debugNoVisualizers,
+                  onChanged: player.setDebugNoVisualizers,
+                ),
+                _DebugSwitch(
+                  icon: Icons.blur_off_rounded,
+                  title: 'Выключить блюр/фильтры',
+                  subtitle: 'Kill-switch: saveLayer в карусели и фоне?',
+                  value: player.debugNoImageFilters,
+                  onChanged: player.setDebugNoImageFilters,
+                ),
+                _DebugSwitch(
+                  icon: Icons.music_off_rounded,
+                  title: 'Сухой аудиотракт',
+                  subtitle: 'Kill-switch: EQ/эффекты и щелчок?',
+                  value: player.debugNoAudioEffects,
+                  onChanged: player.setDebugNoAudioEffects,
+                ),
+                const SizedBox(height: 8),
                 ValueListenableBuilder<bool>(
                   valueListenable: player.perfOverlay,
                   builder: (_, show, __) => SwitchListTile(
@@ -1433,6 +1483,45 @@ class _CinematicThemePicker extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+/// Переключатель временного диагностического kill-switch.
+class _DebugSwitch extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _DebugSwitch({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      secondary: _TileIcon(icon),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+      ),
+      value: value,
+      activeThumbColor: AppTheme.accentPink,
+      onChanged: onChanged,
     );
   }
 }

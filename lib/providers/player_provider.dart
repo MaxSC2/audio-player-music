@@ -493,6 +493,56 @@ class PlayerProvider extends ChangeNotifier {
   DateTime _notifyWindowStart = DateTime.now();
   int notifyPerSecond = 0;
 
+  /// Атрибуция источников нотификаций (диагностика шторма).
+  final Map<String, int> _notifySources = {};
+
+  /// Временные диагностические kill-switch (не продуктовое поведение).
+  bool debugNoNotify = false;
+  bool debugNoVisualizers = false;
+  bool debugNoImageFilters = false;
+  bool debugNoAudioEffects = false;
+
+  void setDebugNoNotify(bool v) {
+    debugNoNotify = v;
+    _notify('setDebugNoNotify');
+  }
+
+  void setDebugNoVisualizers(bool v) {
+    debugNoVisualizers = v;
+    _notify('setDebugNoVisualizers');
+  }
+
+  void setDebugNoImageFilters(bool v) {
+    debugNoImageFilters = v;
+    _notify('setDebugNoImageFilters');
+  }
+
+  void setDebugNoAudioEffects(bool v) {
+    debugNoAudioEffects = v;
+    _notify('setDebugNoAudioEffects');
+  }
+
+  /// Визуализаторы должны крутиться только при игре и без kill-switch.
+  bool get playingVisuals => _isPlaying && !debugNoVisualizers;
+
+  /// Топ источников нотификаций для экрана диагностики.
+  String get notifySourcesReport {
+    if (_notifySources.isEmpty) return '—';
+    final sorted = _notifySources.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted
+        .take(10)
+        .map((e) => '${e.key}: ${e.value}')
+        .join('\n');
+  }
+
+  /// Единая точка нотификаций с атрибуцией источника.
+  void _notify([String source = 'other']) {
+    _notifySources[source] = (_notifySources[source] ?? 0) + 1;
+    if (debugNoNotify) return;
+    _notify('_notify');
+  }
+
   @override
   void notifyListeners() {
     super.notifyListeners();
@@ -569,7 +619,7 @@ class PlayerProvider extends ChangeNotifier {
 
   void setMediaServiceError(String message) {
     _mediaServiceError = message;
-    notifyListeners();
+    _notify('setMediaServiceError');
   }
 
   static const MethodChannel _deleteChannel = MethodChannel(
@@ -618,7 +668,7 @@ class PlayerProvider extends ChangeNotifier {
         await _rebuildPlaylist();
       }
 
-      notifyListeners();
+      _notify('deleteTrack');
       return true;
     } catch (_) {
       return false;
@@ -631,7 +681,7 @@ class PlayerProvider extends ChangeNotifier {
   void setPerfOverlay(bool v) {
     perfOverlay.value = v;
     _prefs?.setBool('perf_overlay', v);
-    notifyListeners();
+    _notify('setPerfOverlay');
   }
 
   bool get notifCustomActions => _notifCustomActions;
@@ -640,7 +690,7 @@ class PlayerProvider extends ChangeNotifier {
     _notifCustomActions = v;
     _prefs?.setBool('notif_custom_actions', v);
     _audioHandler?.setUseCustomActions(v);
-    notifyListeners();
+    _notify('setNotifCustomActions');
   }
 
   void attachAudioHandler(PlayerAudioHandler handler) {
@@ -650,7 +700,7 @@ class PlayerProvider extends ChangeNotifier {
     handler.setRepeatState(_repeatMode.index);
     final track = currentTrack;
     if (track != null) handler.setFavoriteState(isFavorite(track.id));
-    notifyListeners();
+    _notify('attachAudioHandler');
   }
 
   bool isFavorite(int id) => _favoriteIds.any((f) => f == id);
@@ -687,20 +737,20 @@ class PlayerProvider extends ChangeNotifier {
       final sec = pos.inSeconds;
       if (sec != _lastPositionSecond) {
         _lastPositionSecond = sec;
-        notifyListeners();
+        _notify('position-1Hz');
       }
     });
 
     _audioPlayer.durationStream.listen((dur) {
       if (dur != null) {
         _duration = dur;
-        notifyListeners();
+        _notify('durationStream');
       }
     });
 
     _audioPlayer.playerStateStream.listen((state) {
       _isPlaying = state.playing;
-      notifyListeners();
+      _notify('playerStateStream');
     });
 
     _audioPlayer.processingStateStream.listen((state) {
@@ -757,7 +807,7 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
     if (indexChanged) {
-      notifyListeners();
+      _notify('_handleIndexEvent');
       WidgetService.playerChanged(this);
     }
   }
@@ -938,7 +988,7 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     await _audioPlayer.setSpeed(_speed);
-    notifyListeners();
+    _notify('_loadSettings');
   }
 
   Future<void> _loadPlaylists() async {
@@ -951,7 +1001,7 @@ class PlayerProvider extends ChangeNotifier {
           .map((e) => CustomPlaylist.fromJson(e as Map<String, dynamic>))
           .toList();
       _playlists = list;
-      notifyListeners();
+      _notify('_loadPlaylists');
     } catch (_) {
       _playlists = [];
     }
@@ -978,14 +1028,14 @@ class PlayerProvider extends ChangeNotifier {
       ),
     );
     await _savePlaylists();
-    notifyListeners();
+    _notify('createPlaylist');
     return id;
   }
 
   Future<void> deletePlaylist(String id) async {
     _playlists.removeWhere((p) => p.id == id);
     await _savePlaylists();
-    notifyListeners();
+    _notify('deletePlaylist');
   }
 
   Future<void> renamePlaylist(String id, String newName) async {
@@ -995,7 +1045,7 @@ class PlayerProvider extends ChangeNotifier {
     if (index < 0) return;
     _playlists[index] = _playlists[index].copyWith(name: trimmed);
     await _savePlaylists();
-    notifyListeners();
+    _notify('renamePlaylist');
   }
 
   Future<void> addToPlaylist(String playlistId, AudioTrack track) async {
@@ -1006,7 +1056,7 @@ class PlayerProvider extends ChangeNotifier {
       trackIds: [..._playlists[index].trackIds, track.id],
     );
     await _savePlaylists();
-    notifyListeners();
+    _notify('addToPlaylist');
   }
 
   Future<void> removeFromPlaylist(String playlistId, int trackId) async {
@@ -1016,7 +1066,7 @@ class PlayerProvider extends ChangeNotifier {
       trackIds: _playlists[index].trackIds.where((t) => t != trackId).toList(),
     );
     await _savePlaylists();
-    notifyListeners();
+    _notify('removeFromPlaylist');
   }
 
   List<AudioTrack> tracksOfPlaylist(CustomPlaylist playlist) {
@@ -1037,7 +1087,7 @@ class PlayerProvider extends ChangeNotifier {
     _speed = speed;
     await _prefs?.setDouble('default_speed', speed);
     await _audioPlayer.setSpeed(speed);
-    notifyListeners();
+    _notify('setDefaultSpeed');
   }
 
   Future<void> setHideUnknownArtist(bool value) async {
@@ -1045,13 +1095,13 @@ class PlayerProvider extends ChangeNotifier {
     _invalidateFolderCache();
     _invalidateCategoryCache();
     await _prefs?.setBool('hide_unknown', value);
-    notifyListeners();
+    _notify('setHideUnknownArtist');
   }
 
   Future<void> setResumePlayback(bool value) async {
     _resumePlayback = value;
     await _prefs?.setBool('resume_playback', value);
-    notifyListeners();
+    _notify('setResumePlayback');
   }
 
   void _maybePersistPosition() {
@@ -1105,7 +1155,7 @@ class PlayerProvider extends ChangeNotifier {
       _switchingSource = false;
     }
     _audioHandler?.setQueue(_playlist);
-    notifyListeners();
+    _notify('_maybeResume');
   }
 
   bool get hasLibrary => _allTracks.isNotEmpty;
@@ -1130,7 +1180,7 @@ class PlayerProvider extends ChangeNotifier {
     final saved = prefs.getStringList('favorite_ids');
     if (saved != null) {
       _favoriteIds = saved.map((s) => int.tryParse(s) ?? 0).toList();
-      notifyListeners();
+      _notify('_loadFavorites');
     }
   }
 
@@ -1152,7 +1202,7 @@ class PlayerProvider extends ChangeNotifier {
     _saveFavorites();
     _refreshTrackFavoriteFlags();
     _audioHandler?.setFavoriteState(isFavorite(track.id));
-    notifyListeners();
+    _notify('toggleFavorite');
     WidgetService.playerChanged(this);
   }
 
@@ -1296,7 +1346,7 @@ class PlayerProvider extends ChangeNotifier {
     _playCountsCache = null;
     _invalidateSmartCaches();
     await _prefs?.remove('history');
-    notifyListeners();
+    _notify('clearHistory');
   }
 
   // ─── "Не хочу сейчас" ──────────────────────────────────────────────
@@ -1341,7 +1391,7 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
     _prefs?.setString('not_now', jsonEncode(_notNowRaw));
-    notifyListeners();
+    _notify('toggleNotNow');
   }
 
   // ─── Listening Context ─────────────────────────────────────────────
@@ -1365,7 +1415,7 @@ class PlayerProvider extends ChangeNotifier {
       'listening_context',
       _activeContexts.map((e) => e.name).join(','),
     );
-    notifyListeners();
+    _notify('toggleContext');
   }
 
   // ─── Category Weights & Manual Overrides ─────────────────────────────
@@ -1381,7 +1431,7 @@ class PlayerProvider extends ChangeNotifier {
       'category_weights',
       jsonEncode(_categoryWeights.map((k, v) => MapEntry(k.name, v))),
     );
-    notifyListeners();
+    _notify('setCategoryWeight');
   }
 
   void _invalidateCategoryCache() {
@@ -1424,14 +1474,14 @@ class PlayerProvider extends ChangeNotifier {
     }
     _persistManualCategories();
     _invalidateCategoryCache();
-    notifyListeners();
+    _notify('toggleManualCategory');
   }
 
   void clearManualCategory(int trackId) {
     if (_manualCategories.remove(trackId) != null) {
       _persistManualCategories();
       _invalidateCategoryCache();
-      notifyListeners();
+      _notify('clearManualCategory');
     }
   }
 
@@ -1485,7 +1535,7 @@ class PlayerProvider extends ChangeNotifier {
       jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))),
     );
     _invalidateCategoryCache();
-    notifyListeners();
+    _notify('setManualGenre');
   }
 
   void clearManualGenre(int id) {
@@ -1495,7 +1545,7 @@ class PlayerProvider extends ChangeNotifier {
         jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))),
       );
       _invalidateCategoryCache();
-      notifyListeners();
+      _notify('clearManualGenre');
     }
   }
 
@@ -1569,7 +1619,7 @@ class PlayerProvider extends ChangeNotifier {
       jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))),
     );
     _invalidateCategoryCache();
-    notifyListeners();
+    _notify('_storeGenre');
     return genre;
   }
 
@@ -1774,7 +1824,7 @@ class PlayerProvider extends ChangeNotifier {
   void setDeepCuts(bool value) {
     _deepCuts = value;
     _prefs?.setBool('dj_deep_cuts', value);
-    notifyListeners();
+    _notify('setDeepCuts');
   }
 
   DiscoveryLevel get discoveryLevel => _discoveryLevel;
@@ -1782,7 +1832,7 @@ class PlayerProvider extends ChangeNotifier {
   void setDiscoveryLevel(DiscoveryLevel value) {
     _discoveryLevel = value;
     _prefs?.setString('dj_discovery', value.name);
-    notifyListeners();
+    _notify('setDiscoveryLevel');
   }
 
   // ─── Music Bookmarks (закладки внутри трека) ──────────────────────
@@ -1805,7 +1855,7 @@ class PlayerProvider extends ChangeNotifier {
       _bookmarks.remove(trackId);
     }
     _persistBookmarks();
-    notifyListeners();
+    _notify('toggleBookmark');
   }
 
   void removeBookmark(int trackId, int positionMs) {
@@ -1816,7 +1866,7 @@ class PlayerProvider extends ChangeNotifier {
       _bookmarks.remove(trackId);
     }
     _persistBookmarks();
-    notifyListeners();
+    _notify('removeBookmark');
   }
 
   void _persistBookmarks() {
@@ -2217,7 +2267,7 @@ class PlayerProvider extends ChangeNotifier {
   void stopRadio() {
     _radioMode = false;
     _radioUsedIds.clear();
-    notifyListeners();
+    _notify('stopRadio');
   }
 
   Future<void> _extendRadio() async {
@@ -2229,7 +2279,7 @@ class PlayerProvider extends ChangeNotifier {
     // на текущий трек/позицию. Без этого setAudioSources сбрасывает
     // нативный индекс в 0 — играет трек №1, а UI показывает старый.
     await _rebuildPlaylist();
-    notifyListeners();
+    _notify('_extendRadio');
   }
 
   // ─── Natural Language Playlist ─────────────────────────────────────
@@ -2296,13 +2346,13 @@ class PlayerProvider extends ChangeNotifier {
       _queueSnapshots.removeRange(20, _queueSnapshots.length);
     }
     _persistSnapshots();
-    notifyListeners();
+    _notify('saveQueueSnapshot');
   }
 
   void deleteQueueSnapshot(String name) {
     _queueSnapshots.removeWhere((s) => s.name == name);
     _persistSnapshots();
-    notifyListeners();
+    _notify('deleteQueueSnapshot');
   }
 
   Future<void> applyQueueSnapshot(QueueSnapshot snapshot) async {
@@ -2323,7 +2373,7 @@ class PlayerProvider extends ChangeNotifier {
     _invalidateCategoryCache();
     _allTracks = sortTracks(_allTracks, value);
     _prefs?.setString('sort_order', value.name);
-    notifyListeners();
+    _notify('sortOrder');
   }
 
   List<AudioTrack> sortTracks(List<AudioTrack> tracks, SortOrder order) {
@@ -2500,7 +2550,7 @@ class PlayerProvider extends ChangeNotifier {
     _allTracks = sortTracks(_allTracks, _sortOrder);
     _invalidateFolderCache();
     _invalidateCategoryCache();
-    notifyListeners();
+    _notify('loadTracks');
     await _maybeResume();
     await _prepareInitialPlaylist();
   }
@@ -2529,7 +2579,7 @@ class PlayerProvider extends ChangeNotifier {
       _switchingSource = false;
     }
     _audioHandler?.setQueue(_playlist);
-    notifyListeners();
+    _notify('_prepareInitialPlaylist');
   }
 
   Future<void> playTrack(AudioTrack track) async {
@@ -2603,7 +2653,7 @@ class PlayerProvider extends ChangeNotifier {
     _currentIndex = startIndex;
     _lastEventIndex = startIndex;
     _lastHistoryTrackId = tracks[startIndex].id;
-    notifyListeners();
+    _notify('playUrl');
 
     await playAt(startIndex);
     _switchingSource = false;
@@ -2625,7 +2675,7 @@ class PlayerProvider extends ChangeNotifier {
     await _audioPlayer.seek(Duration.zero, index: index - _nativeOffset);
     await _audioPlayer.play();
     _audioHandler?.setFavoriteState(isFavorite(_playlist[index].id));
-    notifyListeners();
+    _notify('playAt');
     WidgetService.playerChanged(this);
   }
 
@@ -2637,7 +2687,7 @@ class PlayerProvider extends ChangeNotifier {
       await _audioPlayer.play();
     }
     _isPlaying = _audioPlayer.playing;
-    notifyListeners();
+    _notify('togglePlay');
   }
 
   Future<void> seek(Duration position) async {
@@ -2725,7 +2775,7 @@ class PlayerProvider extends ChangeNotifier {
         _repeatMode = PlayerRepeatMode.off;
     }
     _audioHandler?.setRepeatState(_repeatMode.index);
-    notifyListeners();
+    _notify('toggleRepeat');
     WidgetService.playerChanged(this);
   }
 
@@ -2734,7 +2784,7 @@ class PlayerProvider extends ChangeNotifier {
     if (_shuffleMode == on) return;
     _shuffleMode = on;
     _audioHandler?.setShuffleState(on);
-    notifyListeners();
+    _notify('applyShuffle');
     WidgetService.playerChanged(this);
   }
 
@@ -2743,21 +2793,21 @@ class PlayerProvider extends ChangeNotifier {
     if (mode < 0 || mode > 2 || _repeatMode.index == mode) return;
     _repeatMode = PlayerRepeatMode.values[mode];
     _audioHandler?.setRepeatState(mode);
-    notifyListeners();
+    _notify('applyRepeatIndex');
     WidgetService.playerChanged(this);
   }
 
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
     _audioHandler?.setShuffleState(_shuffleMode);
-    notifyListeners();
+    _notify('toggleShuffle');
     WidgetService.playerChanged(this);
   }
 
   Future<void> setSpeed(double speed) async {
     _speed = speed;
     await _audioPlayer.setSpeed(speed);
-    notifyListeners();
+    _notify('setSpeed');
   }
 
   void cycleSpeed() {
@@ -2772,23 +2822,23 @@ class PlayerProvider extends ChangeNotifier {
     _sleepTimer = Timer(Duration(minutes: minutes), () async {
       await _audioPlayer.pause();
       _sleepTimerMinutes = 0;
-      notifyListeners();
+      _notify('setSleepTimer');
     });
-    notifyListeners();
+    _notify('setSleepTimer');
   }
 
   void cancelSleepTimer() {
     _sleepTimer?.cancel();
     _sleepTimer = null;
     _sleepTimerMinutes = 0;
-    notifyListeners();
+    _notify('cancelSleepTimer');
   }
 
   Future<void> addToQueueNext(AudioTrack track) async {
     final insertIndex = _currentIndex + 1;
     _playlist.insert(insertIndex, track);
     await _rebuildPlaylist();
-    notifyListeners();
+    _notify('addToQueueNext');
   }
 
   Future<void> removeFromQueue(int index) async {
@@ -2807,7 +2857,7 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
     await _rebuildPlaylist();
-    notifyListeners();
+    _notify('removeFromQueue');
   }
 
   Future<void> _rebuildPlaylist() async {
@@ -2894,8 +2944,9 @@ class PlayerProvider extends ChangeNotifier {
   String? _lastEqApplied;
 
   Future<void> _applyEqualizerPreset(String name) async {
-    // Повторное применение тех же ганов на каждый ready даёт слышимый
-    // щелчок/провал в начале трека — применяем только при смене пресета.
+    // Kill-switch сухого тракта + гейт повторного применения
+    // (10 setGain подряд на каждый ready давали щелчок в начале трека).
+    if (debugNoAudioEffects) return;
     if (name == _lastEqApplied) return;
     _lastEqApplied = name;
     try {
@@ -2920,18 +2971,22 @@ class PlayerProvider extends ChangeNotifier {
     _equalizerPreset = name;
     _prefs?.setString('eq_preset', name);
     _applyEqualizerPreset(name);
-    notifyListeners();
+    _notify('setEqualizerPreset');
   }
 
   void toggleXBoost() {
     _xBoost = !_xBoost;
+    if (debugNoAudioEffects) {
+      _notify('toggleXBoost');
+      return;
+    }
     if (_xBoost) {
       _loudness.setEnabled(true);
       _loudness.setTargetGain(6.0);
     } else {
       _loudness.setEnabled(false);
     }
-    notifyListeners();
+    _notify('toggleXBoost');
   }
 
   void tapRepeatAB() {
@@ -2948,13 +3003,13 @@ class PlayerProvider extends ChangeNotifier {
       _repeatA = null;
       _repeatB = null;
     }
-    notifyListeners();
+    _notify('tapRepeatAB');
   }
 
   void clearRepeatAB() {
     _repeatA = null;
     _repeatB = null;
-    notifyListeners();
+    _notify('clearRepeatAB');
   }
 
   @override

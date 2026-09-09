@@ -264,7 +264,7 @@ class QueueSheet extends StatelessWidget {
                         child: Center(
                           child: isCurrent
                               ? AnimatedWaveform(
-                                  isPlaying: player.isPlaying,
+                                  isPlaying: player.playingVisuals,
                                   barCount: 3,
                                   height: 16,
                                   width: 16,

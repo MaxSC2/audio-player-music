@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/player_provider.dart';
 import 'cached_artwork.dart';
 
 class AnimatedArtworkBackdrop extends StatefulWidget {
@@ -52,6 +54,8 @@ class _AnimatedArtworkBackdropState extends State<AnimatedArtworkBackdrop>
   @override
   Widget build(BuildContext context) {
     if (_bytes == null) return const SizedBox.shrink();
+    final noBlur =
+        context.read<PlayerProvider>().debugNoImageFilters;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 900),
@@ -67,16 +71,24 @@ class _AnimatedArtworkBackdropState extends State<AnimatedArtworkBackdrop>
         // Изоляция: блур растеризуется один раз и кешируется слоем,
         // иначе фулскрин-блур перерисовывался бы каждый кадр Ken Burns.
         child: RepaintBoundary(
-          child: ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-            child: Image.memory(
-              _bytes!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              filterQuality: FilterQuality.low,
-            ),
-          ),
+          child: noBlur
+              ? Image.memory(
+                  _bytes!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  filterQuality: FilterQuality.low,
+                )
+              : ImageFiltered(
+                  imageFilter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                  child: Image.memory(
+                    _bytes!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    filterQuality: FilterQuality.low,
+                  ),
+                ),
         ),
       ),
     );

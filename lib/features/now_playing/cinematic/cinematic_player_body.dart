@@ -82,7 +82,7 @@ class CinematicPlayerBody extends StatelessWidget {
           ),
         ),
         CinematicVisualizer(
-          isPlaying: player.isPlaying,
+          isPlaying: player.playingVisuals,
           trackId: track.id,
         ),
         _TrackInfo(track: track),
@@ -494,7 +494,10 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
                       edgeColor:
                           widget.edgeGlow && ad < 0.5 ? accent : null,
                     );
-                    if (saturation < 0.99) {
+                    final noFilters = context
+                        .read<PlayerProvider>()
+                        .debugNoImageFilters;
+                    if (!noFilters && saturation < 0.99) {
                       card = ColorFiltered(
                         colorFilter: ColorFilter.matrix(
                           _saturationMatrix(saturation),
@@ -502,7 +505,7 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
                         child: card,
                       );
                     }
-                    if (blur > 0.01) {
+                    if (!noFilters && blur > 0.01) {
                       card = ImageFiltered(
                         imageFilter: ui.ImageFilter.blur(
                           sigmaX: blur,
@@ -781,6 +784,11 @@ class _CinematicVisualizerState extends State<CinematicVisualizer>
   @override
   void didUpdateWidget(covariant CinematicVisualizer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying && !_anim.isAnimating) {
+      _anim.repeat();
+    } else if (!widget.isPlaying && _anim.isAnimating) {
+      _anim.stop();
+    }
     final target = widget.isPlaying ? 1.0 : 0.06;
     if ((target - _energy).abs() > 0.001) {
       setState(() => _energy = target);

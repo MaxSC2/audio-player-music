@@ -208,7 +208,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                         IgnorePointer(
                           child: Center(
                             child: ThreeDVisualizer(
-                              isPlaying: player.isPlaying,
+                              isPlaying: player.playingVisuals,
                               width: barsW,
                               height: constraints.maxHeight,
                               barCount: 19,

@@ -147,7 +147,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                     child: Center(
                       child: SpinningVinyl(
                         trackId: track.id,
-                        isPlaying: player.isPlaying,
+                        isPlaying: player.playingVisuals,
                         size: 250,
                       ),
                     ),
@@ -182,7 +182,7 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
 
                         // Live Waveform
                         AnimatedWaveform(
-                          isPlaying: player.isPlaying,
+                          isPlaying: player.playingVisuals,
                           barCount: 24,
                           height: 28,
                           width: double.infinity,

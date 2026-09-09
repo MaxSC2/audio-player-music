@@ -107,7 +107,8 @@ class TrackTile extends StatelessWidget {
                         ),
                         child: Center(
                           child: AnimatedWaveform(
-                            isPlaying: isPlaying,
+                            isPlaying:
+                                isPlaying && !player.debugNoVisualizers,
                             barCount: 4,
                             height: 20,
                             width: 24,
