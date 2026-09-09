@@ -141,7 +141,7 @@ class DebugLog {
     final line =
         'T+$elapsed' 's ui_avg=${_fCount == 0 ? 0 : _fUiSum ~/ _fCount}ms '
         'ui_max=${_fUiMax}ms r_avg=${_fCount == 0 ? 0 : _fRSum ~/ _fCount}ms '
-        'r_max=${_fRMax}ms notify=${externalNotifyRate}/s '
+        'r_max=${_fRMax}ms notify=$externalNotifyRate/s '
         '| notify: ${topNotify.take(4).map((e) => '${e.key}:${e.value}').join(',')} '
         '| rebuild: ${topRebuild.take(6).map((e) => '${e.key}:${e.value}').join(',')}';
     _session.add(line);
