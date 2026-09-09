@@ -525,6 +525,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           },
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
+              settings: const RouteSettings(name: 'PlaylistDetail'),
               builder: (_) =>
                   const PlaylistDetailScreen(playlistId: 'smart_added'),
             ),
@@ -550,6 +551,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           },
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
+              settings: const RouteSettings(name: 'PlaylistDetail'),
               builder: (_) =>
                   const PlaylistDetailScreen(playlistId: 'smart_played'),
             ),
@@ -575,6 +577,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           },
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
+              settings: const RouteSettings(name: 'PlaylistDetail'),
               builder: (_) =>
                   const PlaylistDetailScreen(playlistId: 'smart_most'),
             ),
@@ -598,6 +601,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           },
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
+              settings: const RouteSettings(name: 'PlaylistDetail'),
               builder: (_) => PlaylistDetailScreen(playlistId: pl.id),
             ),
           ),
@@ -972,6 +976,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
+                settings: const RouteSettings(name: 'ArtistDetail'),
                 builder: (_) => ArtistDetailScreen(artist: artist),
               ),
             );

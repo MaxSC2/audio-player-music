@@ -52,7 +52,10 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
 
   void _expand(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NowPlayingScreen()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'NowPlaying'),
+        builder: (_) => const NowPlayingScreen(),
+      ),
     );
   }
 
@@ -102,6 +105,8 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
+                          settings:
+                              const RouteSettings(name: 'Collection'),
                           builder: (_) => const NeonCollectionScreen(),
                         ),
                       );
@@ -117,6 +122,8 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
+                          settings:
+                              const RouteSettings(name: 'Settings'),
                           builder: (_) => const SettingsScreen(),
                         ),
                       );

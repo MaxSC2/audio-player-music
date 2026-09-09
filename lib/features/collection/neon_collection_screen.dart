@@ -428,6 +428,7 @@ class _ArtistsBlock extends StatelessWidget {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
+                        settings: const RouteSettings(name: 'ArtistDetail'),
                         builder: (_) =>
                             ArtistDetailScreen(artist: artist),
                       ),
@@ -499,6 +500,7 @@ class _ArtistsBlock extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
+                      settings: const RouteSettings(name: 'ArtistDetail'),
                       builder: (_) => ArtistDetailScreen(artist: artist),
                     ),
                   );

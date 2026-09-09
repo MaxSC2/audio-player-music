@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/debug_log.dart';
+import 'core/nav_observer.dart';
 import 'core/ui_style.dart';
 import 'features/home/home_screen.dart';
 import 'providers/player_provider.dart';
@@ -121,6 +122,7 @@ class NeonWaveApp extends StatelessWidget {
       theme: AppTheme.dark,
       home: const HomeScreen(),
       showPerformanceOverlay: showFps,
+      navigatorObservers: [DebugNavObserver()],
     );
   }
 }

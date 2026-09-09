@@ -1014,6 +1014,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _savePlaylists() async {
+    _invalidateDerivedCaches();
     final prefs = _prefs;
     if (prefs == null) return;
     await prefs.setString(
@@ -1076,15 +1077,16 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<AudioTrack> tracksOfPlaylist(CustomPlaylist playlist) {
+    final cached = _playlistTracksCache[playlist.id];
+    if (cached != null) return cached;
+    // id -> трек за один проход вместо indexWhere на каждый id.
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     final tracks = <AudioTrack>[];
     for (final id in playlist.trackIds) {
-      for (final t in _allTracks) {
-        if (t.id == id) {
-          tracks.add(t);
-          break;
-        }
-      }
+      final t = byId[id];
+      if (t != null) tracks.add(t);
     }
+    _playlistTracksCache[playlist.id] = tracks;
     return tracks;
   }
 
@@ -1206,6 +1208,7 @@ class PlayerProvider extends ChangeNotifier {
       _favoriteIds.add(track.id);
     }
     _saveFavorites();
+    _invalidateDerivedCaches();
     _refreshTrackFavoriteFlags();
     _audioHandler?.setFavoriteState(isFavorite(track.id));
     _notify('toggleFavorite');
@@ -1230,8 +1233,12 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<AudioTrack> get favoriteTracks {
+    final cached = _favoriteCache;
+    if (cached != null) return cached;
     final fav = visibleTracks.where((t) => isFavorite(t.id)).toList();
-    return sortTracks(fav, _sortOrder);
+    final result = sortTracks(fav, _sortOrder);
+    _favoriteCache = result;
+    return result;
   }
 
   /// Недавно добавленные (по дате добавления)
@@ -1302,19 +1309,26 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   List<({AudioTrack track, DateTime time})> get historyEntries {
+    final cached = _historyEntriesCache;
+    if (cached != null) return cached;
     final result = <({AudioTrack track, DateTime time})>[];
-    if (_historyRaw.isEmpty) return result;
+    if (_historyRaw.isEmpty) {
+      _historyEntriesCache = result;
+      return result;
+    }
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     for (final e in _historyRaw) {
       final id = e['id'];
       final ts = e['ts'];
       if (id == null || ts == null) continue;
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index < 0) continue;
+      final t = byId[id];
+      if (t == null) continue;
       result.add((
-        track: _allTracks[index],
+        track: t,
         time: DateTime.fromMillisecondsSinceEpoch(ts),
       ));
     }
+    _historyEntriesCache = result;
     return result;
   }
 
@@ -1328,6 +1342,7 @@ class PlayerProvider extends ChangeNotifier {
     }
     _prefs?.setString('history', jsonEncode(_historyRaw));
     _playCountsCache = null;
+    _invalidateDerivedCaches();
     _invalidateSmartCaches();
   }
 
@@ -1350,6 +1365,7 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> clearHistory() async {
     _historyRaw = [];
     _playCountsCache = null;
+    _invalidateDerivedCaches();
     _invalidateSmartCaches();
     await _prefs?.remove('history');
     _notify('clearHistory');
@@ -1359,15 +1375,19 @@ class PlayerProvider extends ChangeNotifier {
   static const int _notNowExpiryMs = 7 * 24 * 3600 * 1000;
 
   List<AudioTrack> get notNowTracks {
+    final cached = _notNowCache;
+    if (cached != null) return cached;
     _expireNotNow();
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     final result = <AudioTrack>[];
     for (final e in _notNowRaw) {
       final id = e['id'];
       if (id == null) continue;
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index < 0) continue;
-      result.add(_allTracks[index]);
+      final t = byId[id];
+      if (t == null) continue;
+      result.add(t);
     }
+    _notNowCache = result;
     return result;
   }
 
@@ -1397,6 +1417,7 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
     _prefs?.setString('not_now', jsonEncode(_notNowRaw));
+    _invalidateDerivedCaches();
     _notify('toggleNotNow');
   }
 
@@ -1541,6 +1562,7 @@ class PlayerProvider extends ChangeNotifier {
       jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))),
     );
     _invalidateCategoryCache();
+    _invalidateDerivedCaches();
     _notify('setManualGenre');
   }
 
@@ -1551,12 +1573,15 @@ class PlayerProvider extends ChangeNotifier {
         jsonEncode(_manualGenre.map((k, v) => MapEntry('$k', v))),
       );
       _invalidateCategoryCache();
+      _invalidateDerivedCaches();
       _notify('clearManualGenre');
     }
   }
 
   /// Жанры, встречающиеся в библиотеке, с подсчётом (кэшируется).
   Map<String, int> genreCounts() {
+    final cached = _genreCountsCache;
+    if (cached != null) return cached;
     final map = <String, int>{};
     for (final t in visibleTracks) {
       final g = primaryGenre(t);
@@ -1564,7 +1589,9 @@ class PlayerProvider extends ChangeNotifier {
     }
     final sorted = map.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    return Map.fromEntries(sorted);
+    final result = Map<String, int>.fromEntries(sorted);
+    _genreCountsCache = result;
+    return result;
   }
 
   List<AudioTrack> tracksForGenre(String genre) {
@@ -1625,6 +1652,7 @@ class PlayerProvider extends ChangeNotifier {
       jsonEncode(_genreCache.map((k, v) => MapEntry('$k', v))),
     );
     _invalidateCategoryCache();
+    _invalidateDerivedCaches();
     _notify('_storeGenre');
     return genre;
   }
@@ -1899,6 +1927,9 @@ class PlayerProvider extends ChangeNotifier {
 
   // ─── Music DNA ─────────────────────────────────────────────────────
   List<({AudioTrack track, int plays})> topTracks({int limit = 5}) {
+    final cached = _topTracksCache[limit];
+    if (cached != null) return cached;
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     final counts = <int, int>{};
     for (final e in _historyRaw) {
       final id = e['id'];
@@ -1908,30 +1939,35 @@ class PlayerProvider extends ChangeNotifier {
       ..sort((a, b) => b.value.compareTo(a.value));
     final result = <({AudioTrack track, int plays})>[];
     for (final e in ranked) {
-      final index = _allTracks.indexWhere((t) => t.id == e.key);
-      if (index < 0) continue;
-      result.add((track: _allTracks[index], plays: e.value));
+      final t = byId[e.key];
+      if (t == null) continue;
+      result.add((track: t, plays: e.value));
       if (result.length >= limit) break;
     }
+    _topTracksCache[limit] = result;
     return result;
   }
 
   List<({String artist, int plays})> topArtists({int limit = 5}) {
+    final cached = _topArtistsCache[limit];
+    if (cached != null) return cached;
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     final counts = <String, int>{};
     for (final e in _historyRaw) {
       final id = e['id'];
       if (id == null) continue;
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index < 0) continue;
-      final artist = _allTracks[index].artist;
-      counts[artist] = (counts[artist] ?? 0) + 1;
+      final t = byId[id];
+      if (t == null) continue;
+      counts[t.artist] = (counts[t.artist] ?? 0) + 1;
     }
     final ranked = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    return ranked
+    final result = ranked
         .take(limit)
         .map((e) => (artist: e.key, plays: e.value))
         .toList();
+    _topArtistsCache[limit] = result;
+    return result;
   }
 
   int get totalPlays => _historyRaw.length;
@@ -2490,6 +2526,26 @@ class PlayerProvider extends ChangeNotifier {
   String? _searchCacheQuery;
   List<AudioTrack>? _searchCacheResult;
 
+  Map<String, int>? _genreCountsCache;
+  final Map<String, List<AudioTrack>> _playlistTracksCache = {};
+  List<AudioTrack>? _favoriteCache;
+  List<({AudioTrack track, DateTime time})>? _historyEntriesCache;
+  List<AudioTrack>? _notNowCache;
+  final Map<int, List<({AudioTrack track, int plays})>> _topTracksCache = {};
+  final Map<int, List<({String artist, int plays})>> _topArtistsCache = {};
+
+  /// Сброс всех производных кешей (списки/агрегаты). Вызывать при любом
+  /// изменении библиотеки, истории, избранного, плейлистов и жанров.
+  void _invalidateDerivedCaches() {
+    _genreCountsCache = null;
+    _playlistTracksCache.clear();
+    _favoriteCache = null;
+    _historyEntriesCache = null;
+    _notNowCache = null;
+    _topTracksCache.clear();
+    _topArtistsCache.clear();
+  }
+
   void _invalidateFolderCache() {
     _visibleCache = null;
     _foldersCache = null;
@@ -2499,6 +2555,7 @@ class PlayerProvider extends ChangeNotifier {
     _searchCacheQuery = null;
     _searchCacheResult = null;
     _invalidateSmartCaches();
+    _invalidateDerivedCaches();
   }
 
   Future<void> requestPermission() async {

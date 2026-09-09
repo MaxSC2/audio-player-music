@@ -44,7 +44,10 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
 
   void _expand(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NowPlayingScreen()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'NowPlaying'),
+        builder: (_) => const NowPlayingScreen(),
+      ),
     );
   }
 
@@ -146,7 +149,10 @@ class _TopBar extends StatelessWidget {
           IconButton(
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: 'Settings'),
+                  builder: (_) => const SettingsScreen(),
+                ),
               );
             },
             icon: const Icon(

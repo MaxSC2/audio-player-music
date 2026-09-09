@@ -98,6 +98,7 @@ class SimpleHomeScreen extends StatelessWidget {
               onExpand: () {
                 Navigator.of(context).push(
                   PageRouteBuilder(
+                    settings: const RouteSettings(name: 'NowPlaying'),
                     pageBuilder: (_, __, ___) => const NowPlayingScreen(),
                     transitionsBuilder: (_, anim, __, child) {
                       return FadeTransition(
