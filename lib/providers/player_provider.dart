@@ -446,6 +446,7 @@ class PlayerProvider extends ChangeNotifier {
 
   bool _resumePlayback = false;
   DateTime _lastPersist = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastPositionNotify = DateTime.fromMillisecondsSinceEpoch(0);
   PlayerAudioHandler? _audioHandler;
   String? _mediaServiceError;
 
@@ -614,7 +615,13 @@ class PlayerProvider extends ChangeNotifier {
         _audioPlayer.seek(_repeatA!);
       }
       _maybePersistPosition();
-      notifyListeners();
+      // Дроссель: тики позиции идут часто, а UI достаточно ~3 обновлений
+      // в секунду — иначе каждый тик перестраивает всё дерево.
+      final now = DateTime.now();
+      if (now.difference(_lastPositionNotify).inMilliseconds >= 300) {
+        _lastPositionNotify = now;
+        notifyListeners();
+      }
     });
 
     _audioPlayer.durationStream.listen((dur) {
@@ -1031,11 +1038,18 @@ class PlayerProvider extends ChangeNotifier {
 
   bool get hasLibrary => _allTracks.isNotEmpty;
 
+  List<AudioTrack>? _visibleCache;
+
   List<AudioTrack> get visibleTracks {
-    if (!_hideUnknownArtist) return _allTracks;
-    return _allTracks
-        .where((t) => t.artist.toLowerCase() != 'unknown artist')
-        .toList();
+    final cached = _visibleCache;
+    if (cached != null) return cached;
+    final result = !_hideUnknownArtist
+        ? _allTracks
+        : _allTracks
+            .where((t) => t.artist.toLowerCase() != 'unknown artist')
+            .toList();
+    _visibleCache = result;
+    return result;
   }
 
   Future<void> _loadFavorites() async {
@@ -1093,32 +1107,52 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Недавно добавленные (по дате добавления)
+  List<AudioTrack>? _smartAddedCache;
+  List<AudioTrack>? _smartPlayedCache;
+  List<AudioTrack>? _smartMostCache;
+
+  void _invalidateSmartCaches() {
+    _smartAddedCache = null;
+    _smartPlayedCache = null;
+    _smartMostCache = null;
+  }
+
   List<AudioTrack> get smartRecentlyAdded {
+    final cached = _smartAddedCache;
+    if (cached != null) return cached;
     final list = List<AudioTrack>.from(visibleTracks);
     list.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
-    return list.take(40).toList();
+    final result = list.take(40).toList();
+    _smartAddedCache = result;
+    return result;
   }
 
   /// Недавно прослушанные (до 66 уникальных треков из истории в порядке воспроизведения)
   List<AudioTrack> get smartRecentlyPlayed {
+    final cached = _smartPlayedCache;
+    if (cached != null) return cached;
+    final byId = <int, AudioTrack>{for (final t in visibleTracks) t.id: t};
     final ids = <int>{};
     final list = <AudioTrack>[];
     for (final e in _historyRaw) {
       final id = e['id'];
       if (id == null) continue;
       if (ids.contains(id)) continue;
-      final idx = visibleTracks.indexWhere((x) => x.id == id);
-      if (idx < 0) continue;
-      final t = visibleTracks[idx];
+      final t = byId[id];
+      if (t == null) continue;
       ids.add(id);
       list.add(t);
       if (list.length >= 66) break;
     }
+    _smartPlayedCache = list;
     return list;
   }
 
   /// Часто прослушиваемые (по числу воспроизведений в истории)
   List<AudioTrack> get smartMostPlayed {
+    final cached = _smartMostCache;
+    if (cached != null) return cached;
+    final byId = <int, AudioTrack>{for (final t in visibleTracks) t.id: t};
     final counts = <int, int>{};
     for (final e in _historyRaw) {
       final id = e['id'];
@@ -1130,12 +1164,12 @@ class PlayerProvider extends ChangeNotifier {
 
     final list = <AudioTrack>[];
     for (final id in sortedIds) {
-      final idx = visibleTracks.indexWhere((x) => x.id == id);
-      if (idx < 0) continue;
-      final t = visibleTracks[idx];
+      final t = byId[id];
+      if (t == null) continue;
       list.add(t);
       if (list.length >= 40) break;
     }
+    _smartMostCache = list;
     return list;
   }
 
@@ -1166,6 +1200,7 @@ class PlayerProvider extends ChangeNotifier {
     }
     _prefs?.setString('history', jsonEncode(_historyRaw));
     _playCountsCache = null;
+    _invalidateSmartCaches();
   }
 
   Map<int, int>? _playCountsCache;
@@ -1187,6 +1222,7 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> clearHistory() async {
     _historyRaw = [];
     _playCountsCache = null;
+    _invalidateSmartCaches();
     await _prefs?.remove('history');
     notifyListeners();
   }
@@ -2327,12 +2363,14 @@ class PlayerProvider extends ChangeNotifier {
   List<AudioTrack>? _searchCacheResult;
 
   void _invalidateFolderCache() {
+    _visibleCache = null;
     _foldersCache = null;
     _folderTracksCache = null;
     _artistsCache = null;
     _albumsCache = null;
     _searchCacheQuery = null;
     _searchCacheResult = null;
+    _invalidateSmartCaches();
   }
 
   Future<void> requestPermission() async {
