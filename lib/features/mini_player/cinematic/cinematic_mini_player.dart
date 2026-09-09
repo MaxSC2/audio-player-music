@@ -19,8 +19,6 @@ class CinematicMiniPlayer extends StatelessWidget {
     if (track == null) return const SizedBox.shrink();
 
     final durMs = player.duration.inMilliseconds;
-    final posMs = player.position.inMilliseconds;
-    final frac = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0).toDouble() : 0.0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -90,13 +88,24 @@ class CinematicMiniPlayer extends StatelessWidget {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: LinearProgressIndicator(
-                    value: frac,
-                    minHeight: 2,
-                    backgroundColor: Colors.transparent,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xB3FFFFFF),
-                    ),
+                  child: ValueListenableBuilder<Duration>(
+                    valueListenable: player.positionTick,
+                    builder: (_, pos, __) {
+                      final frac = durMs > 0
+                          ? (pos.inMilliseconds / durMs)
+                              .clamp(0.0, 1.0)
+                              .toDouble()
+                          : 0.0;
+                      return LinearProgressIndicator(
+                        value: frac,
+                        minHeight: 2,
+                        backgroundColor: Colors.transparent,
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(
+                          Color(0xB3FFFFFF),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

@@ -93,11 +93,7 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
 
     final screenW = MediaQuery.sizeOf(context).width;
     final cardW = (screenW * 0.70 - 12).clamp(180.0, 270.0).toDouble();
-    final posMs = player.position.inMilliseconds;
     final durMs = player.duration.inMilliseconds;
-    final posFrac = durMs > 0
-        ? (posMs / durMs).clamp(0.0, 1.0).toDouble()
-        : 0.0;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -250,33 +246,49 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                           alpha: AppTheme.accent.a * (0.15),
                         ),
                       ),
-                      child: Slider(
-                        value: posFrac,
-                        onChanged: (v) => player.seek(
-                          Duration(milliseconds: (durMs * v).round()),
-                        ),
+                      child: ValueListenableBuilder<Duration>(
+                        valueListenable: player.positionTick,
+                        builder: (_, pos, __) {
+                          final frac = durMs > 0
+                              ? (pos.inMilliseconds / durMs)
+                                  .clamp(0.0, 1.0)
+                                  .toDouble()
+                              : 0.0;
+                          return Slider(
+                            value: frac,
+                            onChanged: (v) => player.seek(
+                              Duration(
+                                milliseconds: (durMs * v).round(),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _fmt(player.position),
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 11,
+                      child: ValueListenableBuilder<Duration>(
+                        valueListenable: player.positionTick,
+                        builder: (_, pos, __) => Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _fmt(pos),
+                              style: TextStyle(
+                                color: AppTheme.textMuted,
+                                fontSize: 11,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '-${_fmt(player.duration - player.position)}',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 11,
+                            Text(
+                              '-${_fmt(player.duration - pos)}',
+                              style: TextStyle(
+                                color: AppTheme.textMuted,
+                                fontSize: 11,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -348,15 +360,27 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                 ),
               ),
 
-              // Thin progress line
+              // Thin progress line (слушает тикер — без глобальных ребилдов)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-                child: LinearProgressIndicator(
-                  value: posFrac,
-                  minHeight: 3,
-                  backgroundColor: AppTheme.surfaceLight,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
-                  borderRadius: BorderRadius.circular(4),
+                child: ValueListenableBuilder<Duration>(
+                  valueListenable: player.positionTick,
+                  builder: (_, pos, __) {
+                    final frac = durMs > 0
+                        ? (pos.inMilliseconds / durMs)
+                            .clamp(0.0, 1.0)
+                            .toDouble()
+                        : 0.0;
+                    return LinearProgressIndicator(
+                      value: frac,
+                      minHeight: 3,
+                      backgroundColor: AppTheme.surfaceLight,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.accent,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    );
+                  },
                 ),
               ),
 

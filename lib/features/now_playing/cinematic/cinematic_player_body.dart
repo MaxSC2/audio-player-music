@@ -1155,61 +1155,70 @@ class _ProgressRowState extends State<_ProgressRow> {
     final player = context.watch<PlayerProvider>();
     final accent = cinematicAccent(context, player.currentTrack?.id);
     final durMs = player.duration.inMilliseconds;
-    final posMs = player.position.inMilliseconds;
-    final frac = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0).toDouble() : 0.0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 38,
-            child: Text(
-              _fmt(player.position),
-              style: const TextStyle(
-                color: CinematicTheme.textDim,
-                fontSize: 11,
-              ),
-            ),
-          ),
-          Expanded(
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2.5,
-                activeTrackColor: accent,
-                inactiveTrackColor: const Color(0x3DFFFFFF),
-                thumbColor: Colors.white,
-                thumbShape: RoundSliderThumbShape(
-                  enabledThumbRadius: _dragging ? 9 : 6,
-                ),
-                overlayShape: const RoundSliderOverlayShape(
-                  overlayRadius: 18,
-                ),
-                overlayColor: accent.withValues(
-                  alpha: accent.a * 0.18,
+      child: ValueListenableBuilder<Duration>(
+        valueListenable: player.positionTick,
+        builder: (_, pos, __) {
+          final posMs = pos.inMilliseconds;
+          final frac = durMs > 0
+              ? (posMs / durMs).clamp(0.0, 1.0).toDouble()
+              : 0.0;
+          return Row(
+            children: [
+              SizedBox(
+                width: 38,
+                child: Text(
+                  _fmt(pos),
+                  style: const TextStyle(
+                    color: CinematicTheme.textDim,
+                    fontSize: 11,
+                  ),
                 ),
               ),
-              child: Slider(
-                value: frac,
-                onChangeStart: (_) => setState(() => _dragging = true),
-                onChangeEnd: (_) => setState(() => _dragging = false),
-                onChanged: (v) => player.seek(
-                  Duration(milliseconds: (durMs * v).round()),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 2.5,
+                    activeTrackColor: accent,
+                    inactiveTrackColor: const Color(0x3DFFFFFF),
+                    thumbColor: Colors.white,
+                    thumbShape: RoundSliderThumbShape(
+                      enabledThumbRadius: _dragging ? 9 : 6,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 18,
+                    ),
+                    overlayColor: accent.withValues(
+                      alpha: accent.a * 0.18,
+                    ),
+                  ),
+                  child: Slider(
+                    value: frac,
+                    onChangeStart: (_) =>
+                        setState(() => _dragging = true),
+                    onChangeEnd: (_) =>
+                        setState(() => _dragging = false),
+                    onChanged: (v) => player.seek(
+                      Duration(milliseconds: (durMs * v).round()),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          SizedBox(
-            width: 38,
-            child: Text(
-              _fmt(player.duration),
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: CinematicTheme.textDim,
-                fontSize: 11,
+              SizedBox(
+                width: 38,
+                child: Text(
+                  _fmt(player.duration),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: CinematicTheme.textDim,
+                    fontSize: 11,
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

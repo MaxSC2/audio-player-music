@@ -155,11 +155,7 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
       });
     }
 
-    final posMs = player.position.inMilliseconds;
     final durMs = player.duration.inMilliseconds;
-    final posFrac = durMs > 0
-        ? (posMs / durMs).clamp(0.0, 1.0).toDouble()
-        : 0.0;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -333,35 +329,51 @@ class _CoverFlowHomeScreenState extends State<CoverFlowHomeScreen> {
                           alpha: AppTheme.accent.a * (0.15),
                         ),
                       ),
-                      child: Slider(
-                        value: posFrac,
-                        onChanged: (v) => player.seek(
-                          Duration(milliseconds: (durMs * v).round()),
-                        ),
+                      child: ValueListenableBuilder<Duration>(
+                        valueListenable: player.positionTick,
+                        builder: (_, pos, __) {
+                          final frac = durMs > 0
+                              ? (pos.inMilliseconds / durMs)
+                                  .clamp(0.0, 1.0)
+                                  .toDouble()
+                              : 0.0;
+                          return Slider(
+                            value: frac,
+                            onChanged: (v) => player.seek(
+                              Duration(
+                                milliseconds: (durMs * v).round(),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _fmt(player.position),
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 11,
+                      child: ValueListenableBuilder<Duration>(
+                        valueListenable: player.positionTick,
+                        builder: (_, pos, __) => Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _fmt(pos),
+                              style: TextStyle(
+                                color: AppTheme.textMuted,
+                                fontSize: 11,
+                              ),
                             ),
-                          ),
-                          Text(
-                            durMs > 0
-                                ? '-${_fmt(player.duration - player.position)}'
-                                : '',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 11,
+                            Text(
+                              durMs > 0
+                                  ? '-${_fmt(player.duration - pos)}'
+                                  : '',
+                              style: TextStyle(
+                                color: AppTheme.textMuted,
+                                fontSize: 11,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],

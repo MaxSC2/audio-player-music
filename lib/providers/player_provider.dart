@@ -446,7 +446,12 @@ class PlayerProvider extends ChangeNotifier {
 
   bool _resumePlayback = false;
   DateTime _lastPersist = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime _lastPositionNotify = DateTime.fromMillisecondsSinceEpoch(0);
+  int _lastPositionSecond = -1;
+
+  /// Тики позиции для прогресс-виджетов (ValueListenableBuilder).
+  /// Обновляется на каждый тик плеера без notifyListeners.
+  final ValueNotifier<Duration> positionTick =
+      ValueNotifier(Duration.zero);
   PlayerAudioHandler? _audioHandler;
   String? _mediaServiceError;
 
@@ -611,15 +616,19 @@ class PlayerProvider extends ChangeNotifier {
 
     _audioPlayer.positionStream.listen((pos) {
       _position = pos;
+      // Локальный тикер для прогресса: мелкие виджеты (слайдер, время,
+      // мини-прогресс) слушают его напрямую и не ждут глобальных нотификаций.
+      positionTick.value = pos;
       if (_repeatA != null && _repeatB != null && pos >= _repeatB!) {
         _audioPlayer.seek(_repeatA!);
       }
       _maybePersistPosition();
-      // Дроссель: тики позиции идут часто, а UI достаточно ~3 обновлений
-      // в секунду — иначе каждый тик перестраивает всё дерево.
-      final now = DateTime.now();
-      if (now.difference(_lastPositionNotify).inMilliseconds >= 300) {
-        _lastPositionNotify = now;
+      // Глобальные нотификации — не чаще раза в секунду: остальному UI
+      // (списки, карусель, очередь) чаще не нужно. Тики just_audio идут
+      // до ~5 раз/сек — без дросселя каждый тик перестраивал всё дерево.
+      final sec = pos.inSeconds;
+      if (sec != _lastPositionSecond) {
+        _lastPositionSecond = sec;
         notifyListeners();
       }
     });

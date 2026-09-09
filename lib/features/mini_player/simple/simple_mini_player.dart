@@ -19,12 +19,6 @@ class SimpleMiniPlayer extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final progress = player.duration.inMilliseconds > 0
-        ? (player.position.inMilliseconds / player.duration.inMilliseconds)
-              .clamp(0.0, 1.0)
-              .toDouble()
-        : 0.0;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Container(
@@ -176,18 +170,29 @@ class SimpleMiniPlayer extends StatelessWidget {
                       ],
                     ),
                   ),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: progress,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.circular(20),
+                  child: ValueListenableBuilder<Duration>(
+                    valueListenable: player.positionTick,
+                    builder: (_, pos, __) {
+                      final durMs = player.duration.inMilliseconds;
+                      final frac = durMs > 0
+                          ? (pos.inMilliseconds / durMs)
+                              .clamp(0.0, 1.0)
+                              .toDouble()
+                          : 0.0;
+                      return FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: frac,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.primaryGradient,
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(20),
+                              bottomRight: Radius.circular(20),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],

@@ -35,12 +35,6 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
       );
     }
 
-    final progress = player.duration.inMilliseconds > 0
-        ? (player.position.inMilliseconds / player.duration.inMilliseconds)
-              .clamp(0.0, 1.0)
-              .toDouble()
-        : 0.0;
-
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Stack(
@@ -197,50 +191,66 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                     ),
                   ),
 
-                  // Progress Slider
+                  // Progress Slider (слушает тикер — без глобальных ребилдов)
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 8,
                     ),
-                    child: Column(
-                      children: [
-                        Slider(
-                          value: progress,
-                          onChanged: (value) {
-                            final target = Duration(
-                              milliseconds:
-                                  (value * player.duration.inMilliseconds)
-                                      .round(),
-                            );
-                            player.seek(target);
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _formatPosition(player.position),
-                                style: TextStyle(
-                                  color: AppTheme.textMuted,
-                                  fontSize: 12,
-                                  fontFeatures: const [FontFeature.tabularFigures()],
-                                ),
+                    child: ValueListenableBuilder<Duration>(
+                      valueListenable: player.positionTick,
+                      builder: (_, pos, __) {
+                        final durMs = player.duration.inMilliseconds;
+                        final frac = durMs > 0
+                            ? (pos.inMilliseconds / durMs)
+                                .clamp(0.0, 1.0)
+                                .toDouble()
+                            : 0.0;
+                        return Column(
+                          children: [
+                            Slider(
+                              value: frac,
+                              onChanged: (value) {
+                                final target = Duration(
+                                  milliseconds:
+                                      (value * durMs).round(),
+                                );
+                                player.seek(target);
+                              },
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _formatPosition(pos),
+                                    style: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 12,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatPosition(player.duration),
+                                    style: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 12,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                _formatPosition(player.duration),
-                                style: TextStyle(
-                                  color: AppTheme.textMuted,
-                                  fontSize: 12,
-                                  fontFeatures: const [FontFeature.tabularFigures()],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
 
