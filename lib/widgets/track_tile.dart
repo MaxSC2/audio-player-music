@@ -15,6 +15,11 @@ class TrackTile extends StatelessWidget {
   final bool isCurrent;
   final bool selected;
   final bool threeD;
+
+  /// Neon/тёмный «вшитый» стиль: карточка — полупрозрачная поверхность с
+  /// тонкой кромкой, как мини-плеер и сцена. Без фиолетовой заливки, чтобы
+  /// палитра списка не спорила с неоном плеера (жалоба по скринам).
+  final bool neon;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -25,6 +30,7 @@ class TrackTile extends StatelessWidget {
     this.isCurrent = false,
     this.selected = false,
     this.threeD = false,
+    this.neon = false,
     required this.onTap,
     this.onLongPress,
   });
@@ -34,21 +40,29 @@ class TrackTile extends StatelessWidget {
     DebugLog.rebuild('TrackTile');
     final player = context.read<PlayerProvider>();
 
+    // Neon palette: полупрозрачная карточка + тонкая белая кромка,
+    // согласованные со сценой/мини-плеером.
+    const neonCard = Color(0x0FFFFFFF);
+    const neonBorder = Color(0x24FFFFFF);
+    final accent = AppTheme.accent;
+    final baseColor = neon ? neonCard : AppTheme.card;
+    final baseBorder = neon ? neonBorder : AppTheme.cardBorder;
+
     final tile = Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
         color: selected
-            ? AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.2))
+            ? accent.withValues(alpha: accent.a * (neon ? 0.28 : 0.2))
             : isCurrent
-            ? AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.12))
-            : AppTheme.card,
+            ? accent.withValues(alpha: accent.a * (neon ? 0.16 : 0.12))
+            : baseColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: selected
-              ? AppTheme.accent
+              ? accent
               : isCurrent
-              ? AppTheme.accent.withValues(alpha: AppTheme.accent.a * (0.6))
-              : AppTheme.cardBorder,
+              ? accent.withValues(alpha: accent.a * 0.6)
+              : baseBorder,
           width: selected ? 1.4 : (isCurrent ? 1.2 : 0.8),
         ),
       ),

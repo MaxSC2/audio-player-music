@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../library/library_bottom_nav.dart';
 import '../../library/library_tabs.dart';
+import '../../library/personal_dj_sheet.dart';
+import '../../../ui/theme.dart';
 import '../../mini_player/cinematic/cinematic_mini_player.dart';
 import '../../now_playing/cinematic/cinematic_player_body.dart';
 import '../../now_playing/now_playing_screen.dart';
@@ -66,6 +68,7 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
               child: LibraryTabs(
                 controller: _tabs,
                 showTabBar: false,
+                neon: true,
               ),
             ),
             CinematicMiniPlayer(onExpand: () => _expand(context)),
@@ -126,6 +129,27 @@ class _TopBar extends StatelessWidget {
             ),
           ],
           const Spacer(),
+          IconButton(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: AppTheme.surface,
+                isScrollControlled: true,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                builder: (_) => const PersonalDJSheet(),
+              );
+            },
+            icon: const Icon(
+              Icons.auto_awesome_rounded,
+              color: CinematicTheme.textSoft,
+              size: 22,
+            ),
+            tooltip: 'Personal DJ',
+          ),
           IconButton(
             onPressed: () {
               showModalBottomSheet(

@@ -9,6 +9,7 @@ import '../../widgets/cached_artwork.dart';
 import '../../widgets/collection_cards.dart';
 import '../../widgets/neon_snack.dart';
 import '../../widgets/swipe_reveal.dart';
+import '../../widgets/track_actions_sheet.dart';
 import '../../models/custom_playlist.dart';
 import '../../widgets/track_tile.dart';
 import 'category_tab.dart';
@@ -26,11 +27,16 @@ class LibraryTabs extends StatefulWidget {
   final TabController? controller;
   final bool showTabBar;
 
+  /// Neon-скин: тёмные полупрозрачные поля/карточки вместо фиолетовых,
+  /// чтобы список визуально совпадал со сценой плеера и мини-плеером.
+  final bool neon;
+
   const LibraryTabs({
     super.key,
     this.threeD = false,
     this.controller,
     this.showTabBar = true,
+    this.neon = false,
   });
 
   @override
@@ -153,6 +159,15 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildHeaderRow(PlayerProvider player) {
+    final neon = widget.neon;
+    final fieldRadius = neon ? 14.0 : 12.0;
+    final fieldFill = neon ? const Color(0x14FFFFFF) : AppTheme.surfaceLight;
+    final fieldText = neon ? Colors.white : AppTheme.textPrimary;
+    final fieldHint = neon ? Colors.white38 : AppTheme.textMuted;
+    final fieldBorderSide = neon
+        ? const BorderSide(color: Color(0x24FFFFFF))
+        : BorderSide.none;
+
     if (_selectionMode) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 6, 2),
@@ -210,20 +225,20 @@ class _LibraryTabsState extends State<LibraryTabs>
                   _searchQuery = value.trim();
                 });
               },
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+              style: TextStyle(color: fieldText, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Поиск...',
-                hintStyle: TextStyle(color: AppTheme.textMuted),
+                hintStyle: TextStyle(color: fieldHint),
                 prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: AppTheme.textMuted,
+                  color: fieldHint,
                   size: 20,
                 ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: Icon(
                           Icons.clear_rounded,
-                          color: AppTheme.textMuted,
+                          color: fieldHint,
                           size: 18,
                         ),
                         onPressed: () {
@@ -235,12 +250,12 @@ class _LibraryTabsState extends State<LibraryTabs>
                       )
                     : null,
                 filled: true,
-                fillColor: AppTheme.surfaceLight,
+                fillColor: fieldFill,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 9),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(fieldRadius),
+                  borderSide: fieldBorderSide,
                 ),
               ),
             ),
@@ -392,14 +407,8 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   List<SwipeAction> _quickActions(PlayerProvider player, AudioTrack track) {
-    void snack(String msg) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    void snack(String msg, {IconData icon = Icons.check_rounded}) {
+      showNeonSnack(context, msg, icon: icon, accent: AppTheme.accentCyan);
     }
 
     return [
@@ -410,7 +419,10 @@ class _LibraryTabsState extends State<LibraryTabs>
         label: 'В очередь',
         onTap: () {
           player.addToQueueNext(track);
-          snack('В очередь: ${track.title}');
+          snack(
+            'В очередь: ${track.title}',
+            icon: Icons.playlist_play_rounded,
+          );
         },
       ),
       SwipeAction(
@@ -429,7 +441,10 @@ class _LibraryTabsState extends State<LibraryTabs>
         label: 'Скрыть',
         onTap: () {
           player.toggleNotNow(track);
-          snack('Скрыто на неделю: ${track.title}');
+          snack(
+            'Скрыто на неделю: ${track.title}',
+            icon: Icons.do_not_disturb_on_rounded,
+          );
         },
       ),
     ];
@@ -459,6 +474,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             isCurrent: isCurrent,
             selected: _selectedIds.contains(track.id),
             threeD: widget.threeD,
+            neon: widget.neon,
             onTap: () {
               if (_selectionMode) {
                 _toggleSelection(track);
@@ -1285,6 +1301,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             isPlaying: isCurrent && player.isPlaying,
             isCurrent: isCurrent,
             threeD: widget.threeD,
+            neon: widget.neon,
             onTap: () {
               if (favs.length > 1) {
                 player.playFromPlaylist(favs, index);
@@ -1292,7 +1309,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                 player.playTrack(track);
               }
             },
-            onLongPress: () => _showTrackActions(context, player, track),
+            onLongPress: () => TrackActionsSheet.show(context, track),
           ),
         );
       },
@@ -1362,6 +1379,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                 isPlaying: isCurrent && p.isPlaying,
                 isCurrent: isCurrent,
                 threeD: widget.threeD,
+                neon: widget.neon,
                 onTap: () {
                   final ids = items.map((e) => e.track.id).toList();
                   final idx = ids.indexOf(track.id);
@@ -1372,7 +1390,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                     p.playTrack(track);
                   }
                 },
-                onLongPress: () => _showTrackActions(context, p, track),
+                onLongPress: () => TrackActionsSheet.show(context, track),
               ),
             );
           }),
@@ -1928,87 +1946,6 @@ class _LibraryTabsState extends State<LibraryTabs>
       // Освобождаем контроллер: диалог закрыт, поле больше не используется.
       controller.dispose();
     }
-  }
-
-  void _showTrackActions(
-    BuildContext context,
-    PlayerProvider player,
-    AudioTrack track,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                track.title,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline_rounded,
-                color: Colors.redAccent,
-              ),
-              title: const Text(
-                'Удалить с устройства',
-                style: TextStyle(color: Colors.redAccent),
-              ),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    backgroundColor: AppTheme.card,
-                    title: Text(
-                      'Удалить трек?',
-                      style: TextStyle(color: AppTheme.textPrimary),
-                    ),
-                    content: Text(
-                      'Файл «${track.title}» будет удалён с устройства. Это действие нельзя отменить.',
-                      style: TextStyle(color: AppTheme.textMuted),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        child: const Text('Отмена'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, true),
-                        child: const Text(
-                          'Удалить',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed != true) return;
-                final ok = await player.deleteTrack(track);
-                if (context.mounted) {
-                  showDeleteResultSnack(context, ok, title: track.title);
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildEmptyState(String text, IconData icon, {String? subtitle}) {
