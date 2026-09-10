@@ -674,19 +674,43 @@ class PlayerProvider extends ChangeNotifier {
 
       final queueIndex = _playlist.indexWhere((t) => t.id == deletedId);
       if (queueIndex >= 0) {
-        if (queueIndex == _currentIndex) {
+        final wasCurrent = queueIndex == _currentIndex;
+        final wasPlaying = _isPlaying;
+        _playlist.removeAt(queueIndex);
+
+        if (_playlist.isEmpty) {
+          // Удалили последний трек очереди — только тогда останавливаемся.
           await _audioPlayer.stop();
           _isPlaying = false;
           _position = Duration.zero;
           _duration = Duration.zero;
           _currentIndex = -1;
+          await _rebuildPlaylist();
+        } else if (wasCurrent) {
+          // ВАЖНО: удаление играющего трека НЕ сбрасывает очередь в начало.
+          // Продолжаем с трека, вставшего на освободившееся место (или с
+          // нового последнего, если удалили последний трек).
+          final nextIndex = queueIndex < _playlist.length
+              ? queueIndex
+              : _playlist.length - 1;
+          _currentIndex = nextIndex;
+          _position = Duration.zero;
+          _duration = Duration(milliseconds: _playlist[nextIndex].duration);
+          // Очередь изменилась — форсированно пересобираем нативное окно,
+          // иначе в нём останется удалённый файл и индексы разъедутся.
+          await _rebuildPlaylist();
+          if (wasPlaying) {
+            await playAt(nextIndex);
+          }
         } else if (queueIndex < _currentIndex) {
+          // Удалили трек до текущего — сдвигаем индекс, играющий трек
+          // продолжает без рывка и без перезапуска очереди.
           _currentIndex -= 1;
+          await _rebuildPlaylist();
+        } else {
+          // Удалили трек после текущего — очередь просто становится короче.
+          await _rebuildPlaylist();
         }
-        _playlist.removeAt(queueIndex);
-        // Синхронизируем нативную очередь, иначе индексы провайдера
-        // и плеера расходятся и next() играет не тот трек.
-        await _rebuildPlaylist();
       }
 
       _notify('deleteTrack');

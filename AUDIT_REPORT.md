@@ -349,3 +349,70 @@ fbaeea4 v103 fix: neon_collection _AlbumsGrid has no search query (compile error
 
 | 15 | `lib/features/library/library_tabs.dart` | `_buildAlbumList` использует `player.albumEntries` вместо `O(альбомы×треки)` пересборки каждый билд. |
 | 16 | `lib/features/collection/neon_collection_screen.dart` | То же в коллекции. |
+
+---
+
+## 14. Раунд 4 — удаление трека, снекбары и единое меню (v104)
+
+Запрос: (1) баг — «каждое удаление трека переносит очередь в начало»; (2) белый снекбар
+«Трек удалён» вырвиглазный и перекрывает нижнюю панель; (3) кнопка «три точки» в плеере
+открывает недоделанное меню — свести к единому стилю; (4) развивать сцену плеера.
+
+### 14.1. Баг удаления — очередь больше не сбрасывается в начало
+
+**Файл:** `lib/providers/player_provider.dart`, `deleteTrack()`.
+
+**Причина:** при удалении **играющего** трека код делал `_currentIndex = -1` и
+`_audioPlayer.stop()`. После этого `currentTrack == null`, а карусель/плейлист
+брали индекс 0 → визуально «перебрасывало в начало очереди». Плюс в `deleteTrack`
+не пересобиралось нативное окно под новый индекс.
+
+**Исправление:** при удалении текущего трека продолжаем воспроизведение с трека,
+вставшего на освободившееся место (или с нового последнего, если удалили последний).
+Индекс не сбрасывается; очередь и нативное окно синхронизируются через
+`_rebuildPlaylist()`, затем `playAt(nextIndex)` (если трек играл). Останов — только
+когда очередь становится пустой. Удаление трека до текущего сдвигает индекс без
+рывка; удаление после — просто укорачивает очередь.
+
+### 14.2. Снекбары — единый неоновый стиль, не перекрывают мини-плеер
+
+**Файлы:** `lib/ui/theme.dart` (`snackBarTheme`), новый `lib/widgets/neon_snack.dart`.
+
+- Глобальный `snackBarTheme`: тёмная поверхность, скруглённая рамка, floating,
+  `insetPadding` снизу 96px — чтобы не закрывать нижнюю панель плеера.
+- Хелперы `showNeonSnack` / `showNeonSnackOn` / `showDeleteResultSnack` — иконка в
+  акцентной плашке + текст; вариант `...On` принимает `ScaffoldMessengerState`,
+  т.к. после `Navigator.pop` шторки контекст уже недействителен.
+- Заменены снекбары удаления в `player_feature_row.dart` и `library_tabs.dart`
+  (одиночное и массовое удаление).
+
+### 14.3. Единое меню «три точки» — `TrackActionsSheet`
+
+**Новый файл:** `lib/widgets/track_actions_sheet.dart`.
+
+Раньше «три точки» в простом плеере открывали «Очередь», а в кинематографичном —
+ряд кнопок `PlayerFeatureRow`; стиль и логика различались. Теперь оба открывают
+одну шторку NeonWave с действиями: Избранное, Играть следующим, В плейлист,
+Очередь, Информация, Удалить (с подтверждением и стилизованным результатом).
+
+Подключено в `simple_now_playing_screen.dart` и `cinematic_player_body.dart`.
+`PlayerFeatureRow` остаётся внутри сцены плеера (как и просил пользователь),
+но «три точки» теперь ведут в единое меню.
+
+### 14.4. Валидация
+
+- `dart format` — все 8 файлов разбираются без ошибок синтаксиса.
+- `dart analyze` (8 изменённых файлов) — **No issues found!**
+
+### 14.5. Изменённые файлы раунда 4
+
+```
+lib/providers/player_provider.dart                        (fix delete → continue queue)
+lib/ui/theme.dart                                         (snackBarTheme)
+lib/widgets/player_feature_row.dart                       (unified delete snack)
+lib/features/library/library_tabs.dart                    (unified delete snack x2)
+lib/features/now_playing/simple/simple_now_playing_screen.dart    (TrackActionsSheet)
+lib/features/now_playing/cinematic/cinematic_player_body.dart     (TrackActionsSheet)
+lib/widgets/neon_snack.dart                               (NEW)
+lib/widgets/track_actions_sheet.dart                      (NEW)
+```

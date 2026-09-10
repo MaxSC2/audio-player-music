@@ -6,8 +6,8 @@ import '../../../widgets/animated_waveform.dart';
 import '../../../widgets/artwork_backdrop.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/player_feature_row.dart';
-import '../../../widgets/queue_sheet.dart';
 import '../../../widgets/spinning_vinyl.dart';
+import '../../../widgets/track_actions_sheet.dart';
 import '../../../core/debug_log.dart';
 
 class SimpleNowPlayingScreen extends StatefulWidget {
@@ -127,18 +127,8 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                           Icons.more_vert_rounded,
                           color: AppTheme.textSecondary,
                         ),
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            backgroundColor: AppTheme.surface,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(24),
-                              ),
-                            ),
-                            builder: (_) => const QueueSheet(),
-                          );
-                        },
+                        tooltip: 'Действия с треком',
+                        onPressed: () => TrackActionsSheet.show(context, track),
                       ),
                     ],
                   ),

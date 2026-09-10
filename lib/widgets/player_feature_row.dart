@@ -5,6 +5,7 @@ import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'equalizer_dialog.dart';
 import 'explain_sheet.dart';
+import 'neon_snack.dart';
 import 'queue_sheet.dart';
 import 'sleep_timer_dialog.dart';
 import 'speed_selector_dialog.dart';
@@ -208,9 +209,7 @@ Future<void> _confirmDeleteTrack(
   if (confirmed != true || !context.mounted) return;
   final ok = await player.deleteTrack(track);
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(ok ? 'Трек удалён' : 'Не удалось удалить трек')),
-  );
+  showDeleteResultSnack(context, ok, title: track.title);
   if (ok && player.currentTrack == null) {
     Navigator.pop(context);
   }

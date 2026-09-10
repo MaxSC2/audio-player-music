@@ -10,8 +10,8 @@ import '../../../providers/player_provider.dart';
 import '../../../widgets/artwork_palette.dart';
 import '../../../widgets/cached_artwork.dart';
 import '../../../widgets/marquee_text.dart';
-import '../../../widgets/player_feature_row.dart';
 import '../../../widgets/queue_sheet.dart';
+import '../../../widgets/track_actions_sheet.dart';
 import '../../../core/debug_log.dart';
 
 /// Текущий акцент cinematic: тема (Auto/фикс) + кеш палитры обложки.
@@ -1050,23 +1050,7 @@ class _TrackInfo extends StatelessWidget {
             onTap: () => player.toggleFavorite(track),
           ),
           IconButton(
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                backgroundColor: const Color(0xFF101014),
-                shape: const RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                builder: (_) => SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                    child: PlayerFeatureRow(track: track),
-                  ),
-                ),
-              );
-            },
+            onPressed: () => TrackActionsSheet.show(context, track),
             icon: const Icon(
               Icons.more_vert_rounded,
               color: CinematicTheme.textDim,

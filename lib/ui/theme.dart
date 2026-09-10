@@ -211,6 +211,24 @@ class AppTheme {
       overlayColor: accent.withValues(alpha: accent.a * (0.25)),
       overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: surfaceLight,
+      contentTextStyle: TextStyle(
+        color: textPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
+      actionTextColor: accentLight,
+      behavior: SnackBarBehavior.floating,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: cardBorder),
+      ),
+      // Отступ снизу — чтобы снекбар не перекрывал нижнюю панель/мини-плеер.
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+      showCloseIcon: false,
+    ),
     iconTheme: IconThemeData(color: textPrimary),
   );
 }

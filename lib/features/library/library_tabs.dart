@@ -7,6 +7,7 @@ import '../../screens/playlist_detail_screen.dart';
 import '../../ui/theme.dart';
 import '../../widgets/cached_artwork.dart';
 import '../../widgets/collection_cards.dart';
+import '../../widgets/neon_snack.dart';
 import '../../widgets/swipe_reveal.dart';
 import '../../models/custom_playlist.dart';
 import '../../widgets/track_tile.dart';
@@ -1762,16 +1763,14 @@ class _LibraryTabsState extends State<LibraryTabs>
     }
     if (!mounted) return;
     _exitSelection();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          deleted > 0
-              ? 'Удалено $deleted ${_pluralTracks(deleted)}'
-              : 'Не удалось удалить треки',
-        ),
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-      ),
+    showNeonSnack(
+      context,
+      deleted > 0
+          ? 'Удалено $deleted ${_pluralTracks(deleted)}'
+          : 'Не удалось удалить треки',
+      icon: Icons.delete_outline_rounded,
+      accent: AppTheme.accentPink,
+      error: deleted == 0,
     );
   }
 
@@ -2001,13 +2000,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                 if (confirmed != true) return;
                 final ok = await player.deleteTrack(track);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        ok ? 'Трек удалён' : 'Не удалось удалить трек',
-                      ),
-                    ),
-                  );
+                  showDeleteResultSnack(context, ok, title: track.title);
                 }
               },
             ),
