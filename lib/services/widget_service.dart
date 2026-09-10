@@ -32,10 +32,13 @@ class WidgetService {
         switch (action) {
           case 'neonwave.widget.FAVORITE':
             player.toggleFavoriteCurrent();
+            break;
           case 'neonwave.widget.SHUFFLE':
             player.toggleShuffle();
+            break;
           case 'neonwave.widget.REPEAT':
             player.toggleRepeat();
+            break;
         }
         push(player, force: true);
       }

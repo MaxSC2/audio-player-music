@@ -63,12 +63,22 @@ class PlaylistPickerSheet extends StatelessWidget {
       ),
     );
 
-    if (name == null || name.isEmpty) return;
-    if (!context.mounted) return;
+    if (name == null || name.isEmpty) {
+      controller.dispose();
+      return;
+    }
+    if (!context.mounted) {
+      controller.dispose();
+      return;
+    }
 
     final player = context.read<PlayerProvider>();
-    await player.createPlaylist(name);
-    await player.addToPlaylist(player.playlists.last.id, track);
+    // createPlaylist возвращает id — не завязываемся на playlists.last.
+    final created = await player.createPlaylist(name);
+    if (created != null) {
+      await player.addToPlaylist(created, track);
+    }
+    controller.dispose();
 
     if (context.mounted) {
       Navigator.pop(context);

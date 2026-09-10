@@ -494,6 +494,13 @@ class PlayerProvider extends ChangeNotifier {
   DateTime _notifyWindowStart = DateTime.now();
   int notifyPerSecond = 0;
 
+  /// Версия «данных» (история, плейлисты, избранное, библиотека, жанры).
+  /// Тяжёлые вкладки (DNA/Категории) подписываются на неё через
+  /// context.select, чтобы перестраиваться только при реальном изменении
+  /// данных, а не от каждого глобального notify (позиция/проигрывание).
+  int _dataEpoch = 0;
+  int get dataEpoch => _dataEpoch;
+
   /// Атрибуция источников нотификаций (диагностика шторма).
   final Map<String, int> _notifySources = {};
 
@@ -538,12 +545,21 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Единая точка нотификаций с атрибуцией источника.
+  /// Коалесценция: несколько _notify в одном кадре (например, связка
+  /// playAt + indexEvent + togglePlay) схлопываются в ОДНО notifyListeners.
+  /// Это убирает «шторм» пересборок всего дерева при бурст-событиях.
+  bool _notifyScheduled = false;
   void _notify([String source = 'other']) {
     _notifySources[source] = (_notifySources[source] ?? 0) + 1;
     if (debugNoNotify) return;
-    // ВАЖНО: здесь именно notifyListeners() (оверрайд со счётчиком),
-    // а не _notify — иначе бесконечная рекурсия.
-    notifyListeners();
+    if (_notifyScheduled) return; // в этом кадре уже запланировано
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      // ВАЖНО: именно notifyListeners() (оверрайд со счётчиком),
+      // а не _notify — иначе бесконечная рекурсия.
+      notifyListeners();
+    });
   }
 
   @override
@@ -738,13 +754,15 @@ class PlayerProvider extends ChangeNotifier {
       }
       _maybePersistPosition();
       // Глобальные нотификации — не чаще раза в секунду: остальному UI
-      // (списки, карусель, очередь) чаще не нужно. Тики just_audio идут
-      // до ~5 раз/сек — без дросселя каждый тик перестраивал всё дерево.
+      // (списки, карусель, очередь) чаще не нужно.
+      // ВНИМАНИЕ (фикс лагов): рассылать notifyListeners() каждую секунду
+      // перестраивало ВСЁ дерево (включая тяжёлые вкладки DNA/Категории и
+      // все TrackTile). Прогресс-виджеты читают positionTick напрямую
+      // через ValueListenableBuilder, так что глобальный тик не нужен.
+      // Только прогресс и мини-плееры обновляются ~5 раз/сек.
+      // (Счётчик секунд держим, чтобы при необходимости вернуть троттл.)
       final sec = pos.inSeconds;
-      if (sec != _lastPositionSecond) {
-        _lastPositionSecond = sec;
-        _notify('position-1Hz');
-      }
+      _lastPositionSecond = sec;
     });
 
     _audioPlayer.durationStream.listen((dur) {
@@ -755,8 +773,15 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     _audioPlayer.playerStateStream.listen((state) {
-      _isPlaying = state.playing;
-      _notify('playerStateStream');
+      // Дедуп: уведомляем UI только при реальном переключении play/pause,
+      // а не на каждый тик плеера (иначе список/мини-плеер перестраиваются
+      // постоянно, пока играет музыка).
+      if (state.playing != _isPlaying) {
+        _isPlaying = state.playing;
+        _notify('playerStateStream');
+      } else {
+        _isPlaying = state.playing;
+      }
     });
 
     _audioPlayer.processingStateStream.listen((state) {
@@ -1462,6 +1487,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void _invalidateCategoryCache() {
+    _dataEpoch++; // ручные категории/жанры меняют данные вкладок
     _categoryCache.clear();
     _categoryTracksCache.clear();
     _primaryGenreCache.clear();
@@ -2491,6 +2517,28 @@ class PlayerProvider extends ChangeNotifier {
     return list;
   }
 
+  /// Альбомы с треками, отсортированные по названию. Кешируется:
+  /// построение списком «O(альбомы×треки)» в UI каждый билд было заметным
+  /// источником фризов на вкладке «Альбомы».
+  List<({String album, List<AudioTrack> tracks})>? _albumEntriesCache;
+  List<({String album, List<AudioTrack> tracks})> get albumEntries {
+    final cached = _albumEntriesCache;
+    if (cached != null) return cached;
+    final byAlbum = <String, List<AudioTrack>>{};
+    for (final t in _allTracks) {
+      final a = t.album;
+      if (a == null || a.isEmpty) continue;
+      (byAlbum[a] ??= <AudioTrack>[]).add(t);
+    }
+    final names = byAlbum.keys.toList()..sort();
+    final result = <({String album, List<AudioTrack> tracks})>[];
+    for (final n in names) {
+      result.add((album: n, tracks: byAlbum[n]!));
+    }
+    _albumEntriesCache = result;
+    return result;
+  }
+
   String? _folderPathOf(AudioTrack t) {
     final d = t.data;
     if (d == null || d.isEmpty) return null;
@@ -2537,6 +2585,7 @@ class PlayerProvider extends ChangeNotifier {
   /// Сброс всех производных кешей (списки/агрегаты). Вызывать при любом
   /// изменении библиотеки, истории, избранного, плейлистов и жанров.
   void _invalidateDerivedCaches() {
+    _dataEpoch++; // сигнал тяжёлым вкладкам (DNA/Категории) перестроиться
     _genreCountsCache = null;
     _playlistTracksCache.clear();
     _favoriteCache = null;
@@ -2552,6 +2601,7 @@ class PlayerProvider extends ChangeNotifier {
     _folderTracksCache = null;
     _artistsCache = null;
     _albumsCache = null;
+    _albumEntriesCache = null;
     _searchCacheQuery = null;
     _searchCacheResult = null;
     _invalidateSmartCaches();
@@ -2862,10 +2912,13 @@ class PlayerProvider extends ChangeNotifier {
     switch (_repeatMode) {
       case PlayerRepeatMode.off:
         _repeatMode = PlayerRepeatMode.all;
+        break;
       case PlayerRepeatMode.all:
         _repeatMode = PlayerRepeatMode.one;
+        break;
       case PlayerRepeatMode.one:
         _repeatMode = PlayerRepeatMode.off;
+        break;
     }
     _audioHandler?.setRepeatState(_repeatMode.index);
     _notify('toggleRepeat');

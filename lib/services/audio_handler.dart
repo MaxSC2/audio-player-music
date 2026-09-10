@@ -180,10 +180,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     switch (name) {
       case 'shuffle':
         onToggleShuffle();
+        break;
       case 'favorite':
         onToggleFavorite();
+        break;
       case 'repeat':
         onToggleRepeat();
+        break;
     }
   }
 

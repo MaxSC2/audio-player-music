@@ -10,7 +10,10 @@ class MusicDnaTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('MusicDnaTab');
-    final player = context.watch<PlayerProvider>();
+    // Изоляция от шторма: перестраиваемся ТОЛЬКО при изменении данных
+    // (история/плейлисты/избранное/библиотека), а не от позиции/плеера.
+    context.select<PlayerProvider, int>((p) => p.dataEpoch);
+    final player = context.read<PlayerProvider>();
 
     if (player.totalPlays == 0) {
       return _buildEmptyState();

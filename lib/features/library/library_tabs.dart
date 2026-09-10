@@ -494,12 +494,15 @@ class _LibraryTabsState extends State<LibraryTabs>
     switch (_playlistSort) {
       case 1:
         playlists.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
       case 2:
         playlists.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
       case 3:
         playlists.sort(
           (a, b) => b.trackIds.length.compareTo(a.trackIds.length),
         );
+        break;
       default:
         playlists.sort(
           (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
@@ -930,6 +933,8 @@ class _LibraryTabsState extends State<LibraryTabs>
     if (name != null && name.isNotEmpty && mounted) {
       context.read<PlayerProvider>().createPlaylist(name);
     }
+    // Освобождаем контроллер после закрытия диалога.
+    controller.dispose();
   }
 
   String _pluralTracks(int count) {
@@ -1082,13 +1087,9 @@ class _LibraryTabsState extends State<LibraryTabs>
       return _buildEmptyState('Альбомы не найдены', Icons.album_outlined);
     }
 
-    final entries = <({String album, List<AudioTrack> tracks})>[
-      for (final a in albums)
-        (
-          album: a,
-          tracks: player.allTracks.where((t) => t.album == a).toList(),
-        ),
-    ];
+    final entries = player.albumEntries
+        .where((e) => e.album.toLowerCase().contains(query))
+        .toList();
     final counts = player.playCounts;
     switch (_albumFilter) {
       case 1:
@@ -1834,9 +1835,13 @@ class _LibraryTabsState extends State<LibraryTabs>
                     onTap: () async {
                       final name = await _promptPlaylistName(sheetCtx);
                       if (name != null && name.isNotEmpty) {
-                        await player.createPlaylist(name);
-                        final created = player.playlists.last.id;
-                        if (sheetCtx.mounted) Navigator.pop(sheetCtx, created);
+                        // createPlaylist возвращает id созданного плейлиста —
+                        // надёжнее, чем playlists.last (упадёт на пустом списке
+                        // и завязан на порядок элементов).
+                        final created = await player.createPlaylist(name);
+                        if (created != null && sheetCtx.mounted) {
+                          Navigator.pop(sheetCtx, created);
+                        }
                       }
                     },
                   ),
@@ -1868,7 +1873,8 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Future<String?> _promptPlaylistName(BuildContext ctx) async {
     final controller = TextEditingController();
-    return showDialog<String>(
+    try {
+      return await showDialog<String>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: AppTheme.surface,
@@ -1918,7 +1924,11 @@ class _LibraryTabsState extends State<LibraryTabs>
           ),
         ],
       ),
-    );
+      );
+    } finally {
+      // Освобождаем контроллер: диалог закрыт, поле больше не используется.
+      controller.dispose();
+    }
   }
 
   void _showTrackActions(

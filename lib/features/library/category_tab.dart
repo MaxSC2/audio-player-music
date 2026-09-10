@@ -83,7 +83,10 @@ class _CategoryTabState extends State<CategoryTab> {
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('CategoryTab');
-    final player = context.watch<PlayerProvider>();
+    // Изоляция от шторма: перестраиваемся только при реальном изменении
+    // данных (история/жанры/библиотека), не от позиции/проигрывания.
+    context.select<PlayerProvider, int>((p) => p.dataEpoch);
+    final player = context.read<PlayerProvider>();
     final tracks = player.tracksForCategory(_selected);
     final genreCounts = player.genreCounts();
     if (_selectedGenre != 'Прочее' &&
@@ -882,7 +885,7 @@ class _CategoryTabState extends State<CategoryTab> {
           );
         },
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 
   void _showManualEditor(

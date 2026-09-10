@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -6,8 +7,12 @@ import '../ui/theme.dart';
 
 class ArtworkCache {
   static const int _maxEntries = 200;
+  static const int _maxConcurrent = 8;
   static final LinkedHashMap<int, Uint8List?> _cache = LinkedHashMap();
   static final Map<int, Future<Uint8List?>> _pending = {};
+  static final List<({int trackId, int size, Completer<Uint8List?> done})>
+      _queue = [];
+  static int _inFlight = 0;
   static final OnAudioQuery _query = OnAudioQuery();
 
   /// Есть ли запись в кеше (включая закэшированное отсутствие арта).
@@ -22,6 +27,10 @@ class ArtworkCache {
     return bytes;
   }
 
+  /// Асинхронная загрузка с глобальным пулом из [_maxConcurrent] одновременных
+  /// запросов. Раньше каждая карточка списка (сотни!) стартовала свой
+  /// queryArtwork разом — платформенный канал захлёбывался, UI фризило
+  /// на ~сотни мс. Теперь запросы идут пачками по 8.
   static Future<Uint8List?> load(int trackId, {int size = 400}) {
     if (_cache.containsKey(trackId)) {
       // LRU: поднимаем запрошенный ключ в конец.
@@ -32,21 +41,47 @@ class ArtworkCache {
     final pending = _pending[trackId];
     if (pending != null) return pending;
 
-    final future = _query.queryArtwork(
-      trackId,
-      ArtworkType.AUDIO,
-      format: ArtworkFormat.PNG,
-      size: size,
-    );
-    _pending[trackId] = future;
-    future.then((bytes) {
-      _cache[trackId] = bytes;
+    final completer = Completer<Uint8List?>();
+    _pending[trackId] = completer.future;
+    _queue.add((trackId: trackId, size: size, done: completer));
+    _drain();
+    return completer.future;
+  }
+
+  static void _drain() {
+    while (_inFlight < _maxConcurrent && _queue.isNotEmpty) {
+      final task = _queue.removeAt(0);
+      _inFlight++;
+      // fire-and-forget: завершение через task.done, пул контролирует _drain.
+      unawaited(_run(task));
+    }
+  }
+
+  static Future<void> _run(
+    ({int trackId, int size, Completer<Uint8List?> done}) task,
+  ) async {
+    try {
+      final bytes = await _query.queryArtwork(
+        task.trackId,
+        ArtworkType.AUDIO,
+        format: ArtworkFormat.PNG,
+        size: task.size,
+      );
+      _cache[task.trackId] = bytes;
       while (_cache.length > _maxEntries) {
         _cache.remove(_cache.keys.first);
       }
-      _pending.remove(trackId);
-    });
-    return future;
+      task.done.complete(bytes);
+    } catch (_) {
+      // Кешируем «арта нет»: не долбим канал повторными запросами
+      // к сломанным/удалённым файлам (раньше _pending текло навсегда).
+      _cache[task.trackId] = null;
+      task.done.complete(null);
+    } finally {
+      _pending.remove(task.trackId);
+      _inFlight--;
+      _drain();
+    }
   }
 }
 

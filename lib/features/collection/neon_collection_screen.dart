@@ -199,13 +199,9 @@ class _AlbumsGrid extends StatelessWidget {
       );
     }
 
-    final entries = <({String album, List<AudioTrack> tracks})>[
-      for (final a in albums)
-        (
-          album: a,
-          tracks: player.allTracks.where((t) => t.album == a).toList(),
-        ),
-    ];
+    final entries = player.albumEntries
+        .where((e) => e.album.toLowerCase().contains(query))
+        .toList();
     final counts = player.playCounts;
     switch (filter) {
       case 1:
@@ -218,14 +214,17 @@ class _AlbumsGrid extends StatelessWidget {
               .fold<int>(0, (p, e) => e > p ? e : p);
           return db.compareTo(da);
         });
+        break;
       case 2:
         int plays(List<AudioTrack> ts) =>
             ts.fold<int>(0, (p, t) => p + (counts[t.id] ?? 0));
         entries.sort((a, b) => plays(b.tracks).compareTo(plays(a.tracks)));
+        break;
       case 3:
         entries.sort(
           (a, b) => a.album.toLowerCase().compareTo(b.album.toLowerCase()),
         );
+        break;
     }
 
     return GridView.builder(

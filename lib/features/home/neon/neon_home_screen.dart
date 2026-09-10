@@ -62,8 +62,16 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('NeonHome');
-    final player = context.watch<PlayerProvider>();
-    final count = player.visibleTracks.length;
+    // Изоляция от шторма: экран читает из провайдера только 2 значения
+    // (количество треков и id текущего). Любые прочие нотификации
+    // (позиция/состояние плеера/история) больше не перестраивают
+    // домашний экран и вложенную библиотеку с 9 вкладками.
+    final count = context.select<PlayerProvider, int>(
+      (p) => p.visibleTracks.length,
+    );
+    final currentTrackId = context.select<PlayerProvider, int?>(
+      (p) => p.currentTrack?.id,
+    );
 
     return Scaffold(
       backgroundColor: CinematicTheme.bg,
@@ -157,7 +165,7 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
             CinematicMiniPlayer(onExpand: () => _expand(context)),
             LibraryBottomNav(
               current: _tabs.index.clamp(0, 8),
-              accent: cinematicAccent(context, player.currentTrack?.id),
+              accent: cinematicAccent(context, currentTrackId),
               onSelect: (i) {
                 if (_tabs.index != i) {
                   setState(() => _tabs.index = i);
