@@ -507,3 +507,67 @@ lib/features/home/neon/neon_home_screen.dart             (Personal DJ + neon: tr
 lib/features/home/cinematic/cinematic_home_screen.dart   (Personal DJ + neon: true)
 ```
 
+
+---
+
+## 16. Раунд 6 — виджеты рабочего стола (нативные) + упрочнение CI
+
+Запрос: «заняться виджетами, их обрисовкой, анимированием».
+
+### 16.1. КРИТИЧЕСКИЙ баг обрисовки: невидимые иконки (ИСПРАВЛЕНО)
+
+Виджет на тёмном фоне (набор `ic_action_*`) рисовался **чёрным** цветом
+`#FF000000` — то есть иконки избранного/шаффла/повтора были **невидимы**.
+
+Кроме того, использовались **два разных набора** иконок: в layout —
+`ic_widget_*` (цветные), а Kotlin после первого обновления подставлял
+`ic_action_*` (чёрные). То есть иконки «пропадали» сразу после запуска.
+
+Фикс (`NeonWaveWidgets.kt`, `fill()`):
+- fav → `ic_widget_favorite` / `ic_widget_favorite_off` (новые, pink/grey);
+- shuffle → `ic_widget_shuffle_on` / `ic_widget_shuffle_off`;
+- repeat → `ic_widget_repeat_on` (all) / `ic_widget_repeat_one` (one) /
+  `ic_widget_repeat_off` (off);
+- play/pause/prev/next — уже были `ic_widget_*`.
+- заглушка обложки: было чёрное **сердце** (`ic_action_favorite_off`) →
+  стало `ic_widget_placeholder` (нотка `#66FFFFFF`).
+
+Новые drawable: `ic_widget_favorite.xml`, `ic_widget_favorite_off.xml`,
+`ic_widget_placeholder.xml`. `widget_large.xml` — стартовая иконка fav
+переведена на `ic_widget_favorite_off`.
+
+### 16.2. Упрочнение CI (важно для сборок через GitHub)
+
+Воркфлоу `build-apk.yml` пересоздаёт Android-проект (`flutter create`) и
+восстанавливал только `layout/`, `xml/`, `widget_bg.xml`, `drawable-nodpi/`.
+Иконки виджета (`ic_widget_*`, `ic_action_*`, `widget_btn_bg`, `widget_play_bg`)
+выживали лишь потому, что `flutter create` не удаляет уже существующие файлы —
+это хрупко и могло сломать сборку при обновлении Flutter/шаблона.
+
+Добавлено полноценное резервирование всего каталога `res/drawable`:
+```
+[ -d android/app/src/main/res/drawable ] && cp -r ... mainactivity_backup/
+...
+[ -d mainactivity_backup/drawable ] && cp -r ... android/app/src/main/res/
+```
+
+### 16.3. Изменённые/новые файлы раунда 6
+
+```
+.github/workflows/build-apk.yml                                  (backup drawable)
+android/app/src/main/kotlin/.../widget/NeonWaveWidgets.kt        (иконки виджета)
+android/app/src/main/res/layout/widget_large.xml                 (fav icon)
+android/app/src/main/res/drawable/ic_widget_favorite.xml         (NEW)
+android/app/src/main/res/drawable/ic_widget_favorite_off.xml     (NEW)
+android/app/src/main/res/drawable/ic_widget_placeholder.xml      (NEW)
+```
+
+### 16.4. Что осталось по виджетам (нужно устройство/эмулятор)
+
+- Прогресс-бар трека в виджете (RemoteViews ProgressBar + push из Dart).
+- Анимация — RemoteViews крайне ограничены (нет произвольных анимаций);
+  возможна смена кадров через периодический push или переход на
+  `Glance`/`AppWidget` с `ListView`, что требует отдельной сессии.
+- Иконки `ic_action_*` больше не используются — можно удалить позже
+  (не удалял без подтверждения, по правилам репозитория).
+

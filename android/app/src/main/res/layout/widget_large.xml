@@ -65,7 +65,7 @@
             android:background="@drawable/widget_btn_bg"
             android:padding="8dp"
             android:scaleType="centerInside"
-            android:src="@drawable/ic_action_favorite_off"/>
+            android:src="@drawable/ic_widget_favorite_off"/>
 
         <ImageView
             android:id="@+id/w_shuffle"

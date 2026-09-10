@@ -154,27 +154,31 @@ object WidgetState {
         if (bmp != null) {
             views.setImageViewBitmap(R.id.w_art, bmp)
         } else {
-            views.setImageViewResource(R.id.w_art, R.drawable.ic_action_favorite_off)
+            // Заглушка обложки — нотка, а не чёрное сердце (было невидимо).
+            views.setImageViewResource(R.id.w_art, R.drawable.ic_widget_placeholder)
         }
 
         views.setImageViewResource(
             R.id.w_play,
             if (playing) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
         )
+        // ВАЖНО: используем только ic_widget_* (цветные под тёмный фон).
+        // Раньше здесь были ic_action_* — они ЧЁРНЫЕ, то есть невидимы на
+        // тёмном виджете (fav/shuffle/repeat пропадали).
         views.setImageViewResource(
             R.id.w_fav,
-            if (favorite) R.drawable.ic_action_favorite else R.drawable.ic_action_favorite_off
+            if (favorite) R.drawable.ic_widget_favorite else R.drawable.ic_widget_favorite_off
         )
         views.setImageViewResource(
             R.id.w_shuffle,
-            if (shuffle) R.drawable.ic_action_shuffle else R.drawable.ic_action_shuffle_off
+            if (shuffle) R.drawable.ic_widget_shuffle_on else R.drawable.ic_widget_shuffle_off
         )
         views.setImageViewResource(
             R.id.w_repeat,
             when (repeat) {
-                1 -> R.drawable.ic_action_repeat
-                2 -> R.drawable.ic_action_repeat_one
-                else -> R.drawable.ic_action_repeat_off
+                1 -> R.drawable.ic_widget_repeat_on
+                2 -> R.drawable.ic_widget_repeat_one
+                else -> R.drawable.ic_widget_repeat_off
             }
         )
     }
