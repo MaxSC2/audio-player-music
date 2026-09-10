@@ -291,5 +291,61 @@ AUDIT_REPORT.md                                     — этот отчёт
 ```
 
 Проверка: `dart format --output=none` на всех 9 dart-файлах — ошибок разбора нет.
+
+---
+
+## 13. Валидация и сборка (GitHub Actions)
+
+### 13.1. Локальная проверка
+
+- `dart analyze lib` (весь проект) → **No issues found!**
+- `dart format --output=none` по всем изменённым файлам → синтаксических ошибок нет.
+
+### 13.2. Ошибка, найденная и исправленная на этапе сборки
+
+Первый прогон CI (run `34487608176`, коммит `012bd65`) **упал** на компиляции:
+
+```
+lib/features/collection/neon_collection_screen.dart:203:54:
+  Error: The getter 'query' isn't defined for the type '_AlbumsGrid'.
+```
+
+Причина — моя правка `albumEntries` в `_AlbumsGrid` ошибочно использовала
+переменную `query` (она есть только в `LibraryTabs._buildAlbumList`, а в
+`_AlbumsGrid` поиска нет). Исправлено: `final entries = player.albumEntries.toList();`.
+Там же убрано неиспользуемое поле `_lastPositionSecond` (analyzer-предупреждение
+после удаления глобального 1Hz-тика).
+
+### 13.3. Итоговая успешная сборка
+
+| Параметр | Значение |
+|---|---|
+| Workflow | Build APK (`workflow_dispatch`) |
+| Run | **34489141651** — `success` |
+| Коммит | `fbaeea4` |
+| Ветка | `stack-upgrade` |
+| APK в CI | `build/app/outputs/flutter-apk/app-release.apk` (**59.3 МБ**) |
+| Подпись | ✅ `CN=NeonWave` (release keystore из секретов) |
+| Локальная копия | `/sdcard/projects/audio_player/NeonWave-v103-new.apk` |
+
+### 13.4. Коммиты
+
+```
+fbaeea4 v103 fix: neon_collection _AlbumsGrid has no search query (compile error E-203), drop unused _lastPositionSecond
+012bd65 v103: perf — kill notify storm (no global 1Hz position, dedup playerStateStream, coalesce notifies), artwork load pool (8 concurrent), cached albumEntries, select() isolation for DNA/Category/NeonHome; fix fragile playlist id lookup + 4 controller leaks; add AUDIT_REPORT.md
+```
+
+Оба запушены в `origin/stack-upgrade`.
+
+### 13.5. Что проверить на устройстве (тестовый план)
+
+1. Установить `NeonWave-v103-new.apk`.
+2. Включить запись сессии в настройках, послушать музыку 30-60 сек:
+   ожидается `notify ≈ 0-1/с`, `ui_avg` — единицы мс, отсутствие фреймов ~1с.
+3. Прокрутить список треков, открыть «Альбомы»/«DNA»/«Категории» — без фризов.
+4. Создать плейлист (через трек → «Добавить в плейлист» → «Новый плейлист»)
+   и через раздел «Плейлисты» — трек должен попасть в правильный плейлист.
+5. Проверить кнопки уведомления и виджета рабочего стола (favorite/shuffle/repeat).
+
 | 15 | `lib/features/library/library_tabs.dart` | `_buildAlbumList` использует `player.albumEntries` вместо `O(альбомы×треки)` пересборки каждый билд. |
 | 16 | `lib/features/collection/neon_collection_screen.dart` | То же в коллекции. |
