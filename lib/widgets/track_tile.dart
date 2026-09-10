@@ -5,8 +5,7 @@ import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'animated_waveform.dart';
 import 'cached_artwork.dart';
-import 'playlist_picker_sheet.dart';
-import 'track_info_dialog.dart';
+import 'track_actions_sheet.dart';
 import '../core/debug_log.dart';
 
 class TrackTile extends StatelessWidget {
@@ -219,148 +218,16 @@ class TrackTile extends StatelessWidget {
                   tooltip: 'В избранное',
                 ),
 
-                // More Options Menu
-                PopupMenuButton<String>(
+                // More Options Menu — единое меню (TrackActionsSheet),
+                // то же, что и в плеере (жалоба: меню расходились).
+                IconButton(
                   icon: Icon(
                     Icons.more_vert_rounded,
                     color: AppTheme.textMuted,
                     size: 20,
                   ),
-                  color: AppTheme.surfaceLight,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(color: AppTheme.cardBorder),
-                  ),
-                  onSelected: (value) {
-                    if (value == 'play_next') {
-                      player.addToQueueNext(track);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '"${track.title}" будет играть следующим',
-                          ),
-                          duration: const Duration(seconds: 1),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    } else if (value == 'favorite') {
-                      player.toggleFavorite(track);
-                    } else if (value == 'playlist') {
-                      showModalBottomSheet(
-                        context: context,
-                        backgroundColor: AppTheme.surface,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(24),
-                          ),
-                        ),
-                        builder: (_) => PlaylistPickerSheet(track: track),
-                      );
-                    } else if (value == 'info') {
-                      showDialog(
-                        context: context,
-                        builder: (_) => TrackInfoDialog(track: track),
-                      );
-                    } else if (value == 'not_now') {
-                      player.toggleNotNow(track);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            player.isNotNow(track.id)
-                                ? '"${track.title}" скрыт на неделю'
-                                : '"${track.title}" снова в подборе',
-                          ),
-                          duration: const Duration(seconds: 1),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'play_next',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.playlist_play_rounded,
-                            color: AppTheme.accentCyan,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          const Text('Играть следующим'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'favorite',
-                      child: Row(
-                        children: [
-                          Icon(
-                            track.isFavorite
-                                ? Icons.favorite_border_rounded
-                                : Icons.favorite_rounded,
-                            color: AppTheme.accentPink,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            track.isFavorite
-                                ? 'Удалить из избранного'
-                                : 'В избранное',
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'playlist',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.playlist_add_rounded,
-                            color: AppTheme.accentGreen,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          const Text('Добавить в плейлист'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'not_now',
-                      child: Row(
-                        children: [
-                          Icon(
-                            player.isNotNow(track.id)
-                                ? Icons.undo_rounded
-                                : Icons.do_not_disturb_on_rounded,
-                            color: AppTheme.textSecondary,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            player.isNotNow(track.id)
-                                ? 'Вернуть в подбор'
-                                : 'Не хочу сейчас',
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'info',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            color: AppTheme.textSecondary,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          const Text('О треке'),
-                        ],
-                      ),
-                    ),
-                  ],
+                  onPressed: () => TrackActionsSheet.show(context, track),
+                  tooltip: 'Действия с треком',
                 ),
               ],
             ),

@@ -21,6 +21,9 @@ class CinematicMiniPlayer extends StatelessWidget {
     if (track == null) return const SizedBox.shrink();
 
     final durMs = player.duration.inMilliseconds;
+    // Акцент из обложки/темы — чтобы мини-плеер, сцена и нижняя панель
+    // читались единой неоновой палитрой (жалоба по скриншотам).
+    final accent = cinematicAccent(context, track.id);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -31,7 +34,14 @@ class CinematicMiniPlayer extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xE60D0D11),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: CinematicTheme.border),
+            border: Border.all(color: accent.withValues(alpha: 0.38)),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.16),
+                blurRadius: 16,
+                spreadRadius: -2,
+              ),
+            ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
@@ -102,10 +112,7 @@ class CinematicMiniPlayer extends StatelessWidget {
                         value: frac,
                         minHeight: 2,
                         backgroundColor: Colors.transparent,
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(
-                          Color(0xB3FFFFFF),
-                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(accent),
                       );
                     },
                   ),
