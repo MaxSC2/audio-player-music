@@ -10,6 +10,7 @@ import '../../../providers/player_provider.dart';
 import '../../../widgets/artwork_palette.dart';
 import '../../../widgets/cached_artwork.dart';
 import '../../../widgets/live_equalizer.dart';
+import '../../../services/audio_visualizer.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/queue_sheet.dart';
 import '../../../widgets/track_actions_sheet.dart';
@@ -284,6 +285,10 @@ class _AmbientGlow extends StatelessWidget {
       builder: (context, glowChild) {
         final dx = math.sin(drift.value * 2 * math.pi) * 26;
         final dy = math.cos(drift.value * 2 * math.pi) * 18;
+        // Окружение дышит вместе с музыкой (реальная энергия).
+        final e = AudioVisualizer.energy.value.clamp(0.0, 1.0);
+        final a1 = (0.16 + 0.16 * e).clamp(0.0, 0.42);
+        final a2 = (0.12 + 0.14 * e).clamp(0.0, 0.38);
         return Container(
           color: CinematicTheme.bg,
           child: Stack(
@@ -302,7 +307,7 @@ class _AmbientGlow extends StatelessWidget {
                         center: Alignment.center,
                         radius: 0.75,
                         colors: [
-                          c1.withValues(alpha: c1.a * 0.16),
+                          c1.withValues(alpha: c1.a * a1),
                           c1.withValues(alpha: 0.0),
                         ],
                       ),
@@ -323,7 +328,7 @@ class _AmbientGlow extends StatelessWidget {
                         center: Alignment.center,
                         radius: 0.75,
                         colors: [
-                          c2.withValues(alpha: c2.a * 0.12),
+                          c2.withValues(alpha: c2.a * a2),
                           c2.withValues(alpha: 0.0),
                         ],
                       ),
@@ -556,23 +561,31 @@ class _CinematicCarouselState extends State<_CinematicCarousel> {
 class _StageRingsPainter extends CustomPainter {
   final Color accent;
 
-  _StageRingsPainter({required this.accent});
+  /// Реагируем на РЕАЛЬНЫЙ звук: кольца «дышат» в такт.
+  _StageRingsPainter({required this.accent})
+      : super(repaint: AudioVisualizer.energy);
 
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
+    final energy = AudioVisualizer.energy.value.clamp(0.0, 1.0);
+    final pulse = 1.0 + energy * 0.07;
+    final glow = 0.30 + energy * 0.30;
     for (var i = 0; i < 3; i++) {
       final t = i / 2; // 0 ближнее → 1 дальнее
-      final w = size.width * (0.86 - t * 0.22);
-      final h = 34.0 - t * 9;
+      final w = size.width * (0.86 - t * 0.22) * pulse;
+      final h = (34.0 - t * 9) * pulse;
       final y = size.height - 12 - t * 22;
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6 - t * 0.5
+        ..strokeWidth = (1.6 - t * 0.5) + energy * 0.7
         ..color = accent.withValues(
-          alpha: accent.a * (0.30 - t * 0.10),
+          alpha: accent.a * (glow - t * 0.10).clamp(0.05, 0.9),
         );
-      canvas.drawOval(Rect.fromCenter(center: Offset(cx, y), width: w, height: h), paint);
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(cx, y), width: w, height: h),
+        paint,
+      );
     }
   }
 
@@ -666,7 +679,14 @@ class _CinematicCardState extends State<_CinematicCard>
       onLongPress: _openQueue,
       child: ScaleTransition(
         scale: _tap,
-        child: Column(
+        child: ValueListenableBuilder<double>(
+          // Лёгкая «пульсация» центральной обложки под ритм (child кешируется).
+          valueListenable: AudioVisualizer.energy,
+          builder: (context, e, child) => Transform.scale(
+            scale: widget.isCenter ? 1.0 + e * 0.03 : 1.0,
+            child: child,
+          ),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
@@ -746,6 +766,7 @@ class _CinematicCardState extends State<_CinematicCard>
               ),
             ),
           ],
+        ),
         ),
       ),
     );
