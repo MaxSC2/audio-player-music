@@ -136,6 +136,26 @@ class _EqPainter extends CustomPainter {
     final barW = gap * 0.6;
     final radius = Radius.circular(barW / 2);
     final midY = size.height / 2;
+
+    // Неоновое «свечение пола» под полосами — пульсирует от громкости.
+    var avg = 0.0;
+    for (final v in vals) {
+      avg += v;
+    }
+    avg /= n;
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(0, 1.15),
+          radius: 0.95,
+          colors: [
+            accent.withValues(alpha: (0.26 + 0.34 * avg).clamp(0.0, 0.7)),
+            accent.withValues(alpha: 0.0),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+
     final path = Path();
 
     for (var i = 0; i < n; i++) {
