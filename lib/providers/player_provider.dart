@@ -488,7 +488,6 @@ class PlayerProvider extends ChangeNotifier {
 
   bool _resumePlayback = false;
   DateTime _lastPersist = DateTime.fromMillisecondsSinceEpoch(0);
-  int _lastPositionSecond = -1;
 
   int _notifyCount = 0;
   DateTime _notifyWindowStart = DateTime.now();
@@ -753,16 +752,11 @@ class PlayerProvider extends ChangeNotifier {
         _audioPlayer.seek(_repeatA!);
       }
       _maybePersistPosition();
-      // Глобальные нотификации — не чаще раза в секунду: остальному UI
-      // (списки, карусель, очередь) чаще не нужно.
-      // ВНИМАНИЕ (фикс лагов): рассылать notifyListeners() каждую секунду
-      // перестраивало ВСЁ дерево (включая тяжёлые вкладки DNA/Категории и
-      // все TrackTile). Прогресс-виджеты читают positionTick напрямую
-      // через ValueListenableBuilder, так что глобальный тик не нужен.
-      // Только прогресс и мини-плееры обновляются ~5 раз/сек.
-      // (Счётчик секунд держим, чтобы при необходимости вернуть троттл.)
-      final sec = pos.inSeconds;
-      _lastPositionSecond = sec;
+      // ФИКС ЛАГОВ: здесь РАНЬШЕ рассылался глобальный notifyListeners()
+      // каждую секунду ('position-1Hz'), что перестраивало ВСЁ дерево
+      // (тяжёлые вкладки DNA/Категории, все TrackTile) и давало фреймы ~1с.
+      // Прогресс-виджеты читают positionTick напрямую через
+      // ValueListenableBuilder, поэтому глобальный тик не нужен.
     });
 
     _audioPlayer.durationStream.listen((dur) {

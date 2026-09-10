@@ -199,9 +199,7 @@ class _AlbumsGrid extends StatelessWidget {
       );
     }
 
-    final entries = player.albumEntries
-        .where((e) => e.album.toLowerCase().contains(query))
-        .toList();
+    final entries = player.albumEntries.toList();
     final counts = player.playCounts;
     switch (filter) {
       case 1:
