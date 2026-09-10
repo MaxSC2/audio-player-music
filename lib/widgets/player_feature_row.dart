@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/audio_track.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
+import '../features/library/personal_dj_sheet.dart';
 import 'equalizer_dialog.dart';
 import 'explain_sheet.dart';
 import 'neon_snack.dart';
@@ -139,6 +140,24 @@ class PlayerFeatureRow extends StatelessWidget {
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 builder: (_) => ExplainSheet(track: track),
+              );
+            },
+          ),
+          const SizedBox(width: 14),
+
+          // Personal DJ (умный миксер) — прямо из сцены плеера.
+          _FeatureButton(
+            icon: Icons.auto_awesome_rounded,
+            color: AppTheme.accentLight,
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: AppTheme.surface,
+                isScrollControlled: true,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                builder: (_) => const PersonalDJSheet(),
               );
             },
           ),

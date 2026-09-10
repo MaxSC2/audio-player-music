@@ -117,4 +117,14 @@
             android:scaleType="centerInside"
             android:src="@drawable/ic_widget_repeat_off"/>
     </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/w_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_marginTop="10dp"
+        android:max="1000"
+        android:progress="0"
+        android:progressDrawable="@drawable/widget_progress"/>
 </LinearLayout>

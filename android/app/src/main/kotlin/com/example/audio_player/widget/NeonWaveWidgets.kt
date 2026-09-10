@@ -15,6 +15,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.os.Build
 import android.view.KeyEvent
+import android.view.View
 import android.widget.RemoteViews
 import com.example.audio_player.R
 import io.flutter.plugin.common.MethodChannel
@@ -61,12 +62,15 @@ object WidgetState {
     @Volatile var favorite: Boolean = false
     @Volatile var shuffle: Boolean = false
     @Volatile var repeat: Int = 0 // 0 off, 1 all, 2 one
+    @Volatile var positionMs: Int = 0
+    @Volatile var durationMs: Int = 0
     @Volatile var artBytes: ByteArray? = null
     @Volatile private var roundedArt: Bitmap? = null
 
     fun update(
         title: String, artist: String, playing: Boolean,
         favorite: Boolean, shuffle: Boolean, repeat: Int,
+        positionMs: Int, durationMs: Int,
         artBytes: ByteArray?,
     ) {
         this.title = title
@@ -75,6 +79,8 @@ object WidgetState {
         this.favorite = favorite
         this.shuffle = shuffle
         this.repeat = repeat
+        this.positionMs = positionMs
+        this.durationMs = durationMs
         if (artBytes != null && !artBytes.contentEquals(this.artBytes)) {
             this.artBytes = artBytes
             this.roundedArt = null
@@ -181,6 +187,16 @@ object WidgetState {
                 else -> R.drawable.ic_widget_repeat_off
             }
         )
+
+        // Прогресс-бар трека (тонкая неоновая линия снизу виджета).
+        if (durationMs > 0 && positionMs >= 0) {
+            views.setViewVisibility(R.id.w_progress, View.VISIBLE)
+            val frac = ((positionMs.toDouble() / durationMs.toDouble()) * 1000)
+                .toInt().coerceIn(0, 1000)
+            views.setProgressBar(R.id.w_progress, 1000, frac, false)
+        } else {
+            views.setViewVisibility(R.id.w_progress, View.GONE)
+        }
     }
 
     fun pushAll(context: Context) {

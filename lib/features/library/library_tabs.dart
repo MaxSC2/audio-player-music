@@ -31,12 +31,17 @@ class LibraryTabs extends StatefulWidget {
   /// чтобы список визуально совпадал со сценой плеера и мини-плеером.
   final bool neon;
 
+  /// Дополнительный нижний отступ списков — высота плавающих мини-плеера
+  /// и нижней навигации, чтобы последние элементы не прятались под ними.
+  final double bottomInset;
+
   const LibraryTabs({
     super.key,
     this.threeD = false,
     this.controller,
     this.showTabBar = true,
     this.neon = false,
+    this.bottomInset = 0,
   });
 
   @override
@@ -52,6 +57,8 @@ class _LibraryTabsState extends State<LibraryTabs>
   bool _selectionMode = false;
   final Set<int> _selectedIds = <int>{};
   bool _albumGridView = false;
+
+  double get _listBottomPad => 16 + widget.bottomInset;
 
   @override
   void initState() {
@@ -465,7 +472,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      padding: EdgeInsets.only(top: 6, bottom: _listBottomPad),
       itemCount: tracks.length,
       itemBuilder: (context, index) {
         final track = tracks[index];
@@ -983,7 +990,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      padding: EdgeInsets.only(top: 6, bottom: _listBottomPad),
       itemCount: artists.length,
       itemBuilder: (context, index) {
         final artist = artists[index];
@@ -1029,7 +1036,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      padding: EdgeInsets.only(top: 6, bottom: _listBottomPad),
       itemCount: folders.length,
       itemBuilder: (context, index) {
         final folder = folders[index];
@@ -1186,7 +1193,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                   },
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.only(top: 2, bottom: 16),
+                  padding: EdgeInsets.only(top: 2, bottom: _listBottomPad),
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
                     final e = entries[index];
@@ -1293,7 +1300,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      padding: EdgeInsets.only(top: 6, bottom: _listBottomPad),
       itemCount: favs.length,
       itemBuilder: (context, index) {
         final track = favs[index];
@@ -1430,7 +1437,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     }
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: _listBottomPad),
       children: [
         _buildJourneyCard(player, entries),
         _buildMomentsCard(player),

@@ -61,6 +61,44 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
     );
   }
 
+  /// Высота плавающего мини-плеера + нижней навигации (для отступа списка).
+  static const double _overlayInset = 156;
+  /// То же без мини-плеера (трека нет) — только нижняя навигация.
+  static const double _overlayInsetNoMini = 88;
+
+  Widget _buildBottomOverlay(int? currentTrackId) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            CinematicTheme.bg.withValues(alpha: 0.0),
+            CinematicTheme.bg.withValues(alpha: 0.92),
+            CinematicTheme.bg,
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ),
+      ),
+      padding: const EdgeInsets.only(top: 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CinematicMiniPlayer(onExpand: () => _expand(context)),
+          LibraryBottomNav(
+            current: _tabs.index.clamp(0, 8),
+            accent: cinematicAccent(context, currentTrackId),
+            onSelect: (i) {
+              if (_tabs.index != i) {
+                setState(() => _tabs.index = i);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('NeonHome');
@@ -180,21 +218,30 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
               ),
             ),
             Expanded(
-              child: LibraryTabs(
-                controller: _tabs,
-                showTabBar: false,
-                neon: true,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: LibraryTabs(
+                      controller: _tabs,
+                      showTabBar: false,
+                      neon: true,
+                      bottomInset: currentTrackId != null
+                          ? _overlayInset
+                          : _overlayInsetNoMini,
+                    ),
+                  ),
+                  // Плавающий оверлей: мини-плеер + навигация ПОВЕРХ списка.
+                  // Раньше они стояли под списком в Column — за ними была
+                  // чёрная полоса. Теперь список уходит под них и плавно
+                  // затухает градиентом: «вшитости» и чёрного фона нет.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _buildBottomOverlay(currentTrackId),
+                  ),
+                ],
               ),
-            ),
-            CinematicMiniPlayer(onExpand: () => _expand(context)),
-            LibraryBottomNav(
-              current: _tabs.index.clamp(0, 8),
-              accent: cinematicAccent(context, currentTrackId),
-              onSelect: (i) {
-                if (_tabs.index != i) {
-                  setState(() => _tabs.index = i);
-                }
-              },
             ),
           ],
         ),

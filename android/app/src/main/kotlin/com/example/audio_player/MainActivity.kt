@@ -38,6 +38,8 @@ class MainActivity : AudioServiceActivity() {
                         favorite = call.argument<Boolean>("favorite") ?: false,
                         shuffle = call.argument<Boolean>("shuffle") ?: false,
                         repeat = (call.argument<Number>("repeat") ?: 0).toInt(),
+                        positionMs = (call.argument<Number>("positionMs") ?: 0).toInt(),
+                        durationMs = (call.argument<Number>("durationMs") ?: 0).toInt(),
                         artBytes = call.argument<ByteArray>("artBytes"),
                     )
                     WidgetState.pushAll(this)

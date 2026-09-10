@@ -633,3 +633,85 @@ lib/features/mini_player/cinematic/cinematic_mini_player.dart  (акцент и�
 Валидация: `dart analyze lib/features/library/library_tabs.dart` →
 **No issues found!**; полный `dart analyze lib` → **No issues found!**.
 
+
+---
+
+## 19. Раунд 9 — плавающий мини-плеер, прогресс в виджете, Personal DJ в плеере, CI
+
+Всё собрано в **одну** версию (один APK), как просил пользователь.
+
+### 19.1. Плавающий оверлей внизу (ПО ЖАЛОБЕ)
+
+Раньше мини-плеер и нижняя навигация стояли **под** списком в `Column`,
+поэтому между списком и ними была чёрная полоса.
+
+Теперь (`NeonHomeScreen`, `CinematicHomeScreen`):
+```
+Expanded(
+  child: Stack([
+    Positioned.fill(child: LibraryTabs(..., bottomInset: ...)),
+    Positioned(bottom: 0, child: <оверлей: мини-плеер + навигация>),
+  ]),
+)
+```
+- Контент списка **уходит под** мини-плеер и навигацию.
+- Оверлей имеет градиент `transparent → bg`, поэтому список плавно
+  затухает за ними — «вшитости» и жёсткой чёрной полосы нет.
+- `LibraryTabs` получил `bottomInset`: нижний отступ всех списков увеличен,
+  чтобы последние треки не прятались под оверлеем
+  (156 при играющем треке, 88 без мини-плеера).
+
+### 19.2. Прогресс-бар в виджете (обрисовка)
+
+- Новый `drawable/widget_progress.xml` — тонкая линия, фон `#22FFFFFF`,
+  заполнение акцентом `#FFA855F7`.
+- `ProgressBar` добавлен в `widget_large.xml` и `widget_small.xml`
+  (`widget_small` переделан в вертикальный корень: строка + прогресс).
+- `NeonWaveWidgets.kt`: `WidgetState` хранит `positionMs/durationMs`,
+  `fill()` вызывает `setProgressBar` (скрывает бар, если длительность 0).
+- Dart `WidgetService`: передаёт `positionMs/durationMs` и держит тикер
+  (раз в 4 c) пока играет музыка, чтобы прогресс обновлялся.
+- `MainActivity.kt`: прокинуты новые аргументы канала.
+
+### 19.3. Personal DJ в сцене плеера (развитие сцены)
+
+В `PlayerFeatureRow` (ряд функций во всех плеерах) добавлена кнопка
+`auto_awesome` — **умный миксер** открывается прямо из сцены плеера,
+а не только с домашнего экрана.
+
+### 19.4. CI: снятие deprecation-предупреждений
+
+`actions/checkout@v4 → v5`, `actions/setup-java@v4 → v5`
+(обе рекомендованы самим предупреждением GitHub; Node 24).
+`upload-artifact@v4` оставлен (стабильный), `subosito/flutter-action@v2`.
+
+### 19.5. Гигиена артефактов
+
+Удалены старые APK, оставлен только свежий (пользователь: «не множь APK»):
+```
+удалено: NeonWave.apk, NeonWave-v103-new.apk, NeonWave-v106.apk, NeonWave-v107.apk
+оставлен: <свежий build этого раунда>
+```
+`*.apk` в `.gitignore` — git не затронут.
+
+### 19.6. Валидация
+
+- `dart analyze lib` → **No issues found!** (EXIT=0).
+- `dart format` разобрал все изменённые файлы без ошибок.
+
+### 19.7. Изменённые/новые файлы раунда 9
+
+```
+lib/features/home/neon/neon_home_screen.dart              (плавающий оверлей)
+lib/features/home/cinematic/cinematic_home_screen.dart    (плавающий оверлей)
+lib/features/library/library_tabs.dart                    (bottomInset)
+lib/widgets/player_feature_row.dart                       (Personal DJ)
+lib/services/widget_service.dart                          (позиция + тикер)
+android/.../MainActivity.kt                               (аргументы виджета)
+android/.../widget/NeonWaveWidgets.kt                     (прогресс-бар)
+android/app/src/main/res/layout/widget_large.xml          (ProgressBar)
+android/app/src/main/res/layout/widget_small.xml          (вертикальный + ProgressBar)
+android/app/src/main/res/drawable/widget_progress.xml     (NEW)
+.github/workflows/build-apk.yml                           (actions v5)
+```
+

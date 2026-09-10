@@ -53,6 +53,44 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
     );
   }
 
+  /// Высота плавающего мини-плеера + нижней навигации (для отступа списка).
+  static const double _overlayInset = 156;
+  /// То же без мини-плеера (трека нет) — только нижняя навигация.
+  static const double _overlayInsetNoMini = 88;
+
+  Widget _buildBottomOverlay(int? trackId) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            CinematicTheme.bg.withValues(alpha: 0.0),
+            CinematicTheme.bg.withValues(alpha: 0.92),
+            CinematicTheme.bg,
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ),
+      ),
+      padding: const EdgeInsets.only(top: 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CinematicMiniPlayer(onExpand: () => _expand(context)),
+          LibraryBottomNav(
+            current: _tabs.index.clamp(0, 8),
+            accent: cinematicAccent(context, trackId),
+            onSelect: (i) {
+              if (_tabs.index != i) {
+                setState(() => _tabs.index = i);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('CinematicHome');
@@ -65,21 +103,28 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
           children: [
             _TopBar(hasQueue: player.playlist.isNotEmpty),
             Expanded(
-              child: LibraryTabs(
-                controller: _tabs,
-                showTabBar: false,
-                neon: true,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: LibraryTabs(
+                      controller: _tabs,
+                      showTabBar: false,
+                      neon: true,
+                      bottomInset: player.currentTrack != null
+                          ? _overlayInset
+                          : _overlayInsetNoMini,
+                    ),
+                  ),
+                  // Плавающий оверлей: мини-плеер + навигация ПОВЕРХ списка
+                  // (список уходит под них и затухает градиентом).
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _buildBottomOverlay(player.currentTrack?.id),
+                  ),
+                ],
               ),
-            ),
-            CinematicMiniPlayer(onExpand: () => _expand(context)),
-            LibraryBottomNav(
-              current: _tabs.index.clamp(0, 8),
-              accent: cinematicAccent(context, player.currentTrack?.id),
-              onSelect: (i) {
-                if (_tabs.index != i) {
-                  setState(() => _tabs.index = i);
-                }
-              },
             ),
           ],
         ),

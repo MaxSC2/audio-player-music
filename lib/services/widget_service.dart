@@ -24,8 +24,16 @@ class WidgetService {
   static bool _busy = false;
   static Timer? _debounce;
 
+  /// Последний провайдер — нужен тикеру прогресса виджета.
+  static PlayerProvider? _player;
+
+  /// Пока играет — периодически пушим позицию в прогресс-бар виджета.
+  static const Duration _progressInterval = Duration(seconds: 4);
+  static Timer? _ticker;
+
   /// Регистрирует обработчик команд от виджетов. Вызывать один раз в main().
   static void bind(PlayerProvider player) {
+    _player = player;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'widgetAction') {
         final action = call.arguments as String?;
@@ -47,7 +55,10 @@ class WidgetService {
     Future.microtask(() => push(player, force: true));
   }
 
-  static void playerChanged(PlayerProvider p) => push(p);
+  static void playerChanged(PlayerProvider p) {
+    _player = p;
+    push(p);
+  }
 
   static void push(PlayerProvider p, {bool force = false}) {
     final track = p.currentTrack;
@@ -63,12 +74,44 @@ class WidgetService {
         fav == _lastFav &&
         shuffle == _lastShuffle &&
         repeat == _lastRepeat) {
+      _syncTicker(p);
       return;
     }
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 60), () {
       _push(p, track, playing, fav, shuffle, repeat);
+      _syncTicker(p);
     });
+  }
+
+  /// Пока играет — держим таймер, который обновляет прогресс-бар виджета.
+  static void _syncTicker(PlayerProvider p) {
+    if (p.isPlaying) {
+      _ticker ??= Timer.periodic(_progressInterval, (_) {
+        final pp = _player;
+        if (pp == null || !pp.isPlaying) {
+          _ticker?.cancel();
+          _ticker = null;
+          return;
+        }
+        _pushSnapshot(pp);
+      });
+    } else {
+      _ticker?.cancel();
+      _ticker = null;
+    }
+  }
+
+  static void _pushSnapshot(PlayerProvider p) {
+    final track = p.currentTrack;
+    _push(
+      p,
+      track,
+      p.isPlaying,
+      track != null && p.isFavorite(track.id),
+      p.shuffleMode,
+      p.repeatMode.index,
+    );
   }
 
   static Future<void> _push(
@@ -106,6 +149,8 @@ class WidgetService {
         'favorite': fav,
         'shuffle': shuffle,
         'repeat': repeat,
+        'positionMs': p.position.inMilliseconds,
+        'durationMs': p.duration.inMilliseconds,
         'artBytes': artBytes,
       });
       _lastTrackId = tid;
