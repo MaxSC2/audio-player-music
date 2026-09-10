@@ -149,6 +149,25 @@ class _CategoryTabState extends State<CategoryTab> {
                         height: 1.35,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.library_music_rounded,
+                          size: 14,
+                          color: AppTheme.accentLight,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$total ${_pluralTracks(total)} в библиотеке',
+                          style: TextStyle(
+                            color: AppTheme.accentLight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -1009,4 +1028,15 @@ class _CategoryTabState extends State<CategoryTab> {
       ),
     );
   }
+}
+
+
+/// Склонение слова «трек» по числу (перенесено из neon-домашнего экрана —
+/// счётчик треков теперь живёт здесь, в «Категориях»).
+String _pluralTracks(int n) {
+  final m10 = n % 10;
+  final m100 = n % 100;
+  if (m10 == 1 && m100 != 11) return 'трек';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'трека';
+  return 'треков';
 }

@@ -13,14 +13,6 @@ import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../../../core/debug_log.dart';
 
-String _pluralTracks(int n) {
-  final m10 = n % 10;
-  final m100 = n % 100;
-  if (m10 == 1 && m100 != 11) return 'трек';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'трека';
-  return 'треков';
-}
-
 /// Neon home: библиотека отдельным экраном, внизу мини-плеер,
 /// под ним пилюля-навигация. Порядок как в референсе 02.
 class NeonHomeScreen extends StatefulWidget {
@@ -102,13 +94,9 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('NeonHome');
-    // Изоляция от шторма: экран читает из провайдера только 2 значения
-    // (количество треков и id текущего). Любые прочие нотификации
-    // (позиция/состояние плеера/история) больше не перестраивают
-    // домашний экран и вложенную библиотеку с 9 вкладками.
-    final count = context.select<PlayerProvider, int>(
-      (p) => p.visibleTracks.length,
-    );
+    // Изоляция от шторма: экран читает из провайдера только id текущего
+    // трека. Любые прочие нотификации (позиция/состояние/история) больше
+    // не перестраивают домашний экран и вложенную библиотеку с 9 вкладками.
     final currentTrackId = context.select<PlayerProvider, int?>(
       (p) => p.currentTrack?.id,
     );
@@ -149,72 +137,65 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        backgroundColor: AppTheme.surface,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(24),
-                          ),
-                        ),
-                        builder: (_) => const PersonalDJSheet(),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.auto_awesome_rounded,
-                      color: CinematicTheme.textSoft,
-                      size: 22,
+                  // Стеклянная группа иконок — в едином неоновом стиле
+                  // с нижней навигацией (жалоба: «верх смотрится не очень»).
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0x14FFFFFF),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0x1FFFFFFF)),
                     ),
-                    tooltip: 'Personal DJ',
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          settings:
-                              const RouteSettings(name: 'Collection'),
-                          builder: (_) => const NeonCollectionScreen(),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _TopIcon(
+                          icon: Icons.auto_awesome_rounded,
+                          tooltip: 'Personal DJ',
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: AppTheme.surface,
+                              isScrollControlled: true,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(24),
+                                ),
+                              ),
+                              builder: (_) => const PersonalDJSheet(),
+                            );
+                          },
                         ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.grid_view_rounded,
-                      color: CinematicTheme.textSoft,
-                      size: 22,
-                    ),
-                    tooltip: 'Коллекция',
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          settings:
-                              const RouteSettings(name: 'Settings'),
-                          builder: (_) => const SettingsScreen(),
+                        _TopIcon(
+                          icon: Icons.grid_view_rounded,
+                          tooltip: 'Коллекция',
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                settings:
+                                    const RouteSettings(name: 'Collection'),
+                                builder: (_) => const NeonCollectionScreen(),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.settings_outlined,
-                      color: CinematicTheme.textSoft,
-                      size: 22,
+                        _TopIcon(
+                          icon: Icons.settings_outlined,
+                          tooltip: 'Настройки',
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                settings:
+                                    const RouteSettings(name: 'Settings'),
+                                builder: (_) => const SettingsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                    tooltip: 'Настройки',
                   ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text(
-                '$count ${_pluralTracks(count)}',
-                style: const TextStyle(
-                  color: CinematicTheme.textDim,
-                  fontSize: 12.5,
-                ),
               ),
             ),
             Expanded(
@@ -244,6 +225,34 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Компактная иконка верхней панели (в «стеклянной» группе).
+class _TopIcon extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _TopIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 22,
+        child: Padding(
+          padding: const EdgeInsets.all(9),
+          child: Icon(icon, color: CinematicTheme.textSoft, size: 21),
         ),
       ),
     );

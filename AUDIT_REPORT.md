@@ -715,3 +715,92 @@ android/app/src/main/res/drawable/widget_progress.xml     (NEW)
 .github/workflows/build-apk.yml                           (actions v5)
 ```
 
+
+---
+
+## 20. Раунд 10 — КРИТИЧЕСКИЙ фикс медиа-уведомления + живой эквалайзер + верх
+
+### 20.1. КРИТИЧЕСКИЙ БАГ: пропало медиа-уведомление (шторка) — ИСПРАВЛЕНО
+
+Жалоба пользователя: «пропал виджет из шторки».
+
+**Причина (моя регрессия из v106):** кнопки медиа-уведомления
+(`lib/services/audio_handler.dart`) задают иконки **строками**:
+`'drawable/ic_action_repeat'`, `'drawable/ic_action_repeat_one'`,
+`'drawable/ic_action_repeat_off'`, `'drawable/ic_action_favorite'`,
+`'drawable/ic_action_favorite_off'`.
+Это динамические ссылки, которых **не видит** оптимизатор/шринкер ресурсов.
+
+До v106 эти drawable удерживались ссылками из Kotlin
+(`R.drawable.ic_action_*` в виджете). В v106 я перевёл виджет на
+`ic_widget_*` — и `ic_action_*` стали «неиспользуемыми» → **вырезаны из APK**.
+
+Проверка на собранном APK (`resources.arsc`):
+```
+ic_action_repeat_one  -> MISSING
+ic_action_repeat_off  -> MISSING
+ic_action_favorite    -> MISSING
+ic_widget_repeat_one  -> present
+```
+Без этих ресурсов `audio_service` не может собрать кнопки уведомления →
+медиа-виджет в шторке исчезает.
+
+**Исправление:**
+- Добавлен `android/app/src/main/res/raw/keep.xml` с
+  `tools:keep="@drawable/ic_action_*,@drawable/ic_widget_*"` — канонический
+  способ удержать ресурсы, на которые ссылаются только по имени.
+- Иконки уведомления `ic_action_*` были **чёрными** (`#FF000000`) → сделаны
+  светлыми (`#FFF1F5F9`), чтобы быть видимыми на тёмной шторке.
+- CI: добавлен бэкап/восстановление каталога `res/raw`.
+
+### 20.2. Живой эквалайзер, реагирующий на реальный звук (NEW)
+
+Раньше все визуализаторы были синтетическими (по таймеру) — «как гифки».
+
+- **Нативно:** `AudioVisualizerBridge.kt` — `android.media.audiofx.Visualizer`
+  поверх аудио-микса (session 0), отдаёт реальную форму волны через
+  `EventChannel('neonwave/wave')` (обновления ~ на макс. частоте API).
+- **Dart:** `lib/services/audio_visualizer.dart` — просит разрешение
+  `RECORD_AUDIO` (через уже имеющийся `permission_handler`), агрегирует
+  48 полос, асимметрично сглаживает (быстрый подъём / плавный спад),
+  публикует `levels`, `energy`, `available`.
+- **Виджет:** `lib/widgets/live_equalizer.dart` — неоновые полосы с
+  градиентом, свечением (одним blur на всю фигуру — дёшево для GPU) и
+  затухающими пиками. Если данных нет — органичная синтетика с бит-пульсом,
+  чтобы сцена не «умирала».
+- **Сцена:** в `CinematicPlayerBody` для neon (`edgeGlow`) теперь
+  `LiveEqualizer`, для остальных стилей — прежний `CinematicVisualizer`.
+- Разрешения `RECORD_AUDIO`/`MODIFY_AUDIO_SETTINGS` добавлены в манифест
+  (репозиторий + CI-манифест).
+
+### 20.3. Верх (шапка) и счётчик треков
+
+- Иконки вверху neon-дома (Personal DJ / Коллекция / Настройки) собраны в
+  «стеклянную» группу (`0x14FFFFFF` + кромка), в едином стиле с нижней
+  навигацией — вместо разрозненных `IconButton`. Новый виджет `_TopIcon`.
+- Счётчик «N треков» **убран из шапки** (по просьбе) и **перенесён в
+  «Категории»** — строка «N треков в библиотеке» в инфо-карточке вкладки
+  (склонение через `_pluralTracks`).
+
+### 20.4. Валидация
+
+- `dart analyze lib` → **No issues found!** (EXIT=0).
+- `keep.xml` — валидный XML.
+- `dart format` разобрал все изменённые файлы.
+
+### 20.5. Изменённые/новые файлы раунда 10
+
+```
+android/app/src/main/res/raw/keep.xml                          (NEW — keep ресурсов)
+android/app/src/main/res/drawable/ic_action_*.xml              (светлые иконки)
+android/app/src/main/res/AndroidManifest.xml                   (RECORD_AUDIO)
+android/.../MainActivity.kt                                    (EventChannel wave)
+android/.../AudioVisualizerBridge.kt                           (NEW — Visualizer)
+lib/services/audio_visualizer.dart                             (NEW — данные)
+lib/widgets/live_equalizer.dart                                (NEW — эквалайзер)
+lib/features/now_playing/cinematic/cinematic_player_body.dart  (встраивание)
+lib/features/home/neon/neon_home_screen.dart                   (шапка, счётчик)
+lib/features/library/category_tab.dart                         (счётчик)
+.github/workflows/build-apk.yml                                (res/raw + permissions)
+```
+

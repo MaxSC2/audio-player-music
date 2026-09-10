@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Эти drawable используются ТОЛЬКО по имени-строке из Dart
+  (lib/services/audio_handler.dart → кнопки медиа-уведомления audio_service).
+  Шринкер/оптимизатор ресурсов не видит такие ссылки и ВЫРЕЗАЛ их — из-за
+  этого в v106..v109 пропало медиа-уведомление в шторке. keep.xml удерживает.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_action_favorite,@drawable/ic_action_favorite_off,@drawable/ic_action_repeat,@drawable/ic_action_repeat_one,@drawable/ic_action_repeat_off,@drawable/ic_action_shuffle,@drawable/ic_action_shuffle_off,@drawable/ic_widget_*"
+    tools:shrinkMode="safe" />

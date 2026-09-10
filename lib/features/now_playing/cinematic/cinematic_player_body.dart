@@ -9,6 +9,7 @@ import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/artwork_palette.dart';
 import '../../../widgets/cached_artwork.dart';
+import '../../../widgets/live_equalizer.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/queue_sheet.dart';
 import '../../../widgets/track_actions_sheet.dart';
@@ -83,10 +84,18 @@ class CinematicPlayerBody extends StatelessWidget {
             stageRings: stageRings,
           ),
         ),
-        CinematicVisualizer(
-          isPlaying: player.playingVisuals,
-          trackId: track.id,
-        ),
+        if (edgeGlow)
+          // Neon: живой эквалайзер, реагирующий на реальный звук.
+          LiveEqualizer(
+            isPlaying: player.playingVisuals,
+            accent: accent,
+            height: 78,
+          )
+        else
+          CinematicVisualizer(
+            isPlaying: player.playingVisuals,
+            trackId: track.id,
+          ),
         _TrackInfo(track: track),
         const _ProgressRow(),
         _ControlsRow(full: fullControls),

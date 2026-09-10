@@ -10,6 +10,7 @@ import com.ryanheise.audioservice.AudioServiceActivity
 import com.example.audio_player.widget.WidgetState
 import com.example.audio_player.widget.WidgetBridge
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : AudioServiceActivity() {
@@ -48,6 +49,8 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, WAVE_CHANNEL)
+            .setStreamHandler(AudioVisualizerBridge())
     }
 
     private fun requestDelete(path: String): Boolean {
@@ -98,6 +101,7 @@ class MainActivity : AudioServiceActivity() {
     companion object {
         private const val DELETE_CHANNEL = "neonwave/deletion"
         private const val WIDGET_CHANNEL = "neonwave/widgets"
+        private const val WAVE_CHANNEL = "neonwave/wave"
         private const val DELETE_REQUEST_CODE = 4831
     }
 }
