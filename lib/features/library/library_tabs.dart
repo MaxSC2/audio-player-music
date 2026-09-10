@@ -267,18 +267,23 @@ class _LibraryTabsState extends State<LibraryTabs>
                   _albumGridView
                       ? Icons.view_list_rounded
                       : Icons.grid_view_rounded,
-                  color: AppTheme.textSecondary,
+                  color: neon ? Colors.white54 : AppTheme.textSecondary,
                 ),
                 onPressed: () =>
                     setState(() => _albumGridView = !_albumGridView),
                 tooltip: _albumGridView ? 'Списком' : 'Сеткой',
               ),
             PopupMenuButton<String>(
-              icon: Icon(Icons.sort_rounded, color: AppTheme.textSecondary),
-              color: AppTheme.surfaceLight,
+              icon: Icon(
+                Icons.sort_rounded,
+                color: neon ? Colors.white54 : AppTheme.textSecondary,
+              ),
+              color: neon ? const Color(0xFF141622) : AppTheme.surfaceLight,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: AppTheme.cardBorder),
+                side: BorderSide(
+                  color: neon ? const Color(0x24FFFFFF) : AppTheme.cardBorder,
+                ),
               ),
               onSelected: (value) {
                 switch (value) {

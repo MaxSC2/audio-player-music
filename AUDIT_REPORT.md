@@ -616,3 +616,20 @@ lib/widgets/track_tile.dart                                    (единое м�
 lib/features/mini_player/cinematic/cinematic_mini_player.dart  (акцент из обложки)
 ```
 
+
+---
+
+## 18. Раунд 8 — neon-скин шапки библиотеки (иконки/меню)
+
+Завершение неон-палитры списка: в `LibraryTabs` при `neon: true` иконки
+сортировки и переключения «список/сетка» теперь приглушённо-белые
+(`Colors.white54`) вместо холодного серо-синего `AppTheme.textSecondary`,
+а выпадающее меню сортировки — тёмная поверхность `#141622` с тонкой
+белой кромкой вместо синеватой `AppTheme.surfaceLight`.
+
+Итого шапка библиотеки (поиск + сортировка + счётчик «N треков») полностью
+согласована с неоновой сценой и нижней панелью.
+
+Валидация: `dart analyze lib/features/library/library_tabs.dart` →
+**No issues found!**; полный `dart analyze lib` → **No issues found!**.
+
