@@ -7,13 +7,30 @@ import '../../widgets/track_tile.dart';
 import '../../core/debug_log.dart';
 
 class CategoryTab extends StatefulWidget {
-  const CategoryTab({super.key});
+  /// Neon-скин карточек (единая палитра со сценой плеера).
+  final bool neon;
+
+  const CategoryTab({super.key, this.neon = false});
 
   @override
   State<CategoryTab> createState() => _CategoryTabState();
 }
 
 class _CategoryTabState extends State<CategoryTab> {
+  Color get _cardColor =>
+      widget.neon ? const Color(0x0FFFFFFF) : AppTheme.card;
+  Color get _borderColor =>
+      widget.neon ? const Color(0x24FFFFFF) : AppTheme.cardBorder;
+  Color get _surfaceColor =>
+      widget.neon ? const Color(0x14FFFFFF) : AppTheme.surfaceLight;
+  LinearGradient get _cardGradient => widget.neon
+      ? const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+        )
+      : AppTheme.cardGradient;
+
   ListeningContext _selected = ListeningContext.balanced;
   bool _genresMode = false;
   String _selectedGenre = 'Rock';
@@ -108,9 +125,9 @@ class _CategoryTabState extends State<CategoryTab> {
                 margin: const EdgeInsets.fromLTRB(14, 8, 14, 10),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: AppTheme.cardGradient,
+                  gradient: _cardGradient,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppTheme.cardBorder),
+                  border: Border.all(color: _borderColor),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,9 +214,9 @@ class _CategoryTabState extends State<CategoryTab> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.card,
+                    color: _cardColor,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.cardBorder),
+                    border: Border.all(color: _borderColor),
                   ),
                   child: Row(
                     children: [
@@ -245,7 +262,7 @@ class _CategoryTabState extends State<CategoryTab> {
                             SliderTheme(
                               data: SliderThemeData(
                                 activeTrackColor: AppTheme.accent,
-                                inactiveTrackColor: AppTheme.surfaceLight,
+                                inactiveTrackColor: _surfaceColor,
                                 thumbColor: AppTheme.accentLight,
                                 trackHeight: 4,
                                 thumbShape: const RoundSliderThumbShape(
@@ -294,9 +311,9 @@ class _CategoryTabState extends State<CategoryTab> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.card,
+                        color: _cardColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.cardBorder),
+                        border: Border.all(color: _borderColor),
                       ),
                       child: Row(
                         children: [
@@ -362,7 +379,7 @@ class _CategoryTabState extends State<CategoryTab> {
                           ? AppTheme.accent.withValues(
                               alpha: AppTheme.accent.a * (0.2),
                             )
-                          : AppTheme.surfaceLight,
+                          : _surfaceColor,
                     ),
                     foregroundColor: WidgetStateProperty.resolveWith(
                       (st) => st.contains(WidgetState.selected)
@@ -370,7 +387,7 @@ class _CategoryTabState extends State<CategoryTab> {
                           : AppTheme.textSecondary,
                     ),
                     side: WidgetStateProperty.all(
-                      BorderSide(color: AppTheme.cardBorder),
+                      BorderSide(color: _borderColor),
                     ),
                   ),
                 ),
@@ -416,7 +433,7 @@ class _CategoryTabState extends State<CategoryTab> {
                           selected: selected,
                           onSelected: (_) => setState(() => _selected = ctx),
                           selectedColor: AppTheme.accent,
-                          backgroundColor: AppTheme.surfaceLight,
+                          backgroundColor: _surfaceColor,
                           labelStyle: TextStyle(
                             color: selected
                                 ? Colors.white
@@ -473,7 +490,7 @@ class _CategoryTabState extends State<CategoryTab> {
                           onSelected: (_) =>
                               setState(() => _selectedGenre = e.key),
                           selectedColor: AppTheme.accent,
-                          backgroundColor: AppTheme.surfaceLight,
+                          backgroundColor: _surfaceColor,
                           labelStyle: TextStyle(
                             color: selected
                                 ? Colors.white
@@ -616,11 +633,11 @@ class _CategoryTabState extends State<CategoryTab> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceLight.withValues(
-                                  alpha: AppTheme.surfaceLight.a * (0.85),
+                                color: _surfaceColor.withValues(
+                                  alpha: _surfaceColor.a * (0.85),
                                 ),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppTheme.cardBorder),
+                                border: Border.all(color: _borderColor),
                               ),
                               child: Text(
                                 g,
@@ -703,11 +720,11 @@ class _CategoryTabState extends State<CategoryTab> {
                                 ? AppTheme.accent.withValues(
                                     alpha: AppTheme.accent.a * (0.9),
                                   )
-                                : AppTheme.surfaceLight.withValues(
-                                    alpha: AppTheme.surfaceLight.a * (0.85),
+                                : _surfaceColor.withValues(
+                                    alpha: _surfaceColor.a * (0.85),
                                   ),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.cardBorder),
+                            border: Border.all(color: _borderColor),
                           ),
                           child: Text(
                             src == 'manual'
@@ -769,7 +786,7 @@ class _CategoryTabState extends State<CategoryTab> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppTheme.cardBorder,
+                        color: _borderColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -803,7 +820,7 @@ class _CategoryTabState extends State<CategoryTab> {
                           setSheetState(() {});
                         },
                         selectedColor: AppTheme.accent,
-                        backgroundColor: AppTheme.surfaceLight,
+                        backgroundColor: _surfaceColor,
                         labelStyle: TextStyle(
                           color: sel ? Colors.white : AppTheme.textSecondary,
                           fontWeight: sel ? FontWeight.bold : FontWeight.normal,
@@ -832,7 +849,7 @@ class _CategoryTabState extends State<CategoryTab> {
                               fontSize: 12,
                             ),
                             filled: true,
-                            fillColor: AppTheme.surfaceLight,
+                            fillColor: _surfaceColor,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 10,
@@ -879,7 +896,7 @@ class _CategoryTabState extends State<CategoryTab> {
                         label: const Text('Сбросить к авто'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.textSecondary,
-                          side: BorderSide(color: AppTheme.cardBorder),
+                          side: BorderSide(color: _borderColor),
                         ),
                       ),
                     ),
@@ -935,7 +952,7 @@ class _CategoryTabState extends State<CategoryTab> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppTheme.cardBorder,
+                        color: _borderColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -976,7 +993,7 @@ class _CategoryTabState extends State<CategoryTab> {
                           setSheetState(() {});
                         },
                         selectedColor: AppTheme.accent,
-                        backgroundColor: AppTheme.surfaceLight,
+                        backgroundColor: _surfaceColor,
                         labelStyle: TextStyle(
                           color: sel ? Colors.white : AppTheme.textSecondary,
                           fontWeight: sel ? FontWeight.bold : FontWeight.normal,
@@ -1001,7 +1018,7 @@ class _CategoryTabState extends State<CategoryTab> {
                         label: const Text('Сбросить к авто'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.textSecondary,
-                          side: BorderSide(color: AppTheme.cardBorder),
+                          side: BorderSide(color: _borderColor),
                         ),
                       ),
                     ),

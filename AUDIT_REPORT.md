@@ -837,3 +837,32 @@ lib/features/now_playing/cinematic/cinematic_player_body.dart
   (кольца + ambient-свечение + пульс обложки от реальной энергии звука)
 ```
 
+
+---
+
+## 22. Раунд 12 — неон-скин вкладок «Категории» и «DNA»
+
+Продолжение единой палитры: вкладки внутри библиотеки больше не «фиолетовые»
+на фоне неоновой сцены.
+
+- `CategoryTab` получил флаг `neon`: карточки — полупрозрачная поверхность
+  `0x0FFFFFFF` с кромкой `0x24FFFFFF`, поля — `0x14FFFFFF`, градиент —
+  светлый; иначе прежние цвета `AppTheme` (не ломаем simple/cinematic).
+- `MusicDnaTab` — то же (карточки/кромки).
+- `LibraryTabs` прокидывает `neon: widget.neon` в обе вкладки, поэтому
+  скин включается автоматически в neon/cinematic-домашних экранах.
+
+### 22.1. Валидация
+
+Во время правки слепая замена цветов задела сами геттеры (6 предупреждений
+`recursive_getters`) — **найдено анализатором и исправлено**.
+Итог: `dart analyze lib` → **No issues found!** (EXIT=0).
+
+### 22.2. Изменённые файлы раунда 12
+
+```
+lib/features/library/category_tab.dart      (neon-скин + флаг)
+lib/features/library/music_dna_tab.dart     (neon-скин + флаг)
+lib/features/library/library_tabs.dart      (прокид neon в вкладки)
+```
+

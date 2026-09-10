@@ -5,7 +5,15 @@ import '../../ui/theme.dart';
 import '../../core/debug_log.dart';
 
 class MusicDnaTab extends StatelessWidget {
-  const MusicDnaTab({super.key});
+  Color get _cardColor =>
+      neon ? const Color(0x0FFFFFFF) : AppTheme.card;
+  Color get _borderColor =>
+      neon ? const Color(0x24FFFFFF) : AppTheme.cardBorder;
+
+  /// Neon-скин карточек (единая палитра со сценой плеера).
+  final bool neon;
+
+  const MusicDnaTab({super.key, this.neon = false});
 
   @override
   Widget build(BuildContext context) {
@@ -169,9 +177,9 @@ class MusicDnaTab extends StatelessWidget {
           margin: const EdgeInsets.fromLTRB(14, 8, 14, 4),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppTheme.card,
+            color: _cardColor,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppTheme.cardBorder),
+            border: Border.all(color: _borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,7 +468,7 @@ class MusicDnaTab extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 12),
               decoration: BoxDecoration(
-                color: AppTheme.cardBorder,
+                color: _borderColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
