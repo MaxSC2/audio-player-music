@@ -32,6 +32,7 @@ jobs:
           cp pubspec.yaml pubspec_backup.yaml
           mkdir -p mainactivity_backup
           cp -r android/app/src/main/kotlin mainactivity_backup/
+          cp android/app/src/main/AndroidManifest.xml mainactivity_backup/AndroidManifest.xml
           [ -d android/app/src/main/res/layout ] && cp -r android/app/src/main/res/layout mainactivity_backup/
           [ -d android/app/src/main/res/xml ] && cp -r android/app/src/main/res/xml mainactivity_backup/
           [ -d android/app/src/main/res/drawable ] && cp -r android/app/src/main/res/drawable mainactivity_backup/
@@ -47,6 +48,9 @@ jobs:
           cp -r lib_backup lib
           cp pubspec_backup.yaml pubspec.yaml
           cp -r mainactivity_backup/kotlin android/app/src/main/
+          # Манифест возвращаем на репозиторный: flutter create кладёт свой,
+          # без AudioService и foreground-разрешений (см. шаг Verify ниже).
+          cp mainactivity_backup/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           [ -d mainactivity_backup/layout ] && cp -r mainactivity_backup/layout android/app/src/main/res/
           [ -d mainactivity_backup/xml ] && cp -r mainactivity_backup/xml android/app/src/main/res/
           [ -d mainactivity_backup/drawable ] && cp -r mainactivity_backup/drawable android/app/src/main/res/
@@ -70,85 +74,18 @@ jobs:
           EOF
           cp android/app/build.gradle.kts.tmpl android/app/build.gradle.kts
 
-      - name: Update AndroidManifest
+      - name: Verify AndroidManifest
         run: |
-          cat > android/app/src/main/AndroidManifest.xml << 'EOFMANIFEST'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
-              <uses-permission android:name="android.permission.WAKE_LOCK"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-
-              <application
-                  android:label="NeonWave"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher"
-                  android:roundIcon="@mipmap/ic_launcher_round">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data
-                      android:name="flutterEmbedding"
-                      android:value="2"/>
-                  <receiver
-                      android:name=".widget.WidgetActionReceiver"
-                      android:exported="false"/>
-                  <receiver
-                      android:name=".widget.SmallWidgetProvider"
-                      android:exported="true"
-                      android:label="NeonWave — компактный">
-                      <intent-filter>
-                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-                      </intent-filter>
-                      <meta-data
-                          android:name="android.appwidget.provider"
-                          android:resource="@xml/small_widget_info"/>
-                  </receiver>
-                  <receiver
-                      android:name=".widget.LargeWidgetProvider"
-                      android:exported="true"
-                      android:label="NeonWave — расширенный">
-                      <intent-filter>
-                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-                      </intent-filter>
-                      <meta-data
-                          android:name="android.appwidget.provider"
-                          android:resource="@xml/large_widget_info"/>
-                  </receiver>
-                  <service
-                      android:name="com.ryanheise.audioservice.AudioService"
-                      android:foregroundServiceType="mediaPlayback"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.media.browse.MediaBrowserService"/>
-                      </intent-filter>
-                  </service>
-                  <receiver
-                      android:name="com.ryanheise.audioservice.MediaButtonReceiver"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MEDIA_BUTTON"/>
-                      </intent-filter>
-                  </receiver>
-              </application>
-          </manifest>
-          EOFMANIFEST
+          # ФИКС: манифест больше НЕ перезаписывается этим workflow — источник
+          # истины в репозитории (android/app/src/main/AndroidManifest.xml).
+          # Иначе dev- и CI-сборки расходились: локальная сборка выходила без
+          # foreground-сервиса и POST_NOTIFICATIONS.
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'com.ryanheise.audioservice.AudioService' "$M"
+          grep -q 'foregroundServiceType="mediaPlayback"' "$M"
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' "$M"
+          grep -q 'POST_NOTIFICATIONS' "$M"
+          echo "AndroidManifest OK: AudioService + foreground-разрешения на месте"
 
       - name: Install dependencies
         run: flutter pub get

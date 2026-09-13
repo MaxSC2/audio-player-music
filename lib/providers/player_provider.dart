@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math' as math;
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
@@ -10,358 +12,46 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/debug_log.dart';
 import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
+import '../models/genre_taxonomy.dart';
 import '../models/queue_snapshot.dart';
 import '../services/audio_handler.dart';
 import '../services/widget_service.dart';
 import 'package:http/http.dart' as http;
+
+/// Rec 4 (pure helpers): сортировка — чистая функция без состояния провайдера.
+/// Вынесена на верхний уровень, чтобы можно было тестировать без binding
+/// и переиспользовать вне провайдера.
+List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
+  final list = List<AudioTrack>.from(tracks);
+  switch (order) {
+    case SortOrder.title:
+      list.sort(
+        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+      );
+      break;
+    case SortOrder.artist:
+      list.sort(
+        (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()),
+      );
+      break;
+    case SortOrder.dateAddedNew:
+      list.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
+      break;
+    case SortOrder.dateAddedOld:
+      list.sort((a, b) => (a.dateAdded ?? 0).compareTo(b.dateAdded ?? 0));
+      break;
+    case SortOrder.duration:
+      list.sort((a, b) => b.duration.compareTo(a.duration));
+      break;
+  }
+  return list;
+}
 
 enum PlayerRepeatMode { off, all, one }
 
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
 
 enum ListeningContext { balanced, energy, calm, party, focus }
-
-/// Таксономия жанров: у трека ОДИН основной жанр (несовместимые не смешиваются).
-/// Категории (настроение/контекст) при этом могут комбинироваться.
-class GenreTaxonomy {
-  static const List<String> all = [
-    'Rock',
-    'Pop',
-    'Hip-Hop',
-    'Electronic',
-    'Dance',
-    'Jazz',
-    'Classical',
-    'Metal',
-    'Punk',
-    'Alternative',
-    'Indie',
-    'R&B',
-    'Soul',
-    'Funk',
-    'Blues',
-    'Country',
-    'Folk',
-    'Latin',
-    'Reggae',
-    'K-Pop',
-    'Ambient',
-    'Lo-Fi',
-    'Phonk',
-    'Synthwave',
-    'House',
-    'Techno',
-    'Drum & Bass',
-    'Dubstep',
-    'Trap',
-    'Soundtrack',
-    'Chanson',
-    'Estrada',
-  ];
-
-  /// Нормализация онлайн-жанров (iTunes primaryGenreName) в таксономию.
-  /// null = неизвестно, не кэшируем как жанр.
-  static String? normalizeOnline(String raw) {
-    final g = raw.trim().toLowerCase();
-    const map = {
-      'rock': 'Rock',
-      'alternative': 'Alternative',
-      'indie': 'Indie',
-      'pop': 'Pop',
-      'vocal': 'Pop',
-      'pop/rock': 'Rock',
-      'hip-hop': 'Hip-Hop',
-      'hip-hop/rap': 'Hip-Hop',
-      'rap': 'Hip-Hop',
-      'r&b': 'R&B',
-      'r&b/soul': 'R&B',
-      'soul': 'Soul',
-      'funk': 'Funk',
-      'blues': 'Blues',
-      'country': 'Country',
-      'folk': 'Folk',
-      'singer/songwriter': 'Folk',
-      'latin': 'Latin',
-      'latino': 'Latin',
-      'reggae': 'Reggae',
-      'reggaeton': 'Latin',
-      'k-pop': 'K-Pop',
-      'j-pop': 'Pop',
-      'japanese': 'K-Pop',
-      'korean': 'K-Pop',
-      'electronic': 'Electronic',
-      'dance': 'Dance',
-      'house': 'House',
-      'techno': 'Techno',
-      'trance': 'Electronic',
-      'dubstep': 'Dubstep',
-      'drum & bass': 'Drum & Bass',
-      "drum'n'bass": 'Drum & Bass',
-      'dnb': 'Drum & Bass',
-      'trap': 'Trap',
-      'phonk': 'Phonk',
-      'synthwave': 'Synthwave',
-      'synthpop': 'Synthwave',
-      'lo-fi': 'Lo-Fi',
-      'lofi': 'Lo-Fi',
-      'ambient': 'Ambient',
-      'new age': 'Ambient',
-      'jazz': 'Jazz',
-      'classical': 'Classical',
-      'opera': 'Classical',
-      'metal': 'Metal',
-      'punk': 'Punk',
-      'hard rock': 'Rock',
-      'soundtrack': 'Soundtrack',
-      'soundtracks': 'Soundtrack',
-      'chanson': 'Chanson',
-      'shanson': 'Chanson',
-      'шансон': 'Chanson',
-      'estrada': 'Estrada',
-      'эстрада': 'Estrada',
-      'попса': 'Estrada',
-    };
-    if (map.containsKey(g)) return map[g];
-    for (final t in all) {
-      if (g.contains(t.toLowerCase())) return t;
-    }
-    return null;
-  }
-
-  /// Ключевые слова (название+исполнитель+альбом) -> жанр. RU+EN.
-  static const Map<String, List<String>> keywords = {
-    'Rock': [
-      'rock',
-      'рок',
-      'ac/dc',
-      'queen',
-      'nirvana',
-      'rhapsody',
-      'guitar',
-      'гитара',
-    ],
-    'Metal': [
-      'metal',
-      'метал',
-      'rammstein',
-      'slipknot',
-      'iron maiden',
-      'death',
-      'black metal',
-      'doom',
-    ],
-    'Punk': [
-      'punk',
-      'панк',
-      'sex pistols',
-      'ramones',
-      'offspring',
-      'green day',
-    ],
-    'Hip-Hop': [
-      'hip-hop',
-      'hip hop',
-      'rap',
-      'рэп',
-      'хип-хоп',
-      'eminem',
-      'drake',
-      'kendrick',
-      'travis scott',
-      'oxxxymiron',
-      'оксимирон',
-      'basta',
-      'баста',
-      'morgenshtern',
-      'моргенштерн',
-    ],
-    'Pop': [
-      'pop',
-      'поп',
-      'madonna',
-      'taylor swift',
-      'dua lipa',
-      'ариана',
-      'bts',
-      'one direction',
-    ],
-    'Electronic': [
-      'electronic',
-      'электрон',
-      'depeche mode',
-      'kraftwerk',
-      'synth',
-      'синт',
-      'edm',
-      'avicii',
-    ],
-    'Dance': ['dance', 'танцевальн', 'eurodance', 'hands up', 'cascada'],
-    'House': [
-      'house',
-      'хаус',
-      'deep house',
-      'david guetta',
-      'calvin harris',
-      'fisher',
-    ],
-    'Techno': [
-      'techno',
-      'техно',
-      'charlotte de witte',
-      'amelie lens',
-      'boris brejcha',
-    ],
-    'Drum & Bass': [
-      'drum and bass',
-      'drum & bass',
-      'dnb',
-      'драм',
-      'pendulum',
-      'netsky',
-      'sub focus',
-    ],
-    'Dubstep': ['dubstep', 'дабстеп', 'skrillex', 'excision'],
-    'Trap': ['trap', 'трэп', 'future ', 'metro boomin'],
-    'Phonk': ['phonk', 'фонк', 'drift phonk', 'ghostface playa', 'kaito shoma'],
-    'Synthwave': [
-      'synthwave',
-      'синтвейв',
-      'retrowave',
-      'outrun',
-      'kavinsky',
-      'gunship',
-      'carpenter brut',
-    ],
-    'Lo-Fi': [
-      'lo-fi',
-      'lofi',
-      'лофай',
-      'chillhop',
-      'lofi hip hop',
-      'jinsang',
-      'nujabes',
-    ],
-    'Ambient': [
-      'ambient',
-      'эмбиент',
-      'brian eno',
-      'stars of the lid',
-      'meditation',
-      'медитац',
-    ],
-    'Jazz': [
-      'jazz',
-      'джаз',
-      'miles davis',
-      'coltrane',
-      'sinatra',
-      'ella fitzgerald',
-      'bossa nova',
-      'босса',
-    ],
-    'Classical': [
-      'classical',
-      'классика',
-      'mozart',
-      'beethoven',
-      'bach',
-      'vivaIdi',
-      'symphony',
-      'симфони',
-      'orchestra',
-      'оркестр',
-      'piano concerto',
-    ],
-    'Blues': ['blues', 'блюз', 'b.b. king', 'muddy waters'],
-    'Country': ['country', 'кантри', 'johnny cash', 'dolly parton'],
-    'Folk': [
-      'folk',
-      'фолк',
-      'singer-songwriter',
-      'бард',
-      'высоцкий',
-      'окуджава',
-    ],
-    'Latin': [
-      'latin',
-      'латино',
-      'reggaeton',
-      'реггетон',
-      'salsa',
-      'сальса',
-      'despacito',
-      'shakira',
-      'bad bunny',
-    ],
-    'Reggae': ['reggae', 'регги', 'bob marley', 'marley'],
-    'R&B': ['r&b', 'rnb', 'the weeknd', 'sza', 'usher', 'alicia keys'],
-    'Soul': ['soul', 'соул', 'aretha', 'marvin gaye', 'sam cooke'],
-    'Funk': ['funk', 'фанк', 'james brown', 'parliament'],
-    'K-Pop': [
-      'k-pop',
-      'kpop',
-      'кей-поп',
-      'bts',
-      'blackpink',
-      'stray kids',
-      'twice',
-      'exo',
-    ],
-    'Soundtrack': [
-      'soundtrack',
-      'саундтрек',
-      'ost ',
-      'score',
-      'hans zimmer',
-      'anime',
-      'аниме',
-      'amv',
-    ],
-    'Alternative': [
-      'alternative',
-      'альтернатив',
-      'radiohead',
-      'arctic monkeys',
-      'placebo',
-      'muse',
-    ],
-    'Indie': [
-      'indie',
-      'инди',
-      'tame impala',
-      'arctic monkeys',
-      'the strokes',
-      'vampire weekend',
-    ],
-    'Chanson': ['chanson', 'шансон', 'круг', 'михаил круг', 'лепс'],
-    'Estrada': [
-      'эстрада',
-      'пугачева',
-      'киркоров',
-      'басков',
-      'аллегрова',
-      'леонтьев',
-    ],
-  };
-
-  static String guessFromText(String text) {
-    final t = text.toLowerCase();
-    String? best;
-    int bestLen = 0;
-    keywords.forEach((genre, kws) {
-      for (final k in kws) {
-        if (k.length >= bestLen && t.contains(k)) {
-          // более длинные совпадения точнее коротких
-          if (k.length > bestLen) {
-            best = genre;
-            bestLen = k.length;
-          }
-        }
-      }
-    });
-    return best ?? 'Прочее';
-  }
-}
 
 enum DiscoveryLevel { familiar, balanced, discovery, experimental }
 
@@ -389,7 +79,10 @@ class PlayerProvider extends ChangeNotifier {
   SharedPreferences? _prefs;
 
   List<AudioTrack> _allTracks = [];
-  List<int> _favoriteIds = [];
+  /// Set, а не List: isFavorite() вызывается для каждого трека в каждом
+  /// списке (_refreshTrackFavoriteFlags/visibleTracks), линейный поиск давал
+  /// O(треки × избранное) на каждый тап «сердечка».
+  final Set<int> _favoriteIds = <int>{};
   List<CustomPlaylist> _playlists = [];
   List<Map<String, int>> _historyRaw = [];
   List<Map<String, int>> _notNowRaw = [];
@@ -588,16 +281,25 @@ class PlayerProvider extends ChangeNotifier {
 
   List<AudioTrack> get allTracks => _allTracks;
   List<AudioTrack> get playlist => _playlist;
+  /// ФИКС (Critical): just_audio отдаёт индекс ВНУТРИ загруженного окна
+  /// (treadmill, ±_windowRadius), а не в полном _playlist. Раньше offset
+  /// применялся только в _handleIndexEvent, поэтому при очереди длиннее окна
+  /// (81 трек) UI/мини-плеер/уведомление/виджет показывали трек со смещением
+  /// _nativeOffset. Теперь оба геттера переводят индекс так же.
   int get currentIndex {
-    final idx = _audioPlayer.currentIndex;
-    if (idx != null && idx >= 0 && idx < _playlist.length) return idx;
+    final native = _audioPlayer.currentIndex;
+    if (native != null) {
+      final idx = native + _nativeOffset;
+      if (idx >= 0 && idx < _playlist.length) return idx;
+    }
     return _currentIndex;
   }
 
   AudioTrack? get currentTrack {
-    final idx = _audioPlayer.currentIndex;
-    if (idx != null && idx >= 0 && idx < _playlist.length) {
-      return _playlist[idx];
+    final native = _audioPlayer.currentIndex;
+    if (native != null) {
+      final idx = native + _nativeOffset;
+      if (idx >= 0 && idx < _playlist.length) return _playlist[idx];
     }
     return (_currentIndex >= 0 && _currentIndex < _playlist.length)
         ? _playlist[_currentIndex]
@@ -653,6 +355,8 @@ class PlayerProvider extends ChangeNotifier {
       if (path.isEmpty) return false;
       final ok =
           await _deleteChannel.invokeMethod<bool>('deleteTrack', {
+            // id — это MediaStore _ID (надёжнее пути); path — фолбэк.
+            'id': track.id,
             'path': path,
           }) ??
           false;
@@ -748,7 +452,7 @@ class PlayerProvider extends ChangeNotifier {
     _notify('attachAudioHandler');
   }
 
-  bool isFavorite(int id) => _favoriteIds.any((f) => f == id);
+  bool isFavorite(int id) => _favoriteIds.contains(id);
 
   PlayerProvider() : _audioQuery = OnAudioQuery() {
     _equalizer = AndroidEqualizer();
@@ -761,77 +465,127 @@ class PlayerProvider extends ChangeNotifier {
     _init();
   }
 
+  final List<StreamSubscription<dynamic>> _subs = [];
+
+  /// Гард от серии seek'ов при активном A/B-повторе.
+  bool _seekingToRepeatA = false;
+
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     _loadFavorites();
     _loadPlaylists();
     _loadSettings();
+    await _configureAudioSession();
 
-    _audioPlayer.positionStream.listen((pos) {
-      _position = pos;
-      // Локальный тикер для прогресса: мелкие виджеты (слайдер, время,
-      // мини-прогресс) слушают его напрямую и не ждут глобальных нотификаций.
-      positionTick.value = pos;
-      if (_repeatA != null && _repeatB != null && pos >= _repeatB!) {
-        _audioPlayer.seek(_repeatA!);
-      }
-      _maybePersistPosition();
-      // ФИКС ЛАГОВ: здесь РАНЬШЕ рассылался глобальный notifyListeners()
-      // каждую секунду ('position-1Hz'), что перестраивало ВСЁ дерево
-      // (тяжёлые вкладки DNA/Категории, все TrackTile) и давало фреймы ~1с.
-      // Прогресс-виджеты читают positionTick напрямую через
-      // ValueListenableBuilder, поэтому глобальный тик не нужен.
-    });
+    _subs.add(
+      _audioPlayer.positionStream.listen((pos) {
+        _position = pos;
+        // Локальный тикер для прогресса: мелкие виджеты (слайдер, время,
+        // мини-прогресс) слушают его напрямую и не ждут глобальных нотификаций.
+        positionTick.value = pos;
+        if (_repeatA != null && _repeatB != null && pos >= _repeatB!) {
+          // ФИКС: seek вызывался на КАЖДОМ тике, пока он не завершится
+          // (серия seek'ов). Теперь — один раз с гардом.
+          if (!_seekingToRepeatA) {
+            _seekingToRepeatA = true;
+            _audioPlayer.seek(_repeatA!).whenComplete(() {
+              _seekingToRepeatA = false;
+            });
+          }
+        }
+        _maybePersistPosition();
+        // ФИКС ЛАГОВ: здесь РАНЬШЕ рассылался глобальный notifyListeners()
+        // каждую секунду ('position-1Hz'), что перестраивало ВСЁ дерево
+        // (тяжёлые вкладки DNA/Категории, все TrackTile) и давало фреймы ~1с.
+        // Прогресс-виджеты читают positionTick напрямую через
+        // ValueListenableBuilder, поэтому глобальный тик не нужен.
+      }),
+    );
 
-    _audioPlayer.durationStream.listen((dur) {
-      if (dur != null) {
-        _duration = dur;
-        _notify('durationStream');
-      }
-    });
+    _subs.add(
+      _audioPlayer.durationStream.listen((dur) {
+        if (dur != null) {
+          _duration = dur;
+          _notify('durationStream');
+        }
+      }),
+    );
 
-    _audioPlayer.playerStateStream.listen((state) {
-      // Дедуп: уведомляем UI только при реальном переключении play/pause,
-      // а не на каждый тик плеера (иначе список/мини-плеер перестраиваются
-      // постоянно, пока играет музыка).
-      if (state.playing != _isPlaying) {
-        _isPlaying = state.playing;
-        _notify('playerStateStream');
-      } else {
-        _isPlaying = state.playing;
-      }
-    });
+    _subs.add(
+      _audioPlayer.playerStateStream.listen((state) {
+        // Дедуп: уведомляем UI только при реальном переключении play/pause,
+        // а не на каждый тик плеера (иначе список/мини-плеер перестраиваются
+        // постоянно, пока играет музыка).
+        if (state.playing != _isPlaying) {
+          _isPlaying = state.playing;
+          _notify('playerStateStream');
+        } else {
+          _isPlaying = state.playing;
+        }
+      }),
+    );
 
-    _audioPlayer.processingStateStream.listen((state) {
-      if (state == ProcessingState.ready) {
-        _applyEqualizerPreset(_equalizerPreset);
-      }
-      if (state == ProcessingState.completed) {
-        _onTrackComplete();
-      }
-    });
+    _subs.add(
+      _audioPlayer.processingStateStream.listen((state) {
+        if (state == ProcessingState.ready) {
+          _applyEqualizerPreset(_equalizerPreset);
+        }
+        if (state == ProcessingState.completed) {
+          _onTrackComplete();
+        }
+      }),
+    );
 
     // Единая обработка смены индекса из обоих стримов: playbackEventStream
     // и currentIndexStream (just_audio может листать очередь нативно без
     // playbackEvent, особенно при setAudioSources).
-    _audioPlayer.playbackEventStream.listen((event) {
-      if (_switchingSource) return;
-      _handleIndexEvent(event.currentIndex);
-    });
+    _subs.add(
+      _audioPlayer.playbackEventStream.listen((event) {
+        if (_switchingSource) return;
+        _handleIndexEvent(event.currentIndex);
+      }),
+    );
 
-    _audioPlayer.currentIndexStream.listen((idx) {
-      if (_switchingSource) return;
-      _handleIndexEvent(idx);
-    });
+    _subs.add(
+      _audioPlayer.currentIndexStream.listen((idx) {
+        if (_switchingSource) return;
+        _handleIndexEvent(idx);
+      }),
+    );
 
     _audioPlayer.setSpeed(_speed);
   }
+
+  /// Настройка аудио-сессии: категория музыки (корректный аудиофокус, поведение
+  /// при миксах/звонках) + пауза при отключении наушников (becomingNoisy).
+  /// Без этого звук после отключения гарнитуры «выпрыгивал» в динамик.
+  Future<void> _configureAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      _noisySub = session.becomingNoisyEventStream.listen((_) {
+        if (_isPlaying) _audioPlayer.pause();
+      });
+    } catch (e) {
+      DebugLog.log('audio_session: конфигурация недоступна', e);
+    }
+  }
+
+  StreamSubscription<dynamic>? _noisySub;
 
   /// Общий обработчик смены индекса плеера: repeat-one, история,
   /// избранное в уведомлении, нотификация UI и виджетов.
   void _handleIndexEvent(int? nativeIdx) {
     if (nativeIdx == null) return;
     final idx = nativeIdx + _nativeOffset;
+    // Рекомендация №1: единственная точка перевода индекса — держим
+    // инвариант проверяемым. assert вырезается в release-сборке.
+    assert(
+      _audioPlayer.currentIndex == null ||
+          _audioPlayer.currentIndex! + _nativeOffset == idx,
+      'Расхождение индексов: native=${_audioPlayer.currentIndex} '
+      'offset=$_nativeOffset provider=$idx',
+    );
     // Repeat-one: just_audio листает очередь нативно, минуя next().
     // Ловим незапланированный автопереход и возвращаем трек в начало.
     if (idx != _lastEventIndex &&
@@ -861,9 +615,28 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  /// Рекомендация №6: версия схемы настроек. Без неё ad-hoc миграции
+  /// (как dateAdded -> dateAddedNew) накапливаются без контроля.
+  static const int prefsSchemaVersion = 2;
+
+  void _migratePrefs(SharedPreferences prefs) {
+    final from = prefs.getInt('schema_version') ?? 1;
+    if (from >= prefsSchemaVersion) return;
+    if (from < 2) {
+      // v1 -> v2: SortOrder.dateAdded переименован в dateAddedNew.
+      if (prefs.getString('sort_order') == 'dateAdded') {
+        prefs.setString('sort_order', 'dateAddedNew');
+      }
+    }
+    prefs.setInt('schema_version', prefsSchemaVersion);
+    DebugLog.log('prefs: миграция схемы $from -> $prefsSchemaVersion');
+  }
+
   Future<void> _loadSettings() async {
     final prefs = _prefs;
     if (prefs == null) return;
+
+    _migratePrefs(prefs);
 
     _defaultSpeed = prefs.getDouble('default_speed') ?? 1.0;
     perfOverlay.value = prefs.getBool('perf_overlay') ?? false;
@@ -1152,20 +925,38 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> setResumePlayback(bool value) async {
     _resumePlayback = value;
     await _prefs?.setBool('resume_playback', value);
+    if (value) {
+      // Включили «продолжить слушать» — сразу фиксируем текущую очередь,
+      // иначе снимок появился бы только со следующей сменой очереди.
+      _persistQueueSnapshot();
+      _maybePersistPosition();
+    }
     _notify('setResumePlayback');
   }
 
+  /// ФИКС (перф): раньше здесь каждые 5 секунд сериализовался ВЕСЬ список
+  /// id очереди (на 6k+ треков — заметная работа на UI-изоляте и лишние
+  /// записи на диск). Теперь список пишется только при реальной смене
+  /// очереди (_persistQueueSnapshot), а тут — лишь три скалярных значения.
   void _maybePersistPosition() {
     if (!_resumePlayback) return;
     final now = DateTime.now();
     if (now.difference(_lastPersist).inSeconds < 5) return;
     _lastPersist = now;
+    final prefs = _prefs;
+    if (prefs == null) return;
+    prefs.setInt('last_index', _currentIndex);
+    prefs.setInt('last_position_ms', _position.inMilliseconds);
+  }
+
+  /// Снимок очереди для «продолжить слушать». Вызывать только при реальной
+  /// смене состава очереди (старт воспроизведения, пересборка, радио-догрузка).
+  void _persistQueueSnapshot() {
+    if (!_resumePlayback) return;
     _prefs?.setStringList(
       'last_playlist_ids',
       _playlist.map((t) => t.id.toString()).toList(),
     );
-    _prefs?.setInt('last_index', _currentIndex);
-    _prefs?.setInt('last_position_ms', _position.inMilliseconds);
   }
 
   Future<void> _maybeResume() async {
@@ -1180,15 +971,12 @@ class PlayerProvider extends ChangeNotifier {
     if (ids == null || ids.isEmpty) return;
 
     final tracks = <AudioTrack>[];
+    final byId = _tracksById;
     for (final idStr in ids) {
       final id = int.tryParse(idStr);
       if (id == null) continue;
-      for (final t in _allTracks) {
-        if (t.id == id) {
-          tracks.add(t);
-          break;
-        }
-      }
+      final t = byId[id];
+      if (t != null) tracks.add(t);
     }
     if (tracks.isEmpty || index < 0 || index >= tracks.length) return;
 
@@ -1230,7 +1018,11 @@ class PlayerProvider extends ChangeNotifier {
     if (prefs == null) return;
     final saved = prefs.getStringList('favorite_ids');
     if (saved != null) {
-      _favoriteIds = saved.map((s) => int.tryParse(s) ?? 0).toList();
+      // Битые записи раньше превращались в id=0 и «призрачно» попадали
+      // в избранное — теперь непарсящиеся значения просто пропускаются.
+      _favoriteIds
+        ..clear()
+        ..addAll(saved.map(int.tryParse).whereType<int>());
       _notify('_loadFavorites');
     }
   }
@@ -1259,7 +1051,8 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void toggleFavoriteCurrent() {
-    WidgetService.playerChanged(this);
+    // Раньше здесь был push в виджет ДО переключения избранного — виджет
+    // успевал показать устаревшее состояние; toggleFavorite() пушит сам.
     final track = currentTrack;
     if (track == null) return;
     toggleFavorite(track);
@@ -1958,9 +1751,8 @@ class PlayerProvider extends ChangeNotifier {
   List<({AudioTrack track, int positionMs})> get allBookmarks {
     final result = <({AudioTrack track, int positionMs})>[];
     _bookmarks.forEach((id, list) {
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index < 0) return;
-      final track = _allTracks[index];
+      final track = _tracksById[id];
+      if (track == null) return;
       for (final ms in list) {
         result.add((track: track, positionMs: ms));
       }
@@ -2018,11 +1810,12 @@ class PlayerProvider extends ChangeNotifier {
 
   Duration get totalListeningTime {
     var ms = 0;
+    final byId = _tracksById;
     for (final e in _historyRaw) {
       final id = e['id'];
       if (id == null) continue;
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index >= 0) ms += _allTracks[index].duration;
+      final t = byId[id];
+      if (t != null) ms += t.duration;
     }
     return Duration(milliseconds: ms);
   }
@@ -2064,9 +1857,9 @@ class PlayerProvider extends ChangeNotifier {
       if (dt.year != day.year || dt.month != day.month || dt.day != day.day) {
         continue;
       }
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index < 0) continue;
-      result.add((track: _allTracks[index], time: dt));
+      final track = _tracksById[id];
+      if (track == null) continue;
+      result.add((track: track, time: dt));
     }
     result.sort((a, b) => a.time.compareTo(b.time));
     return result;
@@ -2101,13 +1894,13 @@ class PlayerProvider extends ChangeNotifier {
 
     var affinity = 0.0;
     var lastSeen = -1;
+    final byId = _tracksById;
     for (var i = 0; i < n; i++) {
       final id = _historyRaw[i]['id'];
       if (id == null) continue;
       if (id == t.id) lastSeen = i;
-      final index = _allTracks.indexWhere((tt) => tt.id == id);
-      if (index < 0) continue;
-      final artist = _allTracks[index].artist;
+      final artist = byId[id]?.artist;
+      if (artist == null) continue;
       if (artist == t.artist) {
         affinity += math.pow(0.88, i).toDouble();
       }
@@ -2143,11 +1936,11 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     var artistPlays = 0;
+    final byId2 = _tracksById;
     for (final e in _historyRaw) {
       final id = e['id'];
       if (id == null) continue;
-      final index = _allTracks.indexWhere((tt) => tt.id == id);
-      if (index >= 0 && _allTracks[index].artist == t.artist) artistPlays++;
+      if (byId2[id]?.artist == t.artist) artistPlays++;
     }
     final known = math.min(1.0, artistPlays / 10);
     final discoveryF = _discoveryLevel.factor;
@@ -2443,9 +2236,10 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> applyQueueSnapshot(QueueSnapshot snapshot) async {
     final tracks = <AudioTrack>[];
+    final byId = _tracksById;
     for (final id in snapshot.trackIds) {
-      final index = _allTracks.indexWhere((t) => t.id == id);
-      if (index >= 0) tracks.add(_allTracks[index]);
+      final t = byId[id];
+      if (t != null) tracks.add(t);
     }
     if (tracks.isEmpty) return;
     await playFromPlaylist(tracks, 0);
@@ -2462,31 +2256,8 @@ class PlayerProvider extends ChangeNotifier {
     _notify('sortOrder');
   }
 
-  List<AudioTrack> sortTracks(List<AudioTrack> tracks, SortOrder order) {
-    final list = List<AudioTrack>.from(tracks);
-    switch (order) {
-      case SortOrder.title:
-        list.sort(
-          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-        );
-        break;
-      case SortOrder.artist:
-        list.sort(
-          (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()),
-        );
-        break;
-      case SortOrder.dateAddedNew:
-        list.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
-        break;
-      case SortOrder.dateAddedOld:
-        list.sort((a, b) => (a.dateAdded ?? 0).compareTo(b.dateAdded ?? 0));
-        break;
-      case SortOrder.duration:
-        list.sort((a, b) => b.duration.compareTo(a.duration));
-        break;
-    }
-    return list;
-  }
+  List<AudioTrack> sortTracks(List<AudioTrack> tracks, SortOrder order) =>
+      sortTracksPure(tracks, order);
 
   List<AudioTrack> searchTracks(String query) {
     if (_searchCacheQuery == query && _searchCacheResult != null) {
@@ -2543,7 +2314,7 @@ class PlayerProvider extends ChangeNotifier {
     final cached = _albumEntriesCache;
     if (cached != null) return cached;
     final byAlbum = <String, List<AudioTrack>>{};
-    for (final t in _allTracks) {
+    for (final t in visibleTracks) {
       final a = t.album;
       if (a == null || a.isEmpty) continue;
       (byAlbum[a] ??= <AudioTrack>[]).add(t);
@@ -2613,7 +2384,21 @@ class PlayerProvider extends ChangeNotifier {
     _topArtistsCache.clear();
   }
 
+  Map<int, AudioTrack>? _tracksByIdCache;
+
+  /// Быстрый доступ «id → трек» вместо `_allTracks.indexWhere` внутри циклов
+  /// по истории: на 6k треков и 300 записей истории это было до ~2 млн
+  /// сравнений на один вызов (DNA/категории/закладки/время прослушивания).
+  Map<int, AudioTrack> get _tracksById {
+    final cached = _tracksByIdCache;
+    if (cached != null) return cached;
+    final map = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
+    _tracksByIdCache = map;
+    return map;
+  }
+
   void _invalidateFolderCache() {
+    _tracksByIdCache = null;
     _visibleCache = null;
     _foldersCache = null;
     _folderTracksCache = null;
@@ -2651,33 +2436,67 @@ class PlayerProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> loadTracks() async {
-    final tracks = await _audioQuery.querySongs(
+  /// Сырые данные MediaStore (уже отфильтрованные: isMusic и duration > 5 c).
+  ///
+  /// Рекомендация №2 (частично): запрос выполняется в ФОНОВОМ ИЗОЛЯТЕ. На
+  /// библиотеке в 6k+ треков построение моделей на главном изоляте давало
+  /// заметный фриз при старте и при «Обновить библиотеку». Если платформенный
+  /// канал в изоляте недоступен (нет RootIsolateToken или исключение) — тихий
+  /// фолбэк на главный изолят, то есть прежнее поведение.
+  Future<List<Map<dynamic, dynamic>>> _querySongsRaw() async {
+    final token = RootIsolateToken.instance;
+    if (token != null) {
+      try {
+        return await Isolate.run(() async {
+          BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+          final query = OnAudioQuery();
+          final songs = await query.querySongs(
+            sortType: null,
+            uriType: UriType.EXTERNAL,
+            ignoreCase: true,
+          );
+          return songs
+              .where((s) => s.isMusic != false)
+              .where((s) => (s.duration ?? 0) > 5000)
+              .map<Map<dynamic, dynamic>>(_songToRaw)
+              .toList();
+        });
+      } catch (e) {
+        DebugLog.log('loadTracks: изолят недоступен, фолбэк на главный поток', e);
+      }
+    }
+    final songs = await _audioQuery.querySongs(
       sortType: null,
       uriType: UriType.EXTERNAL,
       ignoreCase: true,
     );
-
-    _allTracks = tracks
-        .where((song) => song.isMusic != null ? song.isMusic! : true)
-        .where((song) => song.duration != null && song.duration! > 5000)
-        .map(
-          (song) => AudioTrack(
-            id: song.id,
-            title: song.title,
-            artist: song.artist ?? 'Unknown Artist',
-            album: song.album,
-            uri: song.uri ?? '',
-            duration: song.duration ?? 0,
-            size: song.size,
-            dateAdded: song.dateAdded,
-            data: song.data,
-            albumId: song.albumId,
-            isFavorite: isFavorite(song.id),
-          ),
-        )
+    return songs
+        .where((s) => s.isMusic != false)
+        .where((s) => (s.duration ?? 0) > 5000)
+        .map<Map<dynamic, dynamic>>(_songToRaw)
         .toList();
+  }
 
+  AudioTrack _trackFromRaw(Map<dynamic, dynamic> r) {
+    final id = (r['id'] as int?) ?? 0;
+    return AudioTrack(
+      id: id,
+      title: (r['title'] as String?) ?? 'Unknown',
+      artist: (r['artist'] as String?) ?? 'Unknown Artist',
+      album: r['album'] as String?,
+      uri: (r['uri'] as String?) ?? '',
+      duration: (r['duration'] as int?) ?? 0,
+      size: r['size'] as int?,
+      dateAdded: r['dateAdded'] as int?,
+      data: r['data'] as String?,
+      albumId: r['albumId'] as int?,
+      isFavorite: isFavorite(id),
+    );
+  }
+
+  Future<void> loadTracks() async {
+    final raw = await _querySongsRaw();
+    _allTracks = raw.map(_trackFromRaw).toList();
     _allTracks = sortTracks(_allTracks, _sortOrder);
     _invalidateFolderCache();
     _invalidateCategoryCache();
@@ -2718,14 +2537,17 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> _prepareInitialPlaylist() async {
     if (_playlist.isNotEmpty) return;
-    if (_allTracks.isEmpty) return;
+    // visibleTracks, а не _allTracks: иначе «скрыть Unknown Artist»
+    // не действовало на стартовую очередь (в остальных вкладках — действует).
+    final visible = visibleTracks;
+    if (visible.isEmpty) return;
 
     List<AudioTrack> initial;
-    final firstAlbum = _allTracks.first.album;
+    final firstAlbum = visible.first.album;
     if (firstAlbum != null) {
-      initial = _allTracks.where((t) => t.album == firstAlbum).toList();
+      initial = visible.where((t) => t.album == firstAlbum).toList();
     } else {
-      initial = List<AudioTrack>.from(_allTracks);
+      initial = List<AudioTrack>.from(visible);
     }
     if (initial.isEmpty) return;
 
@@ -2796,28 +2618,32 @@ class PlayerProvider extends ChangeNotifier {
     _radioMode = radio;
     if (!radio) _radioUsedIds.clear();
 
+    // ФИКС (High): без try/finally любое исключение из _buildNativeSlice
+    // (битый файл → setAudioSources бросает) оставляло _switchingSource=true
+    // навсегда, и _handleIndexEvent игнорировал ВСЕ последующие события —
+    // плеер «замирал» до перезапуска приложения.
     _switchingSource = true;
-    if (!sameList) {
-      _playlist = List<AudioTrack>.from(tracks);
-      _prefs?.setStringList(
-        'last_playlist_ids',
-        _playlist.map((t) => t.id.toString()).toList(),
-      );
-      _prefs?.setInt('last_index', startIndex);
-      // Только окно вокруг старта: маршалинг ~81 трека вместо тысяч.
-      await _buildNativeSlice(startIndex, force: true);
-      _audioHandler?.setQueue(_playlist);
+    try {
+      if (!sameList) {
+        _playlist = List<AudioTrack>.from(tracks);
+        _persistQueueSnapshot();
+        _prefs?.setInt('last_index', startIndex);
+        // Только окно вокруг старта: маршалинг ~81 трека вместо тысяч.
+        await _buildNativeSlice(startIndex, force: true);
+        _audioHandler?.setQueue(_playlist);
+      }
+
+      // Оптимистичный индекс: UI сразу показывает выбранный трек,
+      // без «мигания» первым элементом (событие index=0 подавлено).
+      _currentIndex = startIndex;
+      _lastEventIndex = startIndex;
+      _lastHistoryTrackId = tracks[startIndex].id;
+      _notify('playUrl');
+
+      await playAt(startIndex);
+    } finally {
+      _switchingSource = false;
     }
-
-    // Оптимистичный индекс: UI сразу показывает выбранный трек,
-    // без «мигания» первым элементом (событие index=0 подавлено).
-    _currentIndex = startIndex;
-    _lastEventIndex = startIndex;
-    _lastHistoryTrackId = tracks[startIndex].id;
-    _notify('playUrl');
-
-    await playAt(startIndex);
-    _switchingSource = false;
     WidgetService.playerChanged(this);
   }
 
@@ -2976,7 +2802,16 @@ class PlayerProvider extends ChangeNotifier {
 
   void cycleSpeed() {
     const speeds = [1.0, 1.25, 1.5, 1.75, 2.0, 0.75, 0.5];
-    final idx = speeds.indexOf(_speed);
+    // indexOf по double ненадёжен (1.1000000001 != 1.1) — берём ближайшую.
+    var idx = -1;
+    var best = double.infinity;
+    for (var i = 0; i < speeds.length; i++) {
+      final d = (speeds[i] - _speed).abs();
+      if (d < best) {
+        best = d;
+        idx = i;
+      }
+    }
     setSpeed(speeds[(idx + 1) % speeds.length]);
   }
 
@@ -3025,6 +2860,8 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _rebuildPlaylist() async {
+    // Очередь меняется только через этот метод — снимок для resume держим тут.
+    _persistQueueSnapshot();
     // Гард обязателен: setAudioSources сбрасывает нативный индекс в 0,
     // и без подавления устаревшее событие перезапишет _currentIndex,
     // после чего UI/очередь/шторка/виджеты расходятся с реальностью.
@@ -3179,7 +3016,30 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _sleepTimer?.cancel();
+    _noisySub?.cancel();
+    // Раньше подписки из _init() не отменялись вовсе: при уничтожении
+    // провайдера они продолжали дергать колбэки и писать в positionTick.
+    for (final s in _subs) {
+      s.cancel();
+    }
+    _subs.clear();
+    positionTick.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
 }
+/// Плоское представление [SongModel] для передачи между изолятами.
+/// Только примитивы и строки — такие Map гарантированно sendable, поэтому
+/// объект плагина не нужно «пересылать» между изолятами.
+Map<dynamic, dynamic> _songToRaw(SongModel song) => {
+  'id': song.id,
+  'title': song.title,
+  'artist': song.artist,
+  'album': song.album,
+  'uri': song.uri,
+  'duration': song.duration,
+  'size': song.size,
+  'dateAdded': song.dateAdded,
+  'data': song.data,
+  'albumId': song.albumId,
+};

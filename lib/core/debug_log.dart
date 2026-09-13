@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Мега-логер диагностики: все ошибки приложения + счётчики ребилдов
@@ -48,7 +48,10 @@ class DebugLog {
   }
 
   /// Счётчик ребилдов виджета. Вызывать первой строкой build().
+  /// В релизе — no-op: 18 вызовов в hot-path build() не должны работать
+  /// в продакшене (это диагностический инструмент).
   static void rebuild(String name) {
+    if (!kDebugMode) return;
     _rebuilds[name] = (_rebuilds[name] ?? 0) + 1;
   }
 

@@ -3,6 +3,7 @@ package com.example.audio_player
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.ContentUris
+import android.content.Intent
 import android.content.IntentSender
 import android.os.Build
 import android.provider.MediaStore
@@ -15,6 +16,9 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : AudioServiceActivity() {
 
+    /** Ожидающий ответ Dart-вызова deleteTrack (ждём подтверждения в диалоге). */
+    private var pendingDeleteResult: MethodChannel.Result? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DELETE_CHANNEL)
@@ -22,7 +26,18 @@ class MainActivity : AudioServiceActivity() {
                 when (call.method) {
                     "deleteTrack" -> {
                         val path = call.argument<String>("path")
-                        result.success(path != null && requestDelete(path))
+                        val id = (call.argument<Number>("id") ?: -1).toLong()
+                        if (path == null && id <= 0) {
+                            result.success(false)
+                        } else if (Build.VERSION.SDK_INT >= 30) {
+                            // ФИКС (High): раньше result.success(true) отправлялся
+                            // СРАЗУ после запуска системного диалога, поэтому Dart
+                            // убирал трек из библиотеки/очереди даже при «Отмена».
+                            // Теперь ответ уходит только из onActivityResult.
+                            onDeleteRequested(id, path, result)
+                        } else {
+                            result.success(deleteImmediately(id, path))
+                        }
                     }
                     else -> result.notImplemented()
                 }
@@ -53,38 +68,79 @@ class MainActivity : AudioServiceActivity() {
             .setStreamHandler(AudioVisualizerBridge())
     }
 
-    private fun requestDelete(path: String): Boolean {
+    /** Android 11+ (API 30+): системный диалог; ответ придёт в onActivityResult. */
+    private fun onDeleteRequested(id: Long, path: String?, result: MethodChannel.Result) {
+        val uri = getMediaUri(id, path)
+        if (uri == null) {
+            result.success(false)
+            return
+        }
+        if (pendingDeleteResult != null) {
+            // Уже открыт один диалог — второй запрос не поддерживаем.
+            result.success(false)
+            return
+        }
+        try {
+            pendingDeleteResult = result
+            val pendingIntent = MediaStore.createDeleteRequest(contentResolver, listOf(uri))
+            startIntentSenderForResult(
+                pendingIntent.intentSender,
+                DELETE_REQUEST_CODE,
+                null,
+                0,
+                0,
+                0,
+            )
+        } catch (e: Exception) {
+            pendingDeleteResult = null
+            result.success(false)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == DELETE_REQUEST_CODE) {
+            val pending = pendingDeleteResult
+            pendingDeleteResult = null
+            pending?.success(resultCode == android.app.Activity.RESULT_OK)
+        }
+    }
+
+    /** Android 10 и ниже: удаляем сразу, диалога нет. */
+    private fun deleteImmediately(id: Long, path: String?): Boolean {
         return try {
-            val uri = getMediaUriForPath(path)
-            if (uri == null) {
-                false
-            } else if (Build.VERSION.SDK_INT >= 30) {
-                val pendingIntent = MediaStore.createDeleteRequest(contentResolver, listOf(uri))
-                startIntentSenderForResult(
-                    pendingIntent.intentSender,
-                    DELETE_REQUEST_CODE,
-                    null,
-                    0,
-                    0,
-                    0,
-                )
-                true
-            } else {
-                contentResolver.delete(uri, null, null) > 0
-            }
+            val uri = getMediaUri(id, path)
+            uri != null && contentResolver.delete(uri, null, null) > 0
         } catch (e: Exception) {
             false
         }
     }
 
-    private fun getMediaUriForPath(path: String): android.net.Uri? {
+    /**
+     * Uri записи в MediaStore. Сначала по `_ID`: `id` трека от on_audio_query —
+     * это и есть MediaStore `_ID`, самый надёжный способ. Путь (колонка DATA)
+     * используется только как фолбэк: она deprecated, и на части устройств
+     * Android 11+ запись по DATA не находится.
+     */
+    private fun getMediaUri(id: Long, path: String?): android.net.Uri? {
+        val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val selection: String
+        val args: Array<String>
+        if (id > 0) {
+            selection = "${MediaStore.MediaColumns._ID}=?"
+            args = arrayOf(id.toString())
+        } else if (!path.isNullOrEmpty()) {
+            selection = "${MediaStore.MediaColumns.DATA}=?"
+            args = arrayOf(path)
+        } else {
+            return null
+        }
         return try {
-            val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             contentResolver.query(
                 collection,
                 arrayOf(MediaStore.MediaColumns._ID),
-                "${MediaStore.MediaColumns.DATA}=?",
-                arrayOf(path),
+                selection,
+                args,
                 null,
             )?.use { c ->
                 if (c.moveToFirst()) {

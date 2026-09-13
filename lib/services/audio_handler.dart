@@ -236,6 +236,18 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         await file.writeAsBytes(bytes, flush: true);
         _artPaths[track.id] = file.path;
       }
+      // Ограничиваем кэш путей (файлы в temp): иначе за долгую сессию
+      // накапливаются тысячи PNG и растёт память/диск.
+      while (_artPaths.length > 40) {
+        final oldest = _artPaths.keys.first;
+        if (oldest == track.id) break;
+        final oldPath = _artPaths.remove(oldest);
+        if (oldPath != null) {
+          try {
+            await File(oldPath).delete();
+          } catch (_) {}
+        }
+      }
       final nativeIdx = player.currentIndex;
       final idx = nativeIdx == null ? null : translateIndex(nativeIdx);
       if (idx != null &&
@@ -283,8 +295,17 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     );
   }
 
+  DateTime _lastPositionPublish = DateTime.fromMillisecondsSinceEpoch(0);
+
   void _listen() {
+    // ФИКС (перф): позиция публиковалась в playbackState на КАЖДОМ тике
+    // just_audio (~5 Гц) — до 5 маршалингов в платформенный канал в секунду
+    // ради MediaSession/уведомления. audio_service экстраполирует позицию
+    // между апдейтами (updatePosition + speed), поэтому 1 Гц достаточно.
     player.positionStream.listen((p) {
+      final now = DateTime.now();
+      if (now.difference(_lastPositionPublish).inMilliseconds < 1000) return;
+      _lastPositionPublish = now;
       playbackState.add(
         _state.copyWith(
           updatePosition: p,

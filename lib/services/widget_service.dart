@@ -15,6 +15,7 @@ class WidgetService {
   static final OnAudioQuery _query = OnAudioQuery();
 
   static final Map<int, List<int>> _artCache = {};
+  static const int _maxArtEntries = 24;
 
   static int? _lastTrackId;
   static bool? _lastPlaying;
@@ -138,7 +139,14 @@ class WidgetService {
               format: ArtworkFormat.PNG,
               size: 256,
             );
-            if (artBytes != null) _artCache[tid] = artBytes;
+            if (artBytes != null) {
+              _artCache[tid] = artBytes;
+              // LRU: держим последние N обложек, иначе за долгую сессию
+              // кэш байтов растит память без границ.
+              while (_artCache.length > _maxArtEntries) {
+                _artCache.remove(_artCache.keys.first);
+              }
+            }
           } catch (_) {}
         }
       }

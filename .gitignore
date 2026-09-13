@@ -2,3 +2,13 @@
 # Local APK builds
 NeonWave.apk
 *.apk
+
+# Flutter/Dart build artifacts
+.dart_tool/
+build/
+pubspec_backup.yaml
+lib_backup/
+mainactivity_backup/
+
+# Local CI scratch
+*.log

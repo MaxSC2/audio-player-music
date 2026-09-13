@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/audio_track.dart';
+import '../../models/genre_taxonomy.dart';
 import '../../providers/player_provider.dart';
 import '../../ui/theme.dart';
 import '../../widgets/track_tile.dart';

@@ -5,6 +5,19 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <!-- Паритет с уже выпущенным APK: CI-скрипт добавлял это разрешение. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+
+    <!-- Фоновое воспроизведение (audio_service 0.18.x требует, чтобы сервис и
+         эти разрешения объявлял манифест ПРИЛОЖЕНИЯ — у плагина манифест пустой).
+         ФИКС: раньше декларации дописывались только CI-скриптом в build-apk.yml,
+         поэтому локальная сборка выходила без foreground-сервиса: не работало
+         уведомление, фоновое воспроизведение и запрос POST_NOTIFICATIONS.
+         Теперь манифест в репозитории — единственный источник истины. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
     <application
         android:label="NeonWave"
@@ -49,6 +62,14 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/large_widget_info"/>
         </receiver>
+        <service
+            android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService"/>
+            </intent-filter>
+        </service>
         <receiver
             android:name="com.ryanheise.audioservice.MediaButtonReceiver"
             android:exported="true">

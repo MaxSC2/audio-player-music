@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/audio_track.dart';
 import '../models/queue_snapshot.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
@@ -13,9 +14,24 @@ class QueueSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('QueueSheet');
-    final player = context.watch<PlayerProvider>();
-    final queue = player.playlist;
-    final currentIndex = player.currentIndex;
+    // M6 (частично): вместо context.watch — точечные подписки через
+    // context.select. Лист перестраивается только при смене очереди или
+    // активного трека, а не на каждый тик позиции/буферизации.
+    final queue = context.select<PlayerProvider, List<AudioTrack>>(
+      (p) => p.playlist,
+    );
+    final currentIndex = context.select<PlayerProvider, int>(
+      (p) => p.currentIndex,
+    );
+    // Действия и редкие списки: читаем провайдер без подписки на rebuild
+    // (read не создаает зависимости — для снапшотов ниже отдельный select).
+    final player = context.read<PlayerProvider>();
+    final snapshots = context.select<PlayerProvider, List<QueueSnapshot>>(
+      (p) => p.queueSnapshots,
+    );
+    final playingVisuals = context.select<PlayerProvider, bool>(
+      (p) => p.playingVisuals,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -115,7 +131,7 @@ class QueueSheet extends StatelessWidget {
           Divider(color: AppTheme.cardBorder),
 
           // Saved queue snapshots
-          if (player.queueSnapshots.isNotEmpty) ...[
+          if (snapshots.isNotEmpty) ...[
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
@@ -134,7 +150,7 @@ class QueueSheet extends StatelessWidget {
               height: 42,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                children: player.queueSnapshots.map((QueueSnapshot s) {
+                children: snapshots.map((QueueSnapshot s) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: Container(
@@ -266,7 +282,7 @@ class QueueSheet extends StatelessWidget {
                         child: Center(
                           child: isCurrent
                               ? AnimatedWaveform(
-                                  isPlaying: player.playingVisuals,
+                                  isPlaying: playingVisuals,
                                   barCount: 3,
                                   height: 16,
                                   width: 16,
