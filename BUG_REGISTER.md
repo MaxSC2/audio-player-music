@@ -78,6 +78,10 @@
 | **B16** | Контроллеры в диалогах `settings_screen` — проверить `dispose()` | `settings_screen.dart:958–1053` ⏳ |
 | **B17** | Диагностический каркас в прод-коде: 4 kill-switch + `DebugLog.rebuild` в 18 `build()` | `debug_log.dart` + экраны |
 | **B18** | `playlist!` в колбэке меню (теоретический NPE) | `playlist_detail_screen.dart:100` |
+| **B19** | `SeekSlider` не обрабатывает смену `player` в `didUpdateWidget` | `lib/widgets/seek_slider.dart` |
+| **B20** | `DateTime.now()` в «сегодня/эта неделя»-вычислениях, вызываемых из `build` → пересчёт на каждый rebuild | `library_tabs.dart:1404,1549,1639`, `music_dna_tab.dart:425` |
+| **B21** | `settings_screen.dart` — 1936 строк в одном файле (то же, что F13 для провайдера) | `lib/features/settings/settings_screen.dart` |
+| **B22** | История/избранное читаются единым `String` из prefs; при росте истории вынести тяжёлый стейт в отдельный файл | `player_provider.dart` |
 ## 3. Производительность
 
 | ID | Что | Статус |
@@ -144,6 +148,9 @@
 | `WidgetService._syncTicker` | таймер корректно отменяется при паузе ✅ |
 | Инвалидация кэшей при сортировке | `sortOrder` → `_invalidateFolderCache()` чистит album/artist/search/visible кэши ДО ре-сорта ✅ |
 | `_queueSnapshots` | cap 20 ✅ |
+| **D4** (старый аудит) | Ручная смена жанра: `setManualGenre`/`clearManualGenre` → `_invalidateCategoryCache()` → чистит `_primaryGenreCache` (стр. 1329) ✅ **не баг** |
+| Тяжёлые вкладки (DNA/Категории) | используют `context.select((p) => p.dataEpoch)` — пересчёт только при смене данных ✅ |
+| `setQueue`/`sortOrder`/`_maybeResume` | инварианты и инвалидации проверены ✅ |
 | Манифест APK vs репо | паритет подтверждён `aapt2` (разрешения + `AudioService foregroundServiceType=mediaPlayback`) ✅ |
 | `flutter analyze` / `flutter test` | чисто / 12 из 12 ✅ |
 
