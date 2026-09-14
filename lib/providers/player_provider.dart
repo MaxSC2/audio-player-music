@@ -3006,26 +3006,43 @@ class PlayerProvider extends ChangeNotifier {
     _notify('cancelSleepTimer');
   }
 
-  Future<void> addToQueueNext(AudioTrack track) async {
+  Future<void> addToQueueNext(AudioTrack track) =>
+      addManyToQueueNext([track]);
+
+  /// Пакетное «играть следующими» (альбом/подборка → в очередь).
+  ///
+  /// Одним вызовом вставляем все источники: сохраняется ПОРЯДОК треков
+  /// (последовательные `insert(cur+1, t)` разворачивали список наизнанку)
+  /// и не делается N полных пересборок окна.
+  Future<void> addManyToQueueNext(List<AudioTrack> tracks) async {
+    if (tracks.isEmpty) return;
     if (_playlist.isEmpty) {
-      await playTrack(track);
+      await playFromPlaylist(tracks, 0);
       return;
     }
     final insertIndex = _currentIndex + 1;
-    _playlist.insert(insertIndex, track);
+    _playlist.insertAll(insertIndex, tracks);
 
-    // FIX: вставляем источник в нативный плеер без перезапуска текущего трека.
+    // FIX: вставляем источники в нативный плеер без перезапуска текущего трека.
     // Раньше вызывался _rebuildPlaylist(), который делает setAudioSources(force:true)
-    // и тем самым сбрасывает позицию воспроизведения — играющий трек начинал играть сначала.
+    // и тем самым сбрасывает позицию воспроизведения — играющий трек начинал играть
+    // сначала. ExoPlayer `addMediaSources` удерживает текущий трек и его позицию.
     final wasPlaying = _isPlaying;
     _switchingSource = true;
     try {
-      await _audioPlayer.insertAudioSource(
+      await _audioPlayer.insertAudioSources(
         insertIndex - _nativeOffset,
-        AudioSource.uri(Uri.parse(track.uri)),
+        tracks.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
       );
+      // Инвариант окна: native[i] == playlist[i + _nativeOffset]. Вставка всегда
+      // попадает внутрь/на границу окна (cur+1 - offset <= nativeLength), значит
+      // окно удлиняется. Без этого следующий не-force rebuild считал бы длину от
+      // _playlist, видел расхождение и делал лишний setAudioSources (перезапуск).
+      _nativeLength += tracks.length;
+      // Шторка/локскрин/виджет должны узнать о новом хвосте очереди.
+      _audioHandler?.setQueue(_playlist);
     } catch (_) {
-      // Фолбэк: если вставка не удалась, пересобираем очередь полностью.
+      // Фолбэк: очередь провайдера уже консистентна — пересобираем целиком.
       await _rebuildPlaylist();
     } finally {
       _lastEventIndex = _currentIndex;
@@ -3036,7 +3053,7 @@ class PlayerProvider extends ChangeNotifier {
     if (wasPlaying) {
       await _audioPlayer.play();
     }
-    _notify('addToQueueNext');
+    _notify('addManyToQueueNext');
     WidgetService.playerChanged(this);
   }
 

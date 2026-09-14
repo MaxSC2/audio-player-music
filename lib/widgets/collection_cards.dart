@@ -41,9 +41,8 @@ class AlbumMenu extends StatelessWidget {
           final shuffled = List<AudioTrack>.of(tracks)..shuffle();
           player.playFromPlaylist(shuffled, 0);
         } else if (value == 'queue') {
-          for (final t in tracks) {
-            await player.addToQueueNext(t);
-          }
+          // Пакетно: сохраняет порядок треков и не перезапускает текущий.
+          await player.addManyToQueueNext(tracks);
           messenger.showSnackBar(
             SnackBar(
               content: Text('Добавлено в очередь: ${tracks.length}'),

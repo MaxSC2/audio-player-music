@@ -82,40 +82,7 @@ class _SwipeRevealState extends State<SwipeReveal> {
 
     return Stack(
       children: [
-        // Action strip behind the tile
-        Positioned.fill(
-          child: ClipRRect(
-            borderRadius: widget.borderRadius,
-            child: AnimatedOpacity(
-              opacity: reveal,
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              child: IgnorePointer(
-                ignoring: !_open,
-                child: Row(
-                  children: [
-                    const Spacer(),
-                    for (var i = 0; i < widget.actions.length; i++)
-                      _ActionButton(
-                        action: widget.actions[i],
-                        width: widget.actionWidth,
-                        style: widget.style,
-                        accent: widget.accent,
-                        first: i == 0,
-                        last: i == widget.actions.length - 1,
-                        onTap: () {
-                          _close();
-                          widget.actions[i].onTap();
-                        },
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // Sliding tile
+        // Sliding tile (фронтальный слой, задаёт размер Stack)
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onHorizontalDragUpdate: (d) {
@@ -142,6 +109,49 @@ class _SwipeRevealState extends State<SwipeReveal> {
           child: Transform.translate(
             offset: Offset(_dx, 0),
             child: widget.child,
+          ),
+        ),
+
+        // Полоса действий — СВЕРХУ тайла, выезжает синхронно с ним (_dx).
+        //
+        // ФИКС «кнопки свайпа не нажимаются»: раньше полоса лежала ПОД тайлом,
+        // а у тайла был GestureDetector с HitTestBehavior.opaque на всю ширину.
+        // Stack проверяет попадания сверху вниз (тайл первым), поэтому тап по
+        // кнопке доставался тайлу (_toggleClose) — полоса закрывалась, действие
+        // не выполнялось. Теперь полоса наверху, а Transform.translate уводит
+        // её (вместе с hit-test-областью) за правый край, пока она закрыта.
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: width,
+          child: Transform.translate(
+            offset: Offset(width + _dx, 0),
+            child: ClipRRect(
+              borderRadius: widget.borderRadius,
+              child: AnimatedOpacity(
+                opacity: reveal,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < widget.actions.length; i++)
+                      _ActionButton(
+                        action: widget.actions[i],
+                        width: widget.actionWidth,
+                        style: widget.style,
+                        accent: widget.accent,
+                        first: i == 0,
+                        last: i == widget.actions.length - 1,
+                        onTap: () {
+                          _close();
+                          widget.actions[i].onTap();
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ],
