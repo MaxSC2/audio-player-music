@@ -1173,6 +1173,7 @@ class _ProgressRow extends StatefulWidget {
 
 class _ProgressRowState extends State<_ProgressRow> {
   bool _dragging = false;
+  double _dragFrac = 0; // локальная позиция при перетаскивании (фикс ANR)
 
   @override
   Widget build(BuildContext context) {
@@ -1185,15 +1186,18 @@ class _ProgressRowState extends State<_ProgressRow> {
         valueListenable: player.positionTick,
         builder: (_, pos, __) {
           final posMs = pos.inMilliseconds;
-          final frac = durMs > 0
+          final liveFrac = durMs > 0
               ? (posMs / durMs).clamp(0.0, 1.0).toDouble()
               : 0.0;
+          final frac = _dragging ? _dragFrac : liveFrac;
           return Row(
             children: [
               SizedBox(
                 width: 38,
                 child: Text(
-                  _fmt(pos),
+                  _fmt(_dragging
+                      ? Duration(milliseconds: (frac * durMs).round())
+                      : pos),
                   style: const TextStyle(
                     color: CinematicTheme.textDim,
                     fontSize: 11,
@@ -1219,13 +1223,20 @@ class _ProgressRowState extends State<_ProgressRow> {
                   ),
                   child: Slider(
                     value: frac,
-                    onChangeStart: (_) =>
-                        setState(() => _dragging = true),
-                    onChangeEnd: (_) =>
-                        setState(() => _dragging = false),
-                    onChanged: (v) => player.seek(
-                      Duration(milliseconds: (durMs * v).round()),
-                    ),
+                    onChangeStart: (v) =>
+                        setState(() {
+                          _dragging = true;
+                          _dragFrac = v;
+                        }),
+                    onChanged: (v) => setState(() => _dragFrac = v),
+                    onChangeEnd: (v) {
+                      setState(() => _dragging = false);
+                      if (durMs > 0) {
+                        player.seek(
+                          Duration(milliseconds: (v * durMs).round()),
+                        );
+                      }
+                    },
                   ),
                 ),
               ),

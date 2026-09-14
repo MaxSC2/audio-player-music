@@ -1850,6 +1850,118 @@ class PlayerProvider extends ChangeNotifier {
     return result;
   }
 
+  // ─── Умные автоплейлисты (P1) ─────────────────────────────────────
+  // Готовый плейлист «Топ недели»: треки, которые реально слушали за 7 дней,
+  // ранжированные по числу прослушиваний за этот период.
+  List<AudioTrack> smartTopWeek({int limit = 30}) {
+    final cutoff =
+        DateTime.now().subtract(const Duration(days: 7)).millisecondsSinceEpoch;
+    final counts = <int, int>{};
+    for (final e in _historyRaw) {
+      final ts = e['ts'];
+      if (ts is int && ts < cutoff) continue;
+      final id = e['id'];
+      if (id == null) continue;
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+    final ranked = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final byId = _tracksById;
+    return ranked
+        .map((e) => byId[e.key])
+        .whereType<AudioTrack>()
+        .take(limit)
+        .toList();
+  }
+
+  // «Свежее»: недавно добавленные в библиотеку, которые почти не слушали
+  // (dateAdded есть — сортируем по нему, фильтруем малоигранные).
+  List<AudioTrack> smartFresh({int limit = 30}) {
+    final played = <int, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      played[id] = (played[id] ?? 0) + 1;
+    }
+    final cutoff30d =
+        DateTime.now().subtract(const Duration(days: 30)).millisecondsSinceEpoch;
+    final candidates = _allTracks.where((t) {
+      final da = t.dateAdded;
+      if (da == null) return false;
+      return da * 1000 >= cutoff30d;
+    }).toList();
+    candidates.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
+    return candidates.where((t) => (played[t.id] ?? 0) < 3).take(limit).toList();
+  }
+
+  // «Часто пропускаемые»: треки с наибольшим skipCount — можно дать им второй
+  // шанс или наоборот скрыть.
+  List<AudioTrack> smartSkipped({int limit = 30}) {
+    final ranked = _skipCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final byId = _tracksById;
+    return ranked
+        .map((e) => byId[e.key])
+        .whereType<AudioTrack>()
+        .where((t) => (_skipCount[t.id] ?? 0) > 0)
+        .take(limit)
+        .toList();
+  }
+
+  // «Неизведанное»: самые малоигранные (или ни разу не игранные) треки —
+  // находка для Deep Cuts.
+  List<AudioTrack> smartDeepCuts({int limit = 30}) {
+    final played = <int, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      played[id] = (played[id] ?? 0) + 1;
+    }
+    final notPlayed = _allTracks.where((t) => !played.containsKey(t.id)).toList();
+    notPlayed.shuffle();
+    if (notPlayed.length >= limit) return notPlayed.take(limit).toList();
+    final little = _allTracks
+        .where((t) => (played[t.id] ?? 0) > 0 && (played[t.id] ?? 0) <= 3)
+        .toList()
+      ..shuffle();
+    return [...notPlayed, ...little].take(limit).toList();
+  }
+
+  /// Импорт M3U/M3U8: разбирает ссылки/пути, ищет совпадения по имени файла
+  /// в локальной библиотеке и создаёт плейлист. Возвращает число найденных
+  /// треков (0 — ничего не сопоставилось).
+  Future<int> importM3U(String content, {String? name}) async {
+    final lines = const LineSplitter().convert(content)
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty && !l.startsWith('#'))
+        .toList();
+    if (lines.isEmpty) return 0;
+    // Поиск по basename (case-insensitive) среди локальных треков.
+    final byLower = <String, AudioTrack>{};
+    for (final t in _allTracks) {
+      final bn = t.uri.split('/').last.toLowerCase();
+      byLower.putIfAbsent(bn, () => t);
+    }
+    final found = <AudioTrack>[];
+    for (final line in lines) {
+      final bn = line.split('/').last.toLowerCase().split('?').first;
+      final hit = byLower[bn];
+      if (hit != null && !found.any((t) => t.id == hit.id)) {
+        found.add(hit);
+      }
+    }
+    if (found.isEmpty) return 0;
+    final plName = (name == null || name.trim().isEmpty)
+        ? 'Импорт M3U ${DateTime.now().day}.${DateTime.now().month}'
+        : name.trim();
+    final id = await createPlaylist(plName);
+    if (id == null) return 0;
+    for (final t in found) {
+      await addToPlaylist(id, t);
+    }
+    return found.length;
+  }
+
   int get totalPlays => _historyRaw.length;
 
   Duration get totalListeningTime {

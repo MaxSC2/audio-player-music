@@ -17,6 +17,7 @@ import 'music_dna_tab.dart';
 import '../../core/debug_log.dart';
 import '../../core/ui_style.dart';
 import '../../widgets/artwork_palette.dart';
+import 'smart_playlists_sheet.dart';
 
 /// Shared library content: search, 6 tabs (tracks, playlists, albums,
 /// artists, folders, favorites), sort, grid toggle, multi-select.
@@ -286,6 +287,14 @@ class _LibraryTabsState extends State<LibraryTabs>
             ),
           ),
           if (player.allTracks.isNotEmpty) ...[
+            IconButton(
+              icon: Icon(
+                Icons.auto_awesome_rounded,
+                color: neon ? Colors.white54 : AppTheme.textSecondary,
+              ),
+              onPressed: () => SmartPlaylistsSheet.show(context),
+              tooltip: 'Умные плейлисты',
+            ),
             if (_tabController.index == 2)
               IconButton(
                 icon: Icon(

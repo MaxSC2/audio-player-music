@@ -18,6 +18,12 @@ class SimpleNowPlayingScreen extends StatefulWidget {
 }
 
 class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
+  // Фикс ANR-бага перемотки: во время перетаскивания слайдер живёт
+  // локальным значением, а НЕ потоком позиции — иначе positionStream →
+  // positionTick → ребилд → onChanged → seek → бесконечная цепочка seek'ов.
+  bool _dragging = false;
+  double _dragFrac = 0;
+
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('SimpleNowPlaying');
@@ -183,7 +189,11 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                     ),
                   ),
 
-                  // Progress Slider (слушает тикер — без глобальных ребилдов)
+                  // Progress Slider (слушает тикер — без глобальных ребилдов).
+                  // Во время перетаскивания слайдер живёт локальным _dragFrac:
+                  // поток позиции на него не влияет, а seek вызывается один раз
+                  // в onChangeEnd — иначе цепочка onChanged→seek→тикер→ребилд
+                  // вызывает ANR (приложение не отвечает).
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -193,21 +203,33 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                       valueListenable: player.positionTick,
                       builder: (_, pos, __) {
                         final durMs = player.duration.inMilliseconds;
-                        final frac = durMs > 0
+                        final liveFrac = durMs > 0
                             ? (pos.inMilliseconds / durMs)
                                 .clamp(0.0, 1.0)
                                 .toDouble()
                             : 0.0;
+                        final displayFrac = _dragging ? _dragFrac : liveFrac;
                         return Column(
                           children: [
                             Slider(
-                              value: frac,
-                              onChanged: (value) {
-                                final target = Duration(
-                                  milliseconds:
-                                      (value * durMs).round(),
-                                );
-                                player.seek(target);
+                              value: displayFrac,
+                              onChangeStart: (v) {
+                                setState(() {
+                                  _dragging = true;
+                                  _dragFrac = v;
+                                });
+                              },
+                              onChanged: (v) {
+                                setState(() => _dragFrac = v);
+                              },
+                              onChangeEnd: (v) {
+                                setState(() => _dragging = false);
+                                final dur = player.duration.inMilliseconds;
+                                if (dur > 0) {
+                                  player.seek(
+                                    Duration(milliseconds: (v * dur).round()),
+                                  );
+                                }
                               },
                             ),
                             Padding(

@@ -449,6 +449,29 @@ class SettingsScreen extends StatelessWidget {
 
           _SettingsCard(
             child: ListTile(
+              leading: const _TileIcon(Icons.file_download_rounded),
+              title: Text(
+                'Импорт плейлиста (M3U)',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle: Text(
+                'Загрузить плейлист из файла M3U/M3U8',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textMuted,
+              ),
+              onTap: () => _showImportM3UDialog(context, player),
+            ),
+          ),
+
+          _SettingsCard(
+            child: ListTile(
               leading: const _TileIcon(Icons.bar_chart_rounded),
               title: Text(
                 'Экспорт статистики',
@@ -1022,6 +1045,142 @@ class SettingsScreen extends StatelessWidget {
     ).then((_) {
       urlController.dispose();
       titleController.dispose();
+    });
+  }
+
+  void _showImportM3UDialog(BuildContext context, PlayerProvider player) {
+    final contentController = TextEditingController();
+    final nameController = TextEditingController();
+    var loading = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppTheme.surface,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Импорт M3U',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Вставьте содержимое M3U/M3U8 (список ссылок/путей):',
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: contentController,
+                  autofocus: true,
+                  maxLines: 6,
+                  minLines: 3,
+                  keyboardType: TextInputType.multiline,
+                  decoration: InputDecoration(
+                    labelText: 'Содержимое M3U',
+                    labelStyle: TextStyle(color: AppTheme.textMuted),
+                    hintText: '#EXTM3U\n/path/to/track.mp3\nhttps://...',
+                    hintStyle: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                    filled: true,
+                    fillColor: AppTheme.background,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.accent),
+                    ),
+                  ),
+                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Название плейлиста (необязательно)',
+                    labelStyle: TextStyle(color: AppTheme.textMuted),
+                    filled: true,
+                    fillColor: AppTheme.background,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.accent),
+                    ),
+                  ),
+                  style: TextStyle(color: AppTheme.textPrimary),
+                ),
+                if (loading) ...[
+                  const SizedBox(height: 10),
+                  const Center(child: CircularProgressIndicator()),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Отмена',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+            FilledButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      final content = contentController.text.trim();
+                      if (content.isEmpty) return;
+                      setDialogState(() => loading = true);
+                      final count = await player.importM3U(
+                        content,
+                        name: nameController.text.trim(),
+                      );
+                      if (!dialogContext.mounted) return;
+                      Navigator.of(dialogContext).pop();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            count > 0
+                                ? 'Импортировано треков: $count'
+                                : 'Не удалось сопоставить треки с библиотекой',
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.accent,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text(
+                'Импорт',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      contentController.dispose();
+      nameController.dispose();
     });
   }
 

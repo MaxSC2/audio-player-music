@@ -22,6 +22,9 @@ class CoverFlowNowPlayingScreen extends StatefulWidget {
 class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
   PageController? _controller;
   int _lastSyncedIndex = -1;
+  // Фикс ANR-бага перемотки: локальное значение слайдера при drag.
+  bool _dragging = false;
+  double _dragFrac = 0;
 
   static String _fmt(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -251,18 +254,31 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                       child: ValueListenableBuilder<Duration>(
                         valueListenable: player.positionTick,
                         builder: (_, pos, __) {
-                          final frac = durMs > 0
+                          final liveFrac = durMs > 0
                               ? (pos.inMilliseconds / durMs)
                                   .clamp(0.0, 1.0)
                                   .toDouble()
                               : 0.0;
+                          final frac = _dragging ? _dragFrac : liveFrac;
                           return Slider(
                             value: frac,
-                            onChanged: (v) => player.seek(
-                              Duration(
-                                milliseconds: (durMs * v).round(),
-                              ),
-                            ),
+                            onChangeStart: (v) {
+                              setState(() {
+                                _dragging = true;
+                                _dragFrac = v;
+                              });
+                            },
+                            onChanged: (v) => setState(() => _dragFrac = v),
+                            onChangeEnd: (v) {
+                              setState(() => _dragging = false);
+                              if (durMs > 0) {
+                                player.seek(
+                                  Duration(
+                                    milliseconds: (durMs * v).round(),
+                                  ),
+                                );
+                              }
+                            },
                           );
                         },
                       ),
