@@ -92,7 +92,14 @@ class _SeekSliderState extends State<SeekSlider> {
         }),
         onChanged: (v) => setState(() => _dragFrac = v),
         onChangeEnd: (v) {
-          setState(() => _dragging = false);
+          setState(() {
+            _dragging = false;
+            // B7: сразу фиксируем позицию под пальцем — иначе до следующего
+            // тика ползунок показывал бы старую позицию (микро-отскок).
+            if (durMs > 0) {
+              _displayPos = Duration(milliseconds: (v * durMs).round());
+            }
+          });
           if (durMs > 0) {
             widget.player.seek(Duration(milliseconds: (v * durMs).round()));
           }

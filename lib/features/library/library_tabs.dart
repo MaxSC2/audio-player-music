@@ -456,11 +456,20 @@ class _LibraryTabsState extends State<LibraryTabs>
         color: AppTheme.accentCyan,
         tooltip: 'Играть следующим',
         label: 'В очередь',
-        onTap: () {
-          player.addToQueueNext(track);
+        onTap: () async {
+          // B6: не fire-and-forget — ошибку вставки показываем пользователю.
+          var ok = true;
+          try {
+            await player.addToQueueNext(track);
+          } catch (_) {
+            ok = false;
+          }
+          if (!mounted) return;
           snack(
-            'В очередь: ${track.title}',
-            icon: Icons.playlist_play_rounded,
+            ok ? 'В очередь: ${track.title}' : 'Не удалось добавить в очередь',
+            icon: ok
+                ? Icons.playlist_play_rounded
+                : Icons.error_outline_rounded,
           );
         },
       ),

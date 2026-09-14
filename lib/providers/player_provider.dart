@@ -3059,10 +3059,10 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> removeFromQueue(int index) async {
     if (index < 0 || index >= _playlist.length) return;
-    _playlist.removeAt(index);
-    if (index < _currentIndex) {
-      _currentIndex -= 1;
-    } else if (index == _currentIndex) {
+
+    // Текущий трек удалён — окно пересобираем и переходим к следующему.
+    if (index == _currentIndex) {
+      _playlist.removeAt(index);
       if (_playlist.isEmpty) {
         _currentIndex = -1;
       } else if (_currentIndex >= _playlist.length) {
@@ -3072,8 +3072,45 @@ class PlayerProvider extends ChangeNotifier {
       await playAt(_currentIndex);
       return;
     }
-    await _rebuildPlaylist();
+
+    _playlist.removeAt(index);
+
+    // B3: удаление «не текущего» трека — БЕЗ пересборки окна
+    // (setAudioSources + seek давали слышимый разрыв). Правим нативную
+    // последовательность точечно, держа инвариант:
+    //   native[i] == playlist[i + _nativeOffset], _nativeLength == native.length
+    final local = index - _nativeOffset;
+    final inWindow = local >= 0 && local < _nativeLength;
+    if (!inWindow) {
+      // Индекс вне окна (далёкий хвост очереди) — дешевле пересобрать.
+      if (index < _currentIndex) _currentIndex -= 1;
+      await _rebuildPlaylist();
+      _persistQueueSnapshot();
+      _notify('removeFromQueue');
+      WidgetService.playerChanged(this);
+      return;
+    }
+
+    if (index < _currentIndex) _currentIndex -= 1;
+    _switchingSource = true;
+    try {
+      await _audioPlayer.removeAudioSourceAt(local);
+      // Инвариант сохраняется без сдвига offset: после удаления внутри окна
+      // нативные элементы снова равны newPlaylist[off .. off+n-2], т.е. окно
+      // просто укорачивается на 1. ExoPlayer сам сдвигает индекс текущего
+      // трека, поэтому provider-индекс уменьшаем ровно на 1 (сделано выше).
+      _nativeLength -= 1;
+      _lastEventIndex = _currentIndex;
+      _audioHandler?.setQueue(_playlist);
+    } catch (_) {
+      await _rebuildPlaylist();
+    } finally {
+      _switchingSource = false;
+    }
+
+    _persistQueueSnapshot();
     _notify('removeFromQueue');
+    WidgetService.playerChanged(this);
   }
 
   Future<void> _rebuildPlaylist() async {

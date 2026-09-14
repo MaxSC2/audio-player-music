@@ -59,15 +59,8 @@ class _SwipeRevealState extends State<SwipeReveal> {
   bool _open = false;
   double get _openWidth => widget.actionWidth * widget.actions.length;
 
+  /// Закрывает полосу действий: тап по тайлу или по любой кнопке действия.
   void _close() {
-    if (!_open) return;
-    setState(() {
-      _dx = 0;
-      _open = false;
-    });
-  }
-
-  void _toggleClose() {
     if (!_open) return;
     setState(() {
       _dx = 0;
@@ -105,7 +98,7 @@ class _SwipeRevealState extends State<SwipeReveal> {
               });
             }
           },
-          onTap: _toggleClose,
+          onTap: _close,
           child: Transform.translate(
             offset: Offset(_dx, 0),
             child: widget.child,
