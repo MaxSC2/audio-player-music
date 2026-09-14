@@ -130,6 +130,15 @@ class PlayerProvider extends ChangeNotifier {
   int _nativeOffset = 0; // provider-индекс трека, лежащего в native[0]
   int _nativeLength = 0;
 
+  // R1 (гонка): генерационный счётчик пересборки окна. Быстрый next-next
+  // запускает два параллельных setAudioSources; без счётчика устаревшее
+  // завершение могло перезаписать _nativeOffset ПОСЛЕ более свежего, и
+  // seek(index - offset) уводил на другой трек.
+  int _sliceBuildSeq = 0;
+  // Last-request-wins для playAt: устаревший вызов прерывается, если
+  // за время его awaits появился более новый запрос.
+  int _playReqSeq = 0;
+
   int toProviderIndex(int nativeIndex) => nativeIndex + _nativeOffset;
 
   /// Строит нативное окно вокруг provider-индекса. Без гарда —
@@ -153,12 +162,14 @@ class PlayerProvider extends ChangeNotifier {
     if (!force && start == _nativeOffset && (end - start) == _nativeLength) {
       return; // покрытие то же — пересборка не нужна, без гэпа
     }
+    final seq = ++_sliceBuildSeq;
     final slice = _playlist.sublist(start, end);
     // Окно маленькое — грузим целиком и упорядоченно (никаких гонок seek/play).
     await _audioPlayer.setAudioSources(
       slice.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
       preload: true,
     );
+    if (seq != _sliceBuildSeq) return; // устаревшее завершение — игнорируем
     _nativeOffset = start;
     _nativeLength = end - start;
   }
@@ -945,7 +956,11 @@ class PlayerProvider extends ChangeNotifier {
     _lastPersist = now;
     final prefs = _prefs;
     if (prefs == null) return;
+    // D1: храним и индекс, и id трека — при изменении библиотеки
+    // «продолжить» ищет трек по id, а не смещается на чужой индекс.
     prefs.setInt('last_index', _currentIndex);
+    final t = currentTrack;
+    prefs.setInt('last_track_id', t?.id ?? -1);
     prefs.setInt('last_position_ms', _position.inMilliseconds);
   }
 
@@ -966,7 +981,8 @@ class PlayerProvider extends ChangeNotifier {
     if (prefs == null) return;
 
     final ids = prefs.getStringList('last_playlist_ids');
-    final index = prefs.getInt('last_index') ?? -1;
+    final savedIndex = prefs.getInt('last_index') ?? -1;
+    final trackId = prefs.getInt('last_track_id') ?? -1;
     final positionMs = prefs.getInt('last_position_ms') ?? 0;
     if (ids == null || ids.isEmpty) return;
 
@@ -978,7 +994,16 @@ class PlayerProvider extends ChangeNotifier {
       final t = byId[id];
       if (t != null) tracks.add(t);
     }
-    if (tracks.isEmpty || index < 0 || index >= tracks.length) return;
+    if (tracks.isEmpty) return;
+
+    // D1: предпочитаем трек по id — индекс мог «съехать» после изменения
+    // библиотеки. Если id не найден — фолбэк на сохранённый индекс.
+    var index = -1;
+    if (trackId >= 0) {
+      index = tracks.indexWhere((t) => t.id == trackId);
+    }
+    if (index < 0) index = savedIndex;
+    if (index < 0 || index >= tracks.length) return;
 
     _playlist = tracks;
     _switchingSource = true;
@@ -1683,6 +1708,18 @@ class PlayerProvider extends ChangeNotifier {
 
   void _recordSkip(int id) {
     _skipCount[id] = (_skipCount[id] ?? 0) + 1;
+    // D2: кап — счётчики скипов не должны расти бесконечно.
+    // При переполнении оставляем только «значимые» (skip > 2).
+    if (_skipCount.length > 800) {
+      _skipCount.removeWhere((k, v) => v <= 2);
+    }
+    if (_skipCount.length > 800) {
+      final sorted = _skipCount.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      _skipCount = {
+        for (final e in sorted.take(500)) e.key: e.value,
+      };
+    }
     _prefs?.setString(
       'skip_counts',
       jsonEncode(_skipCount.map((k, v) => MapEntry('$k', v))),
@@ -1720,6 +1757,13 @@ class PlayerProvider extends ChangeNotifier {
     if (list.contains(positionMs)) {
       list.remove(positionMs);
     } else {
+      // D2: закладки не должны расти бессрочно — 30 на трек и 400 треков.
+      if (list.length >= 30) {
+        list.removeAt(0);
+      }
+      if (_bookmarks.length >= 400 && !_bookmarks.containsKey(trackId)) {
+        _bookmarks.remove(_bookmarks.keys.first);
+      }
       list.add(positionMs);
     }
     if (list.isEmpty) {
@@ -2132,6 +2176,8 @@ class PlayerProvider extends ChangeNotifier {
   // ─── AI Radio ──────────────────────────────────────────────────────
   bool _radioMode = false;
   final Set<int> _radioUsedIds = <int>{};
+  // R2: защита от параллельных расширений радио (дубли в очереди).
+  bool _radioExtending = false;
 
   bool get radioMode => _radioMode;
 
@@ -2150,15 +2196,21 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _extendRadio() async {
-    final more = buildSmartQueue(count: 30, exclude: _radioUsedIds);
-    if (more.isEmpty) return;
-    _radioUsedIds.addAll(more.map((t) => t.id));
-    _playlist = [..._playlist, ...more];
-    // Через _rebuildPlaylist: он под гардом вернёт нативный плеер
-    // на текущий трек/позицию. Без этого setAudioSources сбрасывает
-    // нативный индекс в 0 — играет трек №1, а UI показывает старый.
-    await _rebuildPlaylist();
-    _notify('_extendRadio');
+    if (_radioExtending) return; // R2: сам гард (вызывается и из next(), и из onComplete)
+    _radioExtending = true;
+    try {
+      final more = buildSmartQueue(count: 30, exclude: _radioUsedIds);
+      if (more.isEmpty) return;
+      _radioUsedIds.addAll(more.map((t) => t.id));
+      _playlist = [..._playlist, ...more];
+      // Через _rebuildPlaylist: он под гардом вернёт нативный плеер
+      // на текущий трек/позицию. Без этого setAudioSources сбрасывает
+      // нативный индекс в 0 — играет трек №1, а UI показывает старый.
+      await _rebuildPlaylist();
+      _notify('_extendRadio');
+    } finally {
+      _radioExtending = false;
+    }
   }
 
   // ─── Natural Language Playlist ─────────────────────────────────────
@@ -2628,6 +2680,7 @@ class PlayerProvider extends ChangeNotifier {
         _playlist = List<AudioTrack>.from(tracks);
         _persistQueueSnapshot();
         _prefs?.setInt('last_index', startIndex);
+        _prefs?.setInt('last_track_id', tracks[startIndex].id); // D1
         // Только окно вокруг старта: маршалинг ~81 трека вместо тысяч.
         await _buildNativeSlice(startIndex, force: true);
         _audioHandler?.setQueue(_playlist);
@@ -2649,18 +2702,25 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> playAt(int index) async {
     if (index < 0 || index >= _playlist.length) return;
+    // R1: токен запроса — если пользователь уже тапнул следующий трек,
+    // устаревший playAt прекращается после каждого await.
+    final req = ++_playReqSeq;
     _currentIndex = index;
     _lastEventIndex = index;
     _lastHistoryTrackId = _playlist[index].id;
     _switchingSource = true;
     try {
       await _buildNativeSlice(index);
+      if (req != _playReqSeq) return;
     } finally {
       _lastEventIndex = _currentIndex;
       _switchingSource = false;
     }
+    if (req != _playReqSeq) return;
     await _audioPlayer.seek(Duration.zero, index: index - _nativeOffset);
+    if (req != _playReqSeq) return;
     await _audioPlayer.play();
+    if (req != _playReqSeq) return;
     _audioHandler?.setFavoriteState(isFavorite(_playlist[index].id));
     _notify('playAt');
     WidgetService.playerChanged(this);
@@ -2697,6 +2757,9 @@ class PlayerProvider extends ChangeNotifier {
     final nextIndex = _currentIndex + 1;
     if (nextIndex >= _playlist.length) {
       if (_radioMode) {
+        // R2: guard — двойной next на конце очереди не должен запускать
+        // два параллельных _extendRadio (иначе дубли треков в очереди).
+        if (_radioExtending) return;
         await _extendRadio();
         if (_currentIndex + 1 < _playlist.length) {
           await playAt(_currentIndex + 1);
@@ -2721,10 +2784,8 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
 
-    final cur = currentTrack;
-    if (cur != null && _isPlaying && _position.inMilliseconds < 25000) {
-      _recordSkip(cur.id);
-    }
+    // L5: previous() — навигация, а не «не понравилось»: skip-статистика
+    // не считается (она влияет на DJ-очередь и должна отражать только next()).
 
     final prevIndex = _currentIndex - 1;
     if (prevIndex < 0) {
