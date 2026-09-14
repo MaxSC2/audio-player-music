@@ -1359,71 +1359,30 @@ class _LibraryTabsState extends State<LibraryTabs>
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
-    List<Widget> children = [];
-    Widget header(
-      String title,
-      List<({AudioTrack track, DateTime time})> items,
-      PlayerProvider p,
-      int startIndex,
-    ) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
-            child: Text(
-              title,
-              style: TextStyle(
-                color: AppTheme.accentLight,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-          ...List.generate(items.length, (i) {
-            final track = items[i].track;
-            final isCurrent = p.currentTrack?.id == track.id;
-            return SwipeReveal(
-              actions: _quickActions(p, track),
-              child: TrackTile(
-                track: track,
-                isPlaying: isCurrent && p.isPlaying,
-                isCurrent: isCurrent,
-                threeD: widget.threeD,
-                neon: widget.neon,
-                onTap: () {
-                  final ids = items.map((e) => e.track.id).toList();
-                  final idx = ids.indexOf(track.id);
-                  final list = items.map((e) => e.track).toList();
-                  if (list.length > 1) {
-                    p.playFromPlaylist(list, idx);
-                  } else {
-                    p.playTrack(track);
-                  }
-                },
-                onLongPress: () => TrackActionsSheet.show(context, track),
-              ),
-            );
-          }),
-        ],
-      );
-    }
+    // M6-perf: неленивый ListView(children:) строил ВСЕ треки истории
+    // (SwipeReveal + TrackTile + quick-действия на каждый) в одном кадре —
+    // при 300+ записях это давало заметный лаг при переключении на вкладку.
+    // Разворачиваем в плоский список секций и строим лениво через builder:
+    // за кадр собираются только видимые элементы.
+    final sections = <({String? title, List<({AudioTrack track, DateTime time})> items})>[
+      if (entries.any((e) => e.time.isAfter(today)))
+        (
+          title: 'Сегодня',
+          items: entries.where((e) => e.time.isAfter(today)).toList(),
+        ),
+      if (entries.any((e) => e.time.isAfter(yesterday) && !e.time.isAfter(today)))
+        (
+          title: 'Вчера',
+          items: entries
+              .where((e) => e.time.isAfter(yesterday) && !e.time.isAfter(today))
+              .toList(),
+        ),
+    ];
 
-    final todayItems = entries.where((e) => e.time.isAfter(today)).toList();
-    final yesterdayItems = entries
-        .where((e) => e.time.isAfter(yesterday) && !e.time.isAfter(today))
-        .toList();
+    // Более старые записи группируем по дням.
     final earlierItems = entries
         .where((e) => !e.time.isAfter(yesterday))
         .toList();
-
-    if (todayItems.isNotEmpty) {
-      children.add(header('Сегодня', todayItems, player, 0));
-    }
-    if (yesterdayItems.isNotEmpty) {
-      children.add(header('Вчера', yesterdayItems, player, 0));
-    }
     if (earlierItems.isNotEmpty) {
       final byDay = <DateTime, List<({AudioTrack track, DateTime time})>>{};
       for (final e in earlierItems) {
@@ -1432,31 +1391,95 @@ class _LibraryTabsState extends State<LibraryTabs>
       }
       final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
       for (final d in days) {
-        children.add(header(_dayLabel(d), byDay[d]!, player, 0));
+        sections.add((title: _dayLabel(d), items: byDay[d]!));
       }
     }
 
-    return ListView(
-      padding: EdgeInsets.only(bottom: _listBottomPad),
-      children: [
-        _buildJourneyCard(player, entries),
-        _buildMomentsCard(player),
-        ...children,
-        Center(
-          child: TextButton.icon(
-            onPressed: player.clearHistory,
-            icon: Icon(
-              Icons.delete_sweep_outlined,
-              color: AppTheme.textMuted,
-              size: 18,
-            ),
-            label: Text(
-              'Очистить историю',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-            ),
-          ),
+    // Флэт-раскладка: 0 = Journey, 1 = Moments, далее заголовки и треки,
+    // последним элементом — кнопка «Очистить историю».
+    const journeyIdx = 0;
+    const momentsIdx = 1;
+    final layout = <({int type, String? header, ({AudioTrack track, DateTime time})? entry, List<({AudioTrack track, DateTime time})>? group})>[];
+    for (final s in sections) {
+      if (s.title != null) {
+        layout.add((type: 0, header: s.title, entry: null, group: null));
+      }
+      for (final e in s.items) {
+        layout.add((type: 1, header: null, entry: e, group: s.items));
+      }
+    }
+    final totalItems = layout.length + 3; // + Journey + Moments + clear-btn
+
+    Widget buildTile(
+      PlayerProvider p,
+      List<({AudioTrack track, DateTime time})> items,
+      ({AudioTrack track, DateTime time}) e,
+    ) {
+      final track = e.track;
+      final isCurrent = p.currentTrack?.id == track.id;
+      return SwipeReveal(
+        key: ValueKey('h-${track.id}-${e.time.millisecondsSinceEpoch}'),
+        actions: _quickActions(p, track),
+        child: TrackTile(
+          track: track,
+          isPlaying: isCurrent && p.isPlaying,
+          isCurrent: isCurrent,
+          threeD: widget.threeD,
+          neon: widget.neon,
+          onTap: () {
+            final ids = items.map((e) => e.track.id).toList();
+            final idx = ids.indexOf(track.id);
+            final list = items.map((e) => e.track).toList();
+            if (list.length > 1) {
+              p.playFromPlaylist(list, idx);
+            } else {
+              p.playTrack(track);
+            }
+          },
+          onLongPress: () => TrackActionsSheet.show(context, track),
         ),
-      ],
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.only(bottom: _listBottomPad),
+      itemCount: totalItems,
+      itemBuilder: (context, i) {
+        if (i == journeyIdx) return _buildJourneyCard(player, entries);
+        if (i == momentsIdx) return _buildMomentsCard(player);
+        if (i == totalItems - 1) {
+          return Center(
+            child: TextButton.icon(
+              onPressed: player.clearHistory,
+              icon: Icon(
+                Icons.delete_sweep_outlined,
+                color: AppTheme.textMuted,
+                size: 18,
+              ),
+              label: Text(
+                'Очистить историю',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+            ),
+          );
+        }
+        final item = layout[i - 2];
+        if (item.type == 0) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
+            child: Text(
+              item.header!,
+              style: TextStyle(
+                color: AppTheme.accentLight,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          );
+        }
+        return buildTile(player, item.group!, item.entry!);
+      },
     );
   }
 
