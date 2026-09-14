@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/ui_style.dart';
 
 class SwipeAction {
   final IconData icon;
@@ -20,11 +21,24 @@ class SwipeAction {
 ///
 /// The action strip is fully transparent while the tile is closed, so it
 /// never bleeds through translucent tile fills or margins.
+///
+/// Кнопки адаптируются под стиль плеера ([style]):
+/// * **simple** — плоские цветные плашки (классика Material);
+/// * **coverFlow3D** — объёмные градиентные кнопки с бликом сверху и тенью;
+/// * **neon** — тёмные полупрозрачные плашки с цветным свечением действия
+///   и тонким акцентным разделителем (в тон мини-плееру/сцене);
+/// * **cinematic** — стеклянные плашки (белый 8%) с белой кромкой и мягким
+///   акцентным свечением.
+///
+/// [accent] — оверлейный акцент из обложки/темы (для neon/cinematic), как
+/// у мини-плеера и сцены, чтобы кнопки читались единой палитрой.
 class SwipeReveal extends StatefulWidget {
   final Widget child;
   final List<SwipeAction> actions;
   final double actionWidth;
   final BorderRadius borderRadius;
+  final PlayerUIStyle style;
+  final Color? accent;
 
   const SwipeReveal({
     super.key,
@@ -32,6 +46,8 @@ class SwipeReveal extends StatefulWidget {
     required this.actions,
     this.actionWidth = 62,
     this.borderRadius = const BorderRadius.all(Radius.circular(16)),
+    this.style = PlayerUIStyle.simple,
+    this.accent,
   });
 
   @override
@@ -83,6 +99,10 @@ class _SwipeRevealState extends State<SwipeReveal> {
                       _ActionButton(
                         action: widget.actions[i],
                         width: widget.actionWidth,
+                        style: widget.style,
+                        accent: widget.accent,
+                        first: i == 0,
+                        last: i == widget.actions.length - 1,
                         onTap: () {
                           _close();
                           widget.actions[i].onTap();
@@ -133,24 +153,124 @@ class _ActionButton extends StatelessWidget {
   final SwipeAction action;
   final double width;
   final VoidCallback onTap;
+  final PlayerUIStyle style;
+  final Color? accent;
+  final bool first;
+  final bool last;
 
   const _ActionButton({
     required this.action,
     required this.width,
     required this.onTap,
+    this.style = PlayerUIStyle.simple,
+    this.accent,
+    this.first = false,
+    this.last = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final c = action.color;
+    const dividerColor = Color(0x2EFFFFFF);
+
+    final BoxDecoration deco;
+    Color iconColor;
+    Color labelColor;
+
+    switch (style) {
+      case PlayerUIStyle.simple:
+        // Классические плоские цветные плашки.
+        deco = BoxDecoration(color: c);
+        iconColor = Colors.white;
+        labelColor = Colors.white;
+        break;
+
+      case PlayerUIStyle.coverFlow3D:
+        // Объёмно: вертикальный градиент (тёмный→цвет), блик сверху,
+        // тень-глубина + цветное свечение в тон 3D-тайлам.
+        deco = BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color.lerp(c, Colors.black, 0.34)!, c],
+          ),
+          border: Border(
+            top: const BorderSide(color: Color(0x40FFFFFF), width: 0.8),
+            left: first
+                ? BorderSide.none
+                : const BorderSide(color: Color(0x1CFFFFFF), width: 0.7),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.42),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color: c.withValues(alpha: 0.38),
+              blurRadius: 12,
+              spreadRadius: -2,
+            ),
+          ],
+        );
+        iconColor = Colors.white;
+        labelColor = Colors.white;
+        break;
+
+      case PlayerUIStyle.neon:
+        // Тёмная полупрозрачная плашка + цветное свечение действия и
+        // тонкий белый разделитель — в тон мини-плееру и сцене неона.
+        deco = BoxDecoration(
+          color: const Color(0x1E0D0D11),
+          border: Border(
+            left: first
+                ? BorderSide.none
+                : const BorderSide(color: dividerColor, width: 0.7),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: c.withValues(alpha: 0.42),
+              blurRadius: 12,
+              spreadRadius: -2,
+            ),
+          ],
+        );
+        iconColor = Color.lerp(Colors.white, c, 0.45)!;
+        labelColor = Colors.white70;
+        break;
+
+      case PlayerUIStyle.cinematic:
+        // Стекло: белый 8% + белая кромка и мягкое акцентное свечение,
+        // как у кинематографичной сцены.
+        deco = BoxDecoration(
+          color: const Color(0x14FFFFFF),
+          border: Border(
+            left: first
+                ? BorderSide.none
+                : const BorderSide(color: dividerColor, width: 0.7),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: (accent ?? c).withValues(alpha: 0.13),
+              blurRadius: 14,
+              spreadRadius: -3,
+            ),
+          ],
+        );
+        iconColor = Color.lerp(Colors.white, c, 0.55)!;
+        labelColor = Colors.white70;
+        break;
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: width,
-        color: action.color,
+        decoration: deco,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(action.icon, color: Colors.white, size: 20),
+            Icon(action.icon, color: iconColor, size: 20),
             const SizedBox(height: 3),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -158,8 +278,8 @@ class _ActionButton extends StatelessWidget {
                 action.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: labelColor,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),

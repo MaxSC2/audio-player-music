@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../models/audio_track.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../../widgets/animated_waveform.dart';
@@ -14,8 +15,16 @@ class SimpleMiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('SimpleMini');
-    final player = context.watch<PlayerProvider>();
-    final track = player.currentTrack;
+    // read() — объект провайдера неизменен, подписки не создаёт: методы и
+    // positionTick читаем напрямую. Реактивные поля — через select, чтобы
+    // уведомления (громкость/♥/жанры) не перестраивали весь мини-плеер.
+    final player = context.read<PlayerProvider>();
+    final track = context.select<PlayerProvider, AudioTrack?>(
+      (p) => p.currentTrack,
+    );
+    final isPlaying = context.select<PlayerProvider, bool>(
+      (p) => p.isPlaying,
+    );
 
     if (track == null) {
       return const SizedBox.shrink();
@@ -120,7 +129,7 @@ class SimpleMiniPlayer extends StatelessWidget {
                             gradient: AppTheme.primaryGradient,
                           ),
                           child: Icon(
-                            player.isPlaying
+                            isPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
                             color: Colors.white,

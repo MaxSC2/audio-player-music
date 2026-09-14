@@ -15,6 +15,8 @@ import '../../widgets/track_tile.dart';
 import 'category_tab.dart';
 import 'music_dna_tab.dart';
 import '../../core/debug_log.dart';
+import '../../core/ui_style.dart';
+import '../../widgets/artwork_palette.dart';
 
 /// Shared library content: search, 6 tabs (tracks, playlists, albums,
 /// artists, folders, favorites), sort, grid toggle, multi-select.
@@ -95,10 +97,26 @@ class _LibraryTabsState extends State<LibraryTabs>
     });
   }
 
+  /// Оверлейный акцент для свайп-кнопок в neon/cinematic — берётся из
+  /// обложки/темы как у мини-плеера и сцены, чтобы кнопки не спорили с
+  /// палитрой стиля.
+  Color _swipeAccent(BuildContext context, int? trackId) {
+    final ui = context.read<UiStyleController>();
+    final art = trackId == null
+        ? ArtworkPalette.fallback
+        : (ArtworkPalette.cached(trackId) ?? ArtworkPalette.fallback);
+    return ui.resolveCinematic(art)[0];
+  }
+
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('LibraryTabs');
     final player = context.watch<PlayerProvider>();
+    final style = context.read<UiStyleController>().style;
+    final swAccent = (style == PlayerUIStyle.neon ||
+            style == PlayerUIStyle.cinematic)
+        ? _swipeAccent(context, player.currentTrack?.id)
+        : null;
 
     return Column(
       children: [
@@ -149,13 +167,13 @@ class _LibraryTabsState extends State<LibraryTabs>
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildTrackList(player),
+                    _buildTrackList(player, style, swAccent),
                     _buildPlaylistList(player),
                     _buildAlbumList(player),
                     _buildArtistList(player),
                     _buildFolderList(player),
-                    _buildFavoriteList(player),
-                    _buildHistoryList(player),
+                    _buildFavoriteList(player, style, swAccent),
+                    _buildHistoryList(player, style, swAccent),
                     MusicDnaTab(neon: widget.neon),
                     CategoryTab(neon: widget.neon),
                   ],
@@ -462,7 +480,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     ];
   }
 
-  Widget _buildTrackList(PlayerProvider player) {
+  Widget _buildTrackList(PlayerProvider player, PlayerUIStyle style, Color? accent) {
     final query = _searchQuery;
     final tracks = player.searchTracks(query);
     final playlist = tracks;
@@ -480,6 +498,8 @@ class _LibraryTabsState extends State<LibraryTabs>
 
         return SwipeReveal(
           actions: _selectionMode ? const [] : _quickActions(player, track),
+          style: style,
+          accent: accent,
           child: TrackTile(
             track: track,
             isPlaying: isCurrent && player.isPlaying,
@@ -1281,7 +1301,10 @@ class _LibraryTabsState extends State<LibraryTabs>
     return AlbumCard(player: player, album: album, tracks: tracks);
   }
 
-  Widget _buildFavoriteList(PlayerProvider player) {
+  Widget _buildFavoriteList(
+      PlayerProvider player,
+      PlayerUIStyle style,
+      Color? accent) {
     final query = _searchQuery;
     final favs = player.favoriteTracks
         .where(
@@ -1308,6 +1331,8 @@ class _LibraryTabsState extends State<LibraryTabs>
 
         return SwipeReveal(
           actions: _quickActions(player, track),
+          style: style,
+          accent: accent,
           child: TrackTile(
             track: track,
             isPlaying: isCurrent && player.isPlaying,
@@ -1337,7 +1362,10 @@ class _LibraryTabsState extends State<LibraryTabs>
     });
   }
 
-  Widget _buildHistoryList(PlayerProvider player) {
+  Widget _buildHistoryList(
+      PlayerProvider player,
+      PlayerUIStyle style,
+      Color? accent) {
     final query = _searchQuery.toLowerCase();
     final entries = player.historyEntries
         .where(
@@ -1420,6 +1448,8 @@ class _LibraryTabsState extends State<LibraryTabs>
       return SwipeReveal(
         key: ValueKey('h-${track.id}-${e.time.millisecondsSinceEpoch}'),
         actions: _quickActions(p, track),
+        style: style,
+        accent: accent,
         child: TrackTile(
           track: track,
           isPlaying: isCurrent && p.isPlaying,
