@@ -33,7 +33,8 @@ class AlbumMenu extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: AppTheme.cardBorder),
       ),
-      onSelected: (value) {
+      onSelected: (value) async {
+        final messenger = ScaffoldMessenger.of(context);
         if (value == 'play') {
           player.playFromPlaylist(tracks, 0);
         } else if (value == 'shuffle') {
@@ -41,9 +42,9 @@ class AlbumMenu extends StatelessWidget {
           player.playFromPlaylist(shuffled, 0);
         } else if (value == 'queue') {
           for (final t in tracks) {
-            player.addToQueueNext(t);
+            await player.addToQueueNext(t);
           }
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: Text('Добавлено в очередь: ${tracks.length}'),
               duration: const Duration(seconds: 1),

@@ -155,7 +155,6 @@ class PlaylistPickerSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-
             if (playlists.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
@@ -212,10 +211,12 @@ class PlaylistPickerSheet extends StatelessWidget {
                                 Icons.add_rounded,
                                 color: AppTheme.textSecondary,
                               ),
-                        onTap: () {
+                        onTap: () async {
+                          final navigator = Navigator.of(context);
+                          final messenger = ScaffoldMessenger.of(context);
                           if (contains) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            navigator.pop(context);
+                            messenger.showSnackBar(
                               const SnackBar(
                                 content: Text('Трек уже в этом плейлисте'),
                                 duration: Duration(seconds: 1),
@@ -223,8 +224,8 @@ class PlaylistPickerSheet extends StatelessWidget {
                               ),
                             );
                           } else {
-                            player.addToPlaylist(playlist.id, track);
-                            Navigator.pop(context);
+                            await player.addToPlaylist(playlist.id, track);
+                            navigator.pop();
                           }
                         },
                       ),
@@ -232,7 +233,6 @@ class PlaylistPickerSheet extends StatelessWidget {
                   },
                 ),
               ),
-
             const SizedBox(height: 8),
             ElevatedButton.icon(
               onPressed: () => _createPlaylist(context),

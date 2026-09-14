@@ -3007,10 +3007,37 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> addToQueueNext(AudioTrack track) async {
+    if (_playlist.isEmpty) {
+      await playTrack(track);
+      return;
+    }
     final insertIndex = _currentIndex + 1;
     _playlist.insert(insertIndex, track);
-    await _rebuildPlaylist();
+
+    // FIX: вставляем источник в нативный плеер без перезапуска текущего трека.
+    // Раньше вызывался _rebuildPlaylist(), который делает setAudioSources(force:true)
+    // и тем самым сбрасывает позицию воспроизведения — играющий трек начинал играть сначала.
+    final wasPlaying = _isPlaying;
+    _switchingSource = true;
+    try {
+      await _audioPlayer.insertAudioSource(
+        insertIndex - _nativeOffset,
+        AudioSource.uri(Uri.parse(track.uri)),
+      );
+    } catch (_) {
+      // Фолбэк: если вставка не удалась, пересобираем очередь полностью.
+      await _rebuildPlaylist();
+    } finally {
+      _lastEventIndex = _currentIndex;
+      _switchingSource = false;
+    }
+
+    _persistQueueSnapshot();
+    if (wasPlaying) {
+      await _audioPlayer.play();
+    }
     _notify('addToQueueNext');
+    WidgetService.playerChanged(this);
   }
 
   Future<void> removeFromQueue(int index) async {

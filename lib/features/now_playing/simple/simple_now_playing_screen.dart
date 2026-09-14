@@ -6,6 +6,7 @@ import '../../../widgets/animated_waveform.dart';
 import '../../../widgets/artwork_backdrop.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/player_feature_row.dart';
+import '../../../widgets/seek_slider.dart';
 import '../../../widgets/spinning_vinyl.dart';
 import '../../../widgets/track_actions_sheet.dart';
 import '../../../core/debug_log.dart';
@@ -18,12 +19,6 @@ class SimpleNowPlayingScreen extends StatefulWidget {
 }
 
 class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
-  // Фикс ANR-бага перемотки: во время перетаскивания слайдер живёт
-  // локальным значением, а НЕ потоком позиции — иначе positionStream →
-  // positionTick → ребилд → onChanged → seek → бесконечная цепочка seek'ов.
-  bool _dragging = false;
-  double _dragFrac = 0;
-
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('SimpleNowPlaying');
@@ -189,83 +184,14 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
                     ),
                   ),
 
-                  // Progress Slider (слушает тикер — без глобальных ребилдов).
-                  // Во время перетаскивания слайдер живёт локальным _dragFrac:
-                  // поток позиции на него не влияет, а seek вызывается один раз
-                  // в onChangeEnd — иначе цепочка onChanged→seek→тикер→ребилд
-                  // вызывает ANR (приложение не отвечает).
+                  // Progress Slider — через изолированный SeekSlider:
+                  // во время drag поток позиции заморожен, seek — один раз.
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 8,
                     ),
-                    child: ValueListenableBuilder<Duration>(
-                      valueListenable: player.positionTick,
-                      builder: (_, pos, __) {
-                        final durMs = player.duration.inMilliseconds;
-                        final liveFrac = durMs > 0
-                            ? (pos.inMilliseconds / durMs)
-                                .clamp(0.0, 1.0)
-                                .toDouble()
-                            : 0.0;
-                        final displayFrac = _dragging ? _dragFrac : liveFrac;
-                        return Column(
-                          children: [
-                            Slider(
-                              value: displayFrac,
-                              onChangeStart: (v) {
-                                setState(() {
-                                  _dragging = true;
-                                  _dragFrac = v;
-                                });
-                              },
-                              onChanged: (v) {
-                                setState(() => _dragFrac = v);
-                              },
-                              onChangeEnd: (v) {
-                                setState(() => _dragging = false);
-                                final dur = player.duration.inMilliseconds;
-                                if (dur > 0) {
-                                  player.seek(
-                                    Duration(milliseconds: (v * dur).round()),
-                                  );
-                                }
-                              },
-                            ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 4),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _formatPosition(pos),
-                                    style: TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 12,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
-                                      ],
-                                    ),
-                                  ),
-                                  Text(
-                                    _formatPosition(player.duration),
-                                    style: TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 12,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                    child: SeekSlider(player: player),
                   ),
 
                   // Main Controls
@@ -374,13 +300,6 @@ class _SimpleNowPlayingScreenState extends State<SimpleNowPlayingScreen> {
       case PlayerRepeatMode.one:
         return AppTheme.accentPink;
     }
-  }
-
-  String _formatPosition(Duration d) {
-    final total = d.inSeconds;
-    final m = (total ~/ 60).toString();
-    final s = (total % 60).toString().padLeft(2, '0');
-    return '$m:$s';
   }
 }
 
