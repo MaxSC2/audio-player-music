@@ -88,7 +88,7 @@
 |---|---|---|---|
 | **B6** | Свайп «В очередь» — fire-and-forget: ошибка вставки не видна | `library_tabs.dart:459` без `await` | `await` + `try/catch` → snackbar |
 | **B7** | Ползунок после отпускания на миг отскакивает к старой позиции | `SeekSlider._displayPos` обновляется только следующим тиком | В `onChangeEnd` сразу выставить `_displayPos = target` |
-| **B8** | Дублирование drag-логики перемотки: `SeekSlider` только в simple, cinematic/cover-flow — свои inline-версии | `cinematic_player_body.dart`, `cover_flow_now_playing_screen.dart`, `cover_flow_home_screen.dart` | Перевести все экраны на `SeekSlider` |
+| **B8** | ✅ v125: дубли drag-логики перемотки устранены — cinematic/cover-flow NP + cover-flow home переведены на единый `SeekSlider` (−270 строк дублей) | `cinematic_player_body.dart:1171`, `cover_flow_now_playing_screen.dart:230`, `cover_flow_home_screen.dart:313` | — |
 | **B9** / ⬜ | `setQueue` отправляет **все** MediaItem очереди (при 6k — тысячи объектов на каждую смену/вставку) | `audio_handler.setQueue()` | Дизайн фикса: окно ±N вокруг текущего + `_queueWindowStart`; `queueIndex` считать относительно окна; `skipToQueueItem(i)` → `onPlayAt(i + windowStart)`. Требует переработки `audio_handler` — риск для шторки/локскрина, делать отдельным пакетом |
 | **B10** | ✅ v123: поиск с debounce 200 мс (`Timer` + cancel в `dispose`/clear) | `library_tabs.dart` | — |
 | **B11** | `NumpadSheet`: проверить UX ввода (0/ведущие нули, закрытие при успехе) | `lib/widgets/numpad_sheet.dart` | Ручной прогон ⏳ |

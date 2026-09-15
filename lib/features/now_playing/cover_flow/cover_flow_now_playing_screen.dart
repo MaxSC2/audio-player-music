@@ -8,6 +8,7 @@ import '../../../widgets/cover_flow_card.dart';
 import '../../../widgets/cover_flow_carousel.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/player_feature_row.dart';
+import '../../../widgets/seek_slider.dart';
 import '../../../widgets/three_d_background.dart';
 import '../../../core/debug_log.dart';
 
@@ -22,15 +23,6 @@ class CoverFlowNowPlayingScreen extends StatefulWidget {
 class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
   PageController? _controller;
   int _lastSyncedIndex = -1;
-  // Фикс ANR-бага перемотки: локальное значение слайдера при drag.
-  bool _dragging = false;
-  double _dragFrac = 0;
-
-  static String _fmt(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '${d.inHours > 0 ? '${d.inHours}:' : ''}$m:$s';
-  }
 
   void _onPageChanged(int index) {
     final player = context.read<PlayerProvider>();
@@ -233,83 +225,20 @@ class _CoverFlowNowPlayingScreenState extends State<CoverFlowNowPlayingScreen> {
                 ),
               ),
 
-              // Progress slider
+              // Progress slider (B8: единый SeekSlider)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  children: [
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 4,
-                        activeTrackColor: AppTheme.accent,
-                        inactiveTrackColor: AppTheme.surfaceLight,
-                        thumbColor: AppTheme.accentLight,
-                        thumbShape: const RoundSliderThumbShape(
-                          enabledThumbRadius: 7,
-                        ),
-                        overlayColor: AppTheme.accent.withValues(
-                          alpha: AppTheme.accent.a * (0.15),
-                        ),
-                      ),
-                      child: ValueListenableBuilder<Duration>(
-                        valueListenable: player.positionTick,
-                        builder: (_, pos, __) {
-                          final liveFrac = durMs > 0
-                              ? (pos.inMilliseconds / durMs)
-                                  .clamp(0.0, 1.0)
-                                  .toDouble()
-                              : 0.0;
-                          final frac = _dragging ? _dragFrac : liveFrac;
-                          return Slider(
-                            value: frac,
-                            onChangeStart: (v) {
-                              setState(() {
-                                _dragging = true;
-                                _dragFrac = v;
-                              });
-                            },
-                            onChanged: (v) => setState(() => _dragFrac = v),
-                            onChangeEnd: (v) {
-                              setState(() => _dragging = false);
-                              if (durMs > 0) {
-                                player.seek(
-                                  Duration(
-                                    milliseconds: (durMs * v).round(),
-                                  ),
-                                );
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: ValueListenableBuilder<Duration>(
-                        valueListenable: player.positionTick,
-                        builder: (_, pos, __) => Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _fmt(pos),
-                              style: TextStyle(
-                                color: AppTheme.textMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                            Text(
-                              '-${_fmt(player.duration - pos)}',
-                              style: TextStyle(
-                                color: AppTheme.textMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                child: SeekSlider(
+                  player: player,
+                  activeColor: AppTheme.accent,
+                  inactiveColor: AppTheme.surfaceLight,
+                  thumbColor: AppTheme.accentLight,
+                  thumbRadius: 7,
+                  trackHeight: 4,
+                  overlayOpacity: 0.15,
+                  timeColor: AppTheme.textMuted,
+                  timeFontSize: 11,
+                  showRemaining: true,
                 ),
               ),
 

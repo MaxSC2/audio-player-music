@@ -10,6 +10,7 @@ import '../../../providers/player_provider.dart';
 import '../../../widgets/artwork_palette.dart';
 import '../../../widgets/cached_artwork.dart';
 import '../../../widgets/live_equalizer.dart';
+import '../../../widgets/seek_slider.dart';
 import '../../../services/audio_visualizer.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/queue_sheet.dart';
@@ -1156,104 +1157,30 @@ class _FavButtonState extends State<_FavButton>
   }
 }
 
-String _fmt(Duration d) {
-  final total = d.inSeconds;
-  final m = (total ~/ 60).toString();
-  final s = (total % 60).toString().padLeft(2, '0');
-  return '$m:$s';
-}
-
 /// Тонкий luminous progress (п.9): акцент темы, крупный thumb при drag.
-class _ProgressRow extends StatefulWidget {
+/// B8: единый SeekSlider — drag-логика больше не дублируется между стилями.
+class _ProgressRow extends StatelessWidget {
   const _ProgressRow();
-
-  @override
-  State<_ProgressRow> createState() => _ProgressRowState();
-}
-
-class _ProgressRowState extends State<_ProgressRow> {
-  bool _dragging = false;
-  double _dragFrac = 0; // локальная позиция при перетаскивании (фикс ANR)
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
     final accent = cinematicAccent(context, player.currentTrack?.id);
-    final durMs = player.duration.inMilliseconds;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-      child: ValueListenableBuilder<Duration>(
-        valueListenable: player.positionTick,
-        builder: (_, pos, __) {
-          final posMs = pos.inMilliseconds;
-          final liveFrac = durMs > 0
-              ? (posMs / durMs).clamp(0.0, 1.0).toDouble()
-              : 0.0;
-          final frac = _dragging ? _dragFrac : liveFrac;
-          return Row(
-            children: [
-              SizedBox(
-                width: 38,
-                child: Text(
-                  _fmt(_dragging
-                      ? Duration(milliseconds: (frac * durMs).round())
-                      : pos),
-                  style: const TextStyle(
-                    color: CinematicTheme.textDim,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 2.5,
-                    activeTrackColor: accent,
-                    inactiveTrackColor: const Color(0x3DFFFFFF),
-                    thumbColor: Colors.white,
-                    thumbShape: RoundSliderThumbShape(
-                      enabledThumbRadius: _dragging ? 9 : 6,
-                    ),
-                    overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 18,
-                    ),
-                    overlayColor: accent.withValues(
-                      alpha: accent.a * 0.18,
-                    ),
-                  ),
-                  child: Slider(
-                    value: frac,
-                    onChangeStart: (v) =>
-                        setState(() {
-                          _dragging = true;
-                          _dragFrac = v;
-                        }),
-                    onChanged: (v) => setState(() => _dragFrac = v),
-                    onChangeEnd: (v) {
-                      setState(() => _dragging = false);
-                      if (durMs > 0) {
-                        player.seek(
-                          Duration(milliseconds: (v * durMs).round()),
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 38,
-                child: Text(
-                  _fmt(player.duration),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: CinematicTheme.textDim,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+      child: SeekSlider(
+        player: player,
+        activeColor: accent,
+        inactiveColor: const Color(0x3DFFFFFF),
+        thumbColor: Colors.white,
+        trackHeight: 2.5,
+        thumbRadius: 6,
+        activeThumbRadius: 9,
+        overlayRadius: 18,
+        overlayOpacity: 0.18,
+        timeColor: CinematicTheme.textDim,
+        timeFontSize: 11,
+        timesInRow: true,
       ),
     );
   }

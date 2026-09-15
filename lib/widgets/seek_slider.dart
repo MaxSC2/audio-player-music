@@ -16,16 +16,42 @@ class SeekSlider extends StatefulWidget {
   final PlayerProvider player;
   final Color? activeColor;
   final Color? thumbColor;
+  final Color? inactiveColor;
   final double trackHeight;
   final bool showTimes;
+
+  /// B8-опции стилизации (чтобы cinematic/cover-flow не держали свои копии):
+  /// [showRemaining] — справа «-остаток» вместо полной длительности;
+  /// [timesInRow] — время по бокам от слайдера (cinematic) вместо строки снизу;
+  /// [thumbRadius]/[activeThumbRadius] — радиус ручки в покое/при drag;
+  /// [overlayRadius]/[overlayOpacity] — стилизация оверлея нажатия.
+  final bool showRemaining;
+  final bool timesInRow;
+  final double thumbRadius;
+  final double? activeThumbRadius;
+  final double? overlayRadius;
+  final double overlayOpacity;
+  final Color? timeColor;
+  final double timeFontSize;
+  final double timeBoxWidth;
 
   const SeekSlider({
     super.key,
     required this.player,
     this.activeColor,
     this.thumbColor,
+    this.inactiveColor,
     this.trackHeight = 4,
     this.showTimes = true,
+    this.showRemaining = false,
+    this.timesInRow = false,
+    this.thumbRadius = 7,
+    this.activeThumbRadius,
+    this.overlayRadius,
+    this.overlayOpacity = 0.15,
+    this.timeColor,
+    this.timeFontSize = 12,
+    this.timeBoxWidth = 38,
   });
 
   @override
@@ -73,16 +99,25 @@ class _SeekSliderState extends State<SeekSlider> {
         : 0.0;
     final frac = _dragging ? _dragFrac : liveFrac;
 
+    final activeColor = widget.activeColor ?? AppTheme.accent;
+    final thumbRadius = _dragging
+        ? (widget.activeThumbRadius ?? widget.thumbRadius + 2)
+        : widget.thumbRadius;
+    final overlayRadius = widget.overlayRadius ?? (widget.thumbRadius + 11);
+    final timeStyle = TextStyle(
+      color: widget.timeColor ?? AppTheme.textMuted,
+      fontSize: widget.timeFontSize,
+    );
+
     final slider = SliderTheme(
       data: SliderTheme.of(context).copyWith(
         trackHeight: widget.trackHeight,
-        activeTrackColor: widget.activeColor ?? AppTheme.accent,
-        inactiveTrackColor: AppTheme.surfaceLight,
+        activeTrackColor: activeColor,
+        inactiveTrackColor: widget.inactiveColor ?? AppTheme.surfaceLight,
         thumbColor: widget.thumbColor ?? AppTheme.accentLight,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-        overlayColor: (widget.activeColor ?? AppTheme.accent).withValues(
-          alpha: (widget.activeColor ?? AppTheme.accent).a * 0.15,
-        ),
+        thumbShape: RoundSliderThumbShape(enabledThumbRadius: thumbRadius),
+        overlayShape: RoundSliderOverlayShape(overlayRadius: overlayRadius),
+        overlayColor: activeColor.withValues(alpha: activeColor.a * widget.overlayOpacity),
       ),
       child: Slider(
         value: frac,
@@ -107,8 +142,36 @@ class _SeekSliderState extends State<SeekSlider> {
       ),
     );
 
+    // Время скрыто — только слайдер.
     if (!widget.showTimes) return slider;
 
+    // Cinematic-режим: время по бокам от слайдера в одном ряду.
+    if (widget.timesInRow) {
+      return Row(
+        children: [
+          SizedBox(
+            width: widget.timeBoxWidth,
+            child: Text(
+              _fmt(_dragging
+                  ? Duration(milliseconds: (frac * durMs).round())
+                  : _displayPos),
+              style: timeStyle,
+            ),
+          ),
+          Expanded(child: slider),
+          SizedBox(
+            width: widget.timeBoxWidth,
+            child: Text(
+              _fmt(widget.player.duration),
+              textAlign: TextAlign.right,
+              style: timeStyle,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Классический режим: слайдер, ниже строка «позиция … остаток/длительность».
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -122,11 +185,13 @@ class _SeekSliderState extends State<SeekSlider> {
                 _dragging
                     ? _fmt(Duration(milliseconds: (frac * durMs).round()))
                     : _fmt(_displayPos),
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                style: timeStyle,
               ),
               Text(
-                _fmt(widget.player.duration),
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                widget.showRemaining
+                    ? '-${_fmt(widget.player.duration - _displayPos)}'
+                    : _fmt(widget.player.duration),
+                style: timeStyle,
               ),
             ],
           ),
