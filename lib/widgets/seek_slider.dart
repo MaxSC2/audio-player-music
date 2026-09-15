@@ -73,6 +73,18 @@ class _SeekSliderState extends State<SeekSlider> {
     widget.player.positionTick.addListener(_onTick);
   }
 
+  @override
+  void didUpdateWidget(covariant SeekSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // B19: если провайдер сменился — переключаем подписку, иначе тики
+    // будут приходить от старого плеера, а позиция замрёт.
+    if (oldWidget.player != widget.player) {
+      oldWidget.player.positionTick.removeListener(_onTick);
+      widget.player.positionTick.addListener(_onTick);
+      if (!_dragging) _displayPos = widget.player.position;
+    }
+  }
+
   void _onTick() {
     if (!_dragging && mounted) {
       setState(() => _displayPos = widget.player.positionTick.value);

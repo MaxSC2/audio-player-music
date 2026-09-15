@@ -104,7 +104,7 @@
 | **B16** | Контроллеры в диалогах `settings_screen` — проверить `dispose()` | `settings_screen.dart:958–1053` ⏳ |
 | **B17** | Диагностический каркас в прод-коде: 4 kill-switch + `DebugLog.rebuild` в 18 `build()` | `debug_log.dart` + экраны |
 | **B18** | `playlist!` в колбэке меню (теоретический NPE) | `playlist_detail_screen.dart:100` |
-| **B19** | `SeekSlider` не обрабатывает смену `player` в `didUpdateWidget` | `lib/widgets/seek_slider.dart` |
+| **B19** | ✅ v125: `didUpdateWidget` — пере-подписка на positionTick при смене `player` | `lib/widgets/seek_slider.dart:77-86` |
 | **B20** | `DateTime.now()` в «сегодня/эта неделя»-вычислениях, вызываемых из `build` → пересчёт на каждый rebuild | `library_tabs.dart:1404,1549,1639`, `music_dna_tab.dart:425` |
 | **B21** | `settings_screen.dart` — 1936 строк в одном файле (то же, что F13 для провайдера) | `lib/features/settings/settings_screen.dart` |
 | **B22** | История/избранное читаются единым `String` из prefs; при росте истории вынести тяжёлый стейт в отдельный файл | `player_provider.dart` |
@@ -124,7 +124,7 @@
 | **P-6** | Ленивые списки (`ListView.builder`) — проверено на «Истории»; **проверить остальные табы** | ⏳ |
 | **P-7** | Троттл `playbackState` (шторка) до 1 Гц | ✅ сделано |
 | **P-8** | `setQueue` на все MediaItem (B9) | ⬜ |
-| **P-9** | Поиск без debounce (B10) | ⬜ |
+| **P-9** | Поиск без debounce (B10) | ✅ v123 |
 | **P-10** | `context.watch<PlayerProvider>()` в экранах: большая часть переведена на `select` (мини-плееры, queue_sheet); **проверить остальные** | ⏳ |
 
 ---
