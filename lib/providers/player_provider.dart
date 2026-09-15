@@ -220,6 +220,13 @@ class PlayerProvider extends ChangeNotifier {
 
   Timer? _sleepTimer;
   int _sleepTimerMinutes = 0;
+  Timer? _sleepFadeTimer;
+  // F4: «плавное затухание» и «дослушать текущий трек» — выбираются в диалоге
+  // таймера сна. Громкость держим здесь, чтобы fade-out восстанавливал её
+  // после остановки (и это же поле использует регулятор громкости — F3).
+  bool _sleepFadeOut = true;
+  bool _sleepUntilTrackEnd = false;
+  double _volume = 1.0;
 
   String _equalizerPreset = 'Flat (Стандарт)';
 
@@ -832,6 +839,10 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     _deepCuts = prefs.getBool('dj_deep_cuts') ?? false;
+    // F4/F3: настройки таймера сна и громкость.
+    _sleepFadeOut = prefs.getBool('sleep_fade') ?? true;
+    _sleepUntilTrackEnd = prefs.getBool('sleep_until_end') ?? false;
+    _volume = (prefs.getDouble('volume') ?? 1.0).clamp(0.0, 1.0);
     final savedDiscovery = prefs.getString('dj_discovery');
     if (savedDiscovery != null) {
       _discoveryLevel = DiscoveryLevel.values.firstWhere(
@@ -2023,6 +2034,35 @@ class PlayerProvider extends ChangeNotifier {
     return found.length;
   }
 
+  /// F1: экспорт в M3U (симметрично [importM3U]) — очередь или плейлист.
+  /// Строку кладём в буфер обмена на стороне UI.
+  String exportM3U(List<AudioTrack> tracks, {String? name}) {
+    final buffer = StringBuffer('#EXTM3U\n');
+    if (name != null && name.trim().isNotEmpty) {
+      buffer.write('#PLAYLIST:${name.trim()}\n');
+    }
+    for (final t in tracks) {
+      final secs = (t.duration / 1000).round();
+      buffer.write('#EXTINF:$secs,${t.artist} - ${t.title}\n');
+      buffer.write('${t.uri}\n');
+    }
+    return buffer.toString();
+  }
+
+  /// Экспорт текущей очереди в M3U.
+  String get queueAsM3U => exportM3U(_playlist, name: 'NeonWave Queue');
+
+  /// Треки плейлиста по id (для экспорта/шаринга).
+  List<AudioTrack> playlistTracks(String playlistId) {
+    final idx = _playlists.indexWhere((p) => p.id == playlistId);
+    if (idx < 0) return const [];
+    final byId = _tracksById;
+    return _playlists[idx].trackIds
+        .map((id) => byId[id])
+        .whereType<AudioTrack>()
+        .toList();
+  }
+
   int get totalPlays => _historyRaw.length;
 
   Duration get totalListeningTime {
@@ -3127,22 +3167,84 @@ class PlayerProvider extends ChangeNotifier {
     setSpeed(speeds[(idx + 1) % speeds.length]);
   }
 
-  void setSleepTimer(int minutes) {
+  void setSleepTimer(int minutes, {bool? fadeOut, bool? untilTrackEnd}) {
+    if (fadeOut != null) _sleepFadeOut = fadeOut;
+    if (untilTrackEnd != null) _sleepUntilTrackEnd = untilTrackEnd;
+    _prefs?.setBool('sleep_fade', _sleepFadeOut);
+    _prefs?.setBool('sleep_until_end', _sleepUntilTrackEnd);
     _sleepTimerMinutes = minutes;
     _sleepTimer?.cancel();
-    _sleepTimer = Timer(Duration(minutes: minutes), () async {
-      await _audioPlayer.pause();
-      _sleepTimerMinutes = 0;
-      _notify('setSleepTimer');
-    });
+    _sleepFadeTimer?.cancel();
+    _sleepTimer = Timer(Duration(minutes: minutes), _fireSleepTimer);
     _notify('setSleepTimer');
+  }
+
+  /// F4: срабатывание таймера. Раньше здесь была резкая пауза — теперь
+  /// по желанию дослушиваем текущий трек и уходим в плавное затухание.
+  Future<void> _fireSleepTimer() async {
+    _sleepTimer = null;
+    if (_sleepUntilTrackEnd) {
+      final remain = _duration - _position;
+      if (remain.inSeconds > 2) {
+        _sleepTimer = Timer(remain + const Duration(milliseconds: 400), () {
+          _stopForSleep();
+        });
+        return;
+      }
+    }
+    await _stopForSleep();
+  }
+
+  Future<void> _stopForSleep() async {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    if (_sleepFadeOut) {
+      await _fadeOutAndPause();
+    } else {
+      await _audioPlayer.pause();
+    }
+    _sleepTimerMinutes = 0;
+    _notify('setSleepTimer');
+  }
+
+  /// Плавно (≈8 c) уводит громкость в 0 и ставит паузу, затем возвращает
+  /// пользовательскую громкость — иначе следующий запуск был бы «немым».
+  Future<void> _fadeOutAndPause() async {
+    const steps = 20;
+    const stepMs = 400;
+    final start = _volume <= 0 ? 1.0 : _volume;
+    for (var i = steps; i >= 0; i--) {
+      try {
+        await _audioPlayer.setVolume(start * (i / steps));
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: stepMs));
+    }
+    await _audioPlayer.pause();
+    try {
+      await _audioPlayer.setVolume(start);
+    } catch (_) {}
   }
 
   void cancelSleepTimer() {
     _sleepTimer?.cancel();
     _sleepTimer = null;
+    _sleepFadeTimer?.cancel();
+    _sleepFadeTimer = null;
     _sleepTimerMinutes = 0;
     _notify('cancelSleepTimer');
+  }
+
+  double get volume => _volume;
+  bool get sleepFadeOut => _sleepFadeOut;
+  bool get sleepUntilTrackEnd => _sleepUntilTrackEnd;
+
+  Future<void> setVolume(double v) async {
+    _volume = v.clamp(0.0, 1.0);
+    _prefs?.setDouble('volume', _volume);
+    try {
+      await _audioPlayer.setVolume(_volume);
+    } catch (_) {}
+    _notify('setVolume');
   }
 
   Future<void> addToQueueNext(AudioTrack track) =>
@@ -3409,6 +3511,7 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _sleepTimer?.cancel();
+    _sleepFadeTimer?.cancel();
     _noisySub?.cancel();
     _sessionEventSub?.cancel();
     _deviceSub?.cancel();

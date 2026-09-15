@@ -13,12 +13,17 @@ class SleepTimerDialog extends StatefulWidget {
 
 class _SleepTimerDialogState extends State<SleepTimerDialog> {
   late int _minutes;
+  // F4: опции таймера сна.
+  late bool _fadeOut;
+  late bool _untilEnd;
 
   @override
   void initState() {
     super.initState();
     final player = context.read<PlayerProvider>();
     _minutes = player.sleepTimerMinutes;
+    _fadeOut = player.sleepFadeOut;
+    _untilEnd = player.sleepUntilTrackEnd;
   }
 
   @override
@@ -81,6 +86,43 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
                 initialMinutes: _minutes,
                 onChanged: (v) => setState(() => _minutes = v),
               ),
+              const SizedBox(height: 10),
+              SwitchListTile(
+                value: _fadeOut,
+                onChanged: (v) => setState(() => _fadeOut = v),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(
+                  'Плавное затухание',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'Громкость уходит в 0 за ~8 секунд',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                ),
+              ),
+              SwitchListTile(
+                value: _untilEnd,
+                onChanged: (v) => setState(() => _untilEnd = v),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(
+                  'Дослушать текущий трек',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'Остановка на границе трека, а не на полуслове',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                ),
+              ),
               const SizedBox(height: 18),
               Row(
                 children: [
@@ -104,7 +146,11 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
                         if (_minutes == 0) {
                           player.cancelSleepTimer();
                         } else {
-                          player.setSleepTimer(_minutes);
+                          player.setSleepTimer(
+                            _minutes,
+                            fadeOut: _fadeOut,
+                            untilTrackEnd: _untilEnd,
+                          );
                         }
                         Navigator.pop(context);
                       },

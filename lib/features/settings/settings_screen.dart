@@ -470,6 +470,30 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          // F1: экспорт (симметрично импорту) — очередь или плейлист в M3U.
+          _SettingsCard(
+            child: ListTile(
+              leading: const _TileIcon(Icons.ios_share_rounded),
+              title: Text(
+                'Экспорт плейлиста (M3U)',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle: Text(
+                'Скопировать очередь или плейлист как M3U',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textMuted,
+              ),
+              onTap: () => _showExportM3UDialog(context, player),
+            ),
+          ),
+
           _SettingsCard(
             child: ListTile(
               leading: const _TileIcon(Icons.bar_chart_rounded),
@@ -1046,6 +1070,78 @@ class SettingsScreen extends StatelessWidget {
       urlController.dispose();
       titleController.dispose();
     });
+  }
+
+  /// F1: выбор источника (очередь или плейлист) и копирование M3U в буфер.
+  void _showExportM3UDialog(BuildContext context, PlayerProvider player) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppTheme.cardBorder),
+        ),
+        title: Text(
+          'Экспорт M3U',
+          style: TextStyle(color: AppTheme.textPrimary, fontSize: 17),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.queue_music_rounded),
+                title: Text(
+                  'Текущая очередь (${player.playlist.length})',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                onTap: () async {
+                  final text = player.queueAsM3U;
+                  Navigator.pop(ctx);
+                  await Clipboard.setData(ClipboardData(text: text));
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('M3U очереди скопирован в буфер'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              for (final pl in player.playlists)
+                ListTile(
+                  leading: const Icon(Icons.playlist_play_rounded),
+                  title: Text(
+                    pl.name,
+                    style: const TextStyle(fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${pl.trackIds.length} треков',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                  ),
+                  onTap: () async {
+                    final tracks = player.playlistTracks(pl.id);
+                    final text = player.exportM3U(tracks, name: pl.name);
+                    Navigator.pop(ctx);
+                    await Clipboard.setData(ClipboardData(text: text));
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('M3U «${pl.name}» скопирован в буфер'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showImportM3UDialog(BuildContext context, PlayerProvider player) {
