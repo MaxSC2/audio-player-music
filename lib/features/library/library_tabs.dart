@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/audio_track.dart';
@@ -56,6 +58,9 @@ class _LibraryTabsState extends State<LibraryTabs>
   late final TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  // B10: поиск идёт по всей библиотеке (3 поля × toLowerCase на трек), поэтому
+  // обновляем запрос не на каждую букву, а через короткий дебаунс.
+  Timer? _searchDebounce;
   bool _permissionDenied = false;
   bool _selectionMode = false;
   final Set<int> _selectedIds = <int>{};
@@ -83,6 +88,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       _tabController.dispose();
     }
     _searchController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -247,8 +253,12 @@ class _LibraryTabsState extends State<LibraryTabs>
             child: TextField(
               controller: _searchController,
               onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.trim();
+                _searchDebounce?.cancel();
+                _searchDebounce = Timer(const Duration(milliseconds: 200), () {
+                  if (!mounted) return;
+                  setState(() {
+                    _searchQuery = value.trim();
+                  });
                 });
               },
               style: TextStyle(color: fieldText, fontSize: 14),
@@ -268,6 +278,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                           size: 18,
                         ),
                         onPressed: () {
+                          _searchDebounce?.cancel();
                           _searchController.clear();
                           setState(() {
                             _searchQuery = '';

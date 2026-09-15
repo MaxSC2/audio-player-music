@@ -2916,11 +2916,17 @@ class PlayerProvider extends ChangeNotifier {
     await _audioPlayer.seek(position);
   }
 
-  Future<void> next() async {
+  /// [userInitiated] = false для автоперехода (трек доиграл): в этом случае
+/// «skip» не считается — иначе короткие треки (<25 c) попадали в статистику
+/// пропусков как «не понравившиеся» и портили DJ-очередь.
+  Future<void> next({bool userInitiated = true}) async {
     if (_playlist.isEmpty) return;
 
     final cur = currentTrack;
-    if (cur != null && _isPlaying && _position.inMilliseconds < 25000) {
+    if (userInitiated &&
+        cur != null &&
+        _isPlaying &&
+        _position.inMilliseconds < 25000) {
       _recordSkip(cur.id);
     }
 
@@ -3041,7 +3047,7 @@ class PlayerProvider extends ChangeNotifier {
       await _audioPlayer.play();
       return;
     }
-    await next();
+    await next(userInitiated: false);
   }
 
   void toggleRepeat() {

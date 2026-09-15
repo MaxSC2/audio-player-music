@@ -74,8 +74,8 @@
 | **B6** | Свайп «В очередь» — fire-and-forget: ошибка вставки не видна | `library_tabs.dart:459` без `await` | `await` + `try/catch` → snackbar |
 | **B7** | Ползунок после отпускания на миг отскакивает к старой позиции | `SeekSlider._displayPos` обновляется только следующим тиком | В `onChangeEnd` сразу выставить `_displayPos = target` |
 | **B8** | Дублирование drag-логики перемотки: `SeekSlider` только в simple, cinematic/cover-flow — свои inline-версии | `cinematic_player_body.dart`, `cover_flow_now_playing_screen.dart`, `cover_flow_home_screen.dart` | Перевести все экраны на `SeekSlider` |
-| **B9** | `setQueue` отправляет **все** MediaItem очереди (при 6k — тысячи объектов на каждую смену/вставку) | `audio_handler.setQueue()` | Отдавать окно ±N вокруг текущего или дебаунсить |
-| **B10** | Поиск без debounce: каждая буква — проход по всей библиотеке ×3 `toLowerCase()` | `searchTracks()` + `TextField` | Debounce 150–250 мс и/или кэш lowercase в модели |
+| **B9** / ⬜ | `setQueue` отправляет **все** MediaItem очереди (при 6k — тысячи объектов на каждую смену/вставку) | `audio_handler.setQueue()` | Дизайн фикса: окно ±N вокруг текущего + `_queueWindowStart`; `queueIndex` считать относительно окна; `skipToQueueItem(i)` → `onPlayAt(i + windowStart)`. Требует переработки `audio_handler` — риск для шторки/локскрина, делать отдельным пакетом |
+| **B10** | ✅ v123: поиск с debounce 200 мс (`Timer` + cancel в `dispose`/clear) | `library_tabs.dart` | — |
 | **B11** | `NumpadSheet`: проверить UX ввода (0/ведущие нули, закрытие при успехе) | `lib/widgets/numpad_sheet.dart` | Ручной прогон ⏳ |
 | **B12** | Мёртвый код: `_close()`/`_toggleClose()` дублируются; `SwipeAction.tooltip` не используется | `swipe_reveal.dart` | Убрать дубль, обернуть в `Tooltip` |
 
@@ -93,7 +93,10 @@
 | **B20** | `DateTime.now()` в «сегодня/эта неделя»-вычислениях, вызываемых из `build` → пересчёт на каждый rebuild | `library_tabs.dart:1404,1549,1639`, `music_dna_tab.dart:425` |
 | **B21** | `settings_screen.dart` — 1936 строк в одном файле (то же, что F13 для провайдера) | `lib/features/settings/settings_screen.dart` |
 | **B22** | История/избранное читаются единым `String` из prefs; при росте истории вынести тяжёлый стейт в отдельный файл | `player_provider.dart` |
-| **B23** | Автопереход ВНУТРИ нативного окна (81 трек) идёт мимо `next()` → не считается skip-статистика и не расширяется AI Radio, пока не упрётся в конец окна | `_handleIndexEvent` (следствие treadmill-схемы) |
+| **B23** | Автопереход внутри окна идёт мимо `next()`; ложный skip для треков <25 c из `_onTrackComplete` | ✅ v123 (`next(userInitiated: false)`) |
+| **P-10** | `context.watch` осталось 31: почти все — по одному в диалогах/шитах (транзиентные, ок), 4 в `cinematic_player_body`, экраны уже на `select` |  |
+| **P-6** | Ленивые списки: 6 `ListView.builder`; единственный неленивый `ListView(` — маленький список плейлистов в bottom-sheet | ✅ |
+
 ## 3. Производительность
 
 | ID | Что | Статус |
