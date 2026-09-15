@@ -39,6 +39,9 @@ class AudioVisualizer {
       final status = await Permission.microphone.request();
       if (!status.isGranted) {
         available.value = false;
+        // Разрешение может быть выдано позже (или пользователь вернётся из
+        // настроек) — снимаем защёлку, чтобы можно было попробовать снова.
+        _requested = false;
         return;
       }
       _sub = _channel.receiveBroadcastStream().listen(
@@ -85,8 +88,34 @@ class AudioVisualizer {
     if (!available.value) available.value = true;
   }
 
+  /// Сколько виджетов сейчас показывают живой эквалайзер. Пока счётчик > 0,
+  /// поток и нативный Visualizer держим; на нуле — глушим (B4: раньше подписка
+  /// и микрофон жили до конца процесса, даже после ухода с экрана).
+  static int _consumers = 0;
+
+  /// Виджет-потребитель показался: поднимаем счётчик и (лениво) поток.
+  static void acquire() {
+    _consumers++;
+    ensureStarted();
+  }
+
+  /// Виджет-потребитель исчез: при нуле потребителей глушим поток.
+  static void release() {
+    if (_consumers > 0) _consumers--;
+    if (_consumers == 0) stop();
+  }
+
+  /// Полная остановка: отписка, сброс состояния и флага запуска
+  /// (`_requested`), чтобы при следующем входе на экран всё поднялось заново.
   static void stop() {
     _sub?.cancel();
     _sub = null;
+    _requested = false;
+    if (available.value) available.value = false;
+    for (var i = 0; i < _smoothed.length; i++) {
+      _smoothed[i] = 0;
+    }
+    levels.value = List<double>.filled(bands, 0);
+    energy.value = 0;
   }
 }

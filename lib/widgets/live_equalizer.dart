@@ -41,9 +41,8 @@ class _LiveEqualizerState extends State<LiveEqualizer>
       duration: const Duration(seconds: 2),
     )..repeat();
     // Лениво просим доступ к аудио только когда эквалайзер реально показан.
-    if (widget.isPlaying) {
-      AudioVisualizer.ensureStarted();
-    }
+    // acquire() держит поток, пока виджет на экране (B4).
+    AudioVisualizer.acquire();
   }
 
   @override
@@ -56,6 +55,9 @@ class _LiveEqualizerState extends State<LiveEqualizer>
 
   @override
   void dispose() {
+    // B4: уходим с экрана — счётчик потребителей вниз; при нуле поток
+    // и нативный Visualizer гасятся (микрофон/батарея).
+    AudioVisualizer.release();
     _tick.dispose();
     super.dispose();
   }

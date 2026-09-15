@@ -47,6 +47,27 @@ List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
   return list;
 }
 
+/// Порядок воспроизведения для shuffle: перестановка `0..n-1` (Fisher–Yates),
+/// причём текущий индекс ставится первым — включение shuffle во время игры не
+/// должно принудительно переключать трек.
+///
+/// Вынесено в чистую функцию уровня файла: тестируется без платформы
+/// (`test/shuffle_order_test.dart`), в отличие от логики внутри провайдера.
+List<int> buildShuffleOrder(int n, int current, {math.Random? random}) {
+  if (n <= 1) return const [];
+  final order = List<int>.generate(n, (i) => i)
+    ..shuffle(random ?? math.Random());
+  if (current >= 0 && current < n) {
+    final at = order.indexOf(current);
+    if (at > 0) {
+      final tmp = order[0];
+      order[0] = order[at];
+      order[at] = tmp;
+    }
+  }
+  return order;
+}
+
 enum PlayerRepeatMode { off, all, one }
 
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
@@ -138,6 +159,18 @@ class PlayerProvider extends ChangeNotifier {
   // Last-request-wins для playAt: устаревший вызов прерывается, если
   // за время его awaits появился более новый запрос.
   int _playReqSeq = 0;
+
+  // B2 (нативный repeat-one): держим LoopMode.one у just_audio вместо ручного
+  // seek-возврата. Раньше возврат в начало срабатывал уже ПОСЛЕ старта
+  // следующего трека — был слышен его хвост (~200–800 мс). Флаг нужен, чтобы
+  // оставить ручной путь фолбэком, если платформа режим не поддержала.
+  bool _nativeLoopOne = false;
+
+  // B1 (настоящий shuffle): порядок воспроизведения (перестановка Фишера–Йетса)
+  // вместо выбора случайного индекса по модулю времени. Раунд проигрывается
+  // целиком, затем новый — «не сыгранные» приоритезированы, повторов нет.
+  List<int> _shuffleOrder = const [];
+  int _shufflePos = -1;
 
   int toProviderIndex(int nativeIndex) => nativeIndex + _nativeOffset;
 
@@ -565,6 +598,8 @@ class PlayerProvider extends ChangeNotifier {
     );
 
     _audioPlayer.setSpeed(_speed);
+    // B2: восстановленный режим повтора применяем и нативно.
+    _applyNativeLoopMode();
   }
 
   /// Настройка аудио-сессии: категория музыки (корректный аудиофокус, поведение
@@ -577,12 +612,37 @@ class PlayerProvider extends ChangeNotifier {
       _noisySub = session.becomingNoisyEventStream.listen((_) {
         if (_isPlaying) _audioPlayer.pause();
       });
+      // F6: после звонка/потери аудио-фокуса и после смены устройства аудио-
+      // эффекты пересоздаются системой, и пресет молча «слетал» на Flat.
+      // Сбрасываем гейт `_lastEqApplied` и применяем эффекты заново.
+      _sessionEventSub = session.interruptionEventStream.listen((e) {
+        if (!e.begin) _reapplyAudioEffects();
+      });
+      _deviceSub = session.devicesChangedEventStream.listen((_) {
+        _reapplyAudioEffects();
+      });
     } catch (e) {
       DebugLog.log('audio_session: конфигурация недоступна', e);
     }
   }
 
   StreamSubscription<dynamic>? _noisySub;
+  StreamSubscription<dynamic>? _sessionEventSub;
+  StreamSubscription<dynamic>? _deviceSub;
+
+  /// F6: пере-применение EQ/X-Boost после потери аудио-сессии или смены
+  /// устройства вывода (гейт `_lastEqApplied` сбрасывается принудительно).
+  void _reapplyAudioEffects() {
+    if (debugNoAudioEffects) return;
+    _lastEqApplied = null;
+    _applyEqualizerPreset(_equalizerPreset);
+    if (_xBoost) {
+      try {
+        _loudness.setEnabled(true);
+        _loudness.setTargetGain(6.0);
+      } catch (_) {}
+    }
+  }
 
   /// Общий обработчик смены индекса плеера: repeat-one, история,
   /// избранное в уведомлении, нотификация UI и виджетов.
@@ -601,6 +661,7 @@ class PlayerProvider extends ChangeNotifier {
     // Ловим незапланированный автопереход и возвращаем трек в начало.
     if (idx != _lastEventIndex &&
         _repeatMode == PlayerRepeatMode.one &&
+        !_nativeLoopOne &&
         _lastEventIndex >= 0 &&
         _lastEventIndex < _playlist.length) {
       final int back = _lastEventIndex - _nativeOffset;
@@ -2790,6 +2851,8 @@ class PlayerProvider extends ChangeNotifier {
     try {
       if (!sameList) {
         _playlist = List<AudioTrack>.from(tracks);
+        // B1: новый состав очереди — порядок shuffle пересобираем.
+        if (_shuffleMode) _rebuildShuffleOrder();
         _persistQueueSnapshot();
         _prefs?.setInt('last_index', startIndex);
         _prefs?.setInt('last_track_id', tracks[startIndex].id); // D1
@@ -2862,7 +2925,7 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     if (_shuffleMode) {
-      await _playRandom();
+      await _playNextShuffled();
       return;
     }
 
@@ -2899,6 +2962,19 @@ class PlayerProvider extends ChangeNotifier {
     // L5: previous() — навигация, а не «не понравилось»: skip-статистика
     // не считается (она влияет на DJ-очередь и должна отражать только next()).
 
+    // B1: в shuffle «назад» идём по порядку текущего раунда, а не по индексу.
+    if (_shuffleMode && _shufflePos > 0) {
+      final back = _shufflePos - 1;
+      if (back < _shuffleOrder.length) {
+        final idx = _shuffleOrder[back];
+        if (idx >= 0 && idx < _playlist.length) {
+          _shufflePos = back;
+          await playAt(idx);
+          return;
+        }
+      }
+    }
+
     final prevIndex = _currentIndex - 1;
     if (prevIndex < 0) {
       await _audioPlayer.seek(Duration.zero);
@@ -2907,17 +2983,60 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _playRandom() async {
-    if (_playlist.length < 2) return;
-    var index = _currentIndex;
-    while (index == _currentIndex) {
-      index = (DateTime.now().microsecondsSinceEpoch) % _playlist.length;
+  /// B1: новый раунд shuffle. Порядок — перестановка индексов очереди
+  /// (Fisher–Yates, см. [buildShuffleOrder]); текущий трек ставим первым,
+  /// чтобы включение shuffle во время игры не переключало трек принудительно.
+  void _rebuildShuffleOrder() {
+    final n = _playlist.length;
+    _shuffleOrder = buildShuffleOrder(n, _currentIndex);
+    _shufflePos = _shuffleOrder.isEmpty ? -1 : 0;
+  }
+
+  /// Следующий трек в порядке shuffle: раунд проигрывается целиком,
+  /// затем строится новый (B1 — раньше был случайный индекс по модулю).
+  Future<void> _playNextShuffled() async {
+    final n = _playlist.length;
+    if (n == 0) return;
+    if (n == 1) {
+      await playAt(0);
+      return;
     }
-    await playAt(index);
+    // Порядок мог устареть (очередь изменилась) — пересобираем.
+    if (_shufflePos < 0 || _shuffleOrder.length != n) _rebuildShuffleOrder();
+    if (_shufflePos + 1 >= _shuffleOrder.length) {
+      _rebuildShuffleOrder(); // раунд проигран — начинаем новый
+    }
+    final pos = _shufflePos + 1;
+    var idx = pos < _shuffleOrder.length ? _shuffleOrder[pos] : -1;
+    if (idx < 0 || idx >= n) {
+      _rebuildShuffleOrder();
+      idx = _shuffleOrder.length > 1 ? _shuffleOrder[1] : 0;
+      await playAt(idx);
+      return;
+    }
+    _shufflePos = pos;
+    await playAt(idx);
+  }
+
+  /// B2: синхронизирует нативный режим повтора с [_repeatMode].
+  /// LoopMode.one даёт бесшовный повтор одного трека (без хвоста следующего).
+  Future<void> _applyNativeLoopMode() async {
+    final wantOne = _repeatMode == PlayerRepeatMode.one;
+    if (wantOne == _nativeLoopOne) return;
+    final prev = _nativeLoopOne;
+    _nativeLoopOne = wantOne;
+    try {
+      await _audioPlayer.setLoopMode(wantOne ? LoopMode.one : LoopMode.off);
+    } catch (_) {
+      _nativeLoopOne = prev; // режим не поддержан — остаётся ручной фолбэк
+    }
   }
 
   Future<void> _onTrackComplete() async {
     if (_repeatMode == PlayerRepeatMode.one) {
+      // B2: при нативном LoopMode.one повтор делает ExoPlayer; этот путь —
+      // фолбэк для сборок, где режим не применился.
+      if (_nativeLoopOne) return;
       await _audioPlayer.seek(Duration.zero);
       await _audioPlayer.play();
       return;
@@ -2937,6 +3056,7 @@ class PlayerProvider extends ChangeNotifier {
         _repeatMode = PlayerRepeatMode.off;
         break;
     }
+    _applyNativeLoopMode();
     _audioHandler?.setRepeatState(_repeatMode.index);
     _notify('toggleRepeat');
     WidgetService.playerChanged(this);
@@ -2946,6 +3066,12 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> applyShuffle(bool on) async {
     if (_shuffleMode == on) return;
     _shuffleMode = on;
+    if (on) {
+      _rebuildShuffleOrder();
+    } else {
+      _shuffleOrder = const [];
+      _shufflePos = -1;
+    }
     _audioHandler?.setShuffleState(on);
     _notify('applyShuffle');
     WidgetService.playerChanged(this);
@@ -2955,6 +3081,7 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> applyRepeatIndex(int mode) async {
     if (mode < 0 || mode > 2 || _repeatMode.index == mode) return;
     _repeatMode = PlayerRepeatMode.values[mode];
+    await _applyNativeLoopMode();
     _audioHandler?.setRepeatState(mode);
     _notify('applyRepeatIndex');
     WidgetService.playerChanged(this);
@@ -2962,6 +3089,12 @@ class PlayerProvider extends ChangeNotifier {
 
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
+    if (_shuffleMode) {
+      _rebuildShuffleOrder();
+    } else {
+      _shuffleOrder = const [];
+      _shufflePos = -1;
+    }
     _audioHandler?.setShuffleState(_shuffleMode);
     _notify('toggleShuffle');
     WidgetService.playerChanged(this);
@@ -3271,6 +3404,8 @@ class PlayerProvider extends ChangeNotifier {
   void dispose() {
     _sleepTimer?.cancel();
     _noisySub?.cancel();
+    _sessionEventSub?.cancel();
+    _deviceSub?.cancel();
     // Раньше подписки из _init() не отменялись вовсе: при уничтожении
     // провайдера они продолжали дергать колбэки и писать в positionTick.
     for (final s in _subs) {
