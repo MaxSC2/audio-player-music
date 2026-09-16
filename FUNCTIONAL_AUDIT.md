@@ -98,9 +98,11 @@
 ### P1 — ощутимые функции
 - [x] **Умные автоплейлисты** («Топ недели», «Свежее», «Часто пропускаемые», «Неизведанное`) — provider-методы (`smartTopWeek/Fresh/Skipped/DeepCuts`) + UI `SmartPlaylistsSheet` + кнопка в шапке библиотеки (v117)
 - [x] **Импорт M3U/M3U8** — `importM3U()` в провайдере + диалог в настройках (вставка содержимого, матчинг по basename) (v117)
+- [x] **Экспорт M3U** — `_showExportM3UDialog` в настройках: очередь или плейлист копируется как M3U (F1)
 - [ ] Crossfade/gapless (just_audio 0.10 без встроенного — нужен отдельный пакет/ветка)
-- [ ] Громкость в плеере + автобаланс (E3)
-- [ ] Sleep Timer: fade-out + «до конца трека» (L3)
+- [x] **Громкость в плеере (E3-часть 1)** — `VolumeControl` в ряду функций: иконка + слайдер + %, drag через лёгкий `previewVolume` (без notify-шторма), финал через `setVolume` + persist (v126)
+- [ ] Автобаланс громкости между треками (E3-часть 2, ReplayGain/preGain — нет даже заготовки)
+- [x] **Sleep Timer: fade-out + «до конца трека» (L3)** — `_fadeOutAndPause` (~8 сек), `_fireSleepTimer` с дослушиванием, persist `sleep_fade/sleep_until_end`, оба тумблера в диалоге таймера
 - [ ] Статистика с графиками (часы/дни/жанры)
 
 ### P2 — стратегия
@@ -124,10 +126,10 @@
 ---
 
 ### Backlog — найдено при анализе (v118, не сделано)
-- [ ] **N4** `SeekSlider` подключён только в `simple_now_playing_screen`; в cinematic/cover-flow остались свои inline-реализации drag-логики — вынести на общий виджет и убрать дублирование
-- [ ] **N5** `removeFromQueue` делает полный `_rebuildPlaylist` (`setAudioSources` + `seek`) — можно `removeAudioSourceAt(index - _nativeOffset)` без пересборки окна
-- [ ] **N6** свайп-действие «В очередь» вызывает `addToQueueNext` без `await`/обработки ошибок — fire-and-forget (ошибка вставки сольётся молча)
-- [ ] **N7** `SeekSlider`: сразу после отпускания `_displayPos` до следующего тика показывает старую позицию — микро-отскок ползунка (косметика)
+- [x] **N4** `SeekSlider` подключён в 4 экранах (simple/cinematic/cover-flow NP/cover-flow home) — inline-дубли убраны
+- [x] **N5** `removeFromQueue` для «не текущего» внутри окна — точечный `removeAudioSourceAt(local)` без пересборки; полный `_rebuildPlaylist` только для вне-окна и текущего трека
+- [x] **N6** свайп-действие «В очередь»: `track_actions_sheet` и `library_tabs` вызывают `addToQueueNext` с `await` (+ try/catch в library_tabs) — fire-and-forget нет
+- [x] **N7** микро-отскок `SeekSlider` после отпускания (B7: `_displayPos` фиксируется сразу в `onChangeEnd`)
 
 ---
 

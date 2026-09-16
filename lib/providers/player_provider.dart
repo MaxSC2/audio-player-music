@@ -432,6 +432,7 @@ class PlayerProvider extends ChangeNotifier {
         final wasCurrent = queueIndex == _currentIndex;
         final wasPlaying = _isPlaying;
         _playlist.removeAt(queueIndex);
+        _adjustShuffleOrderForRemove(queueIndex);
 
         if (_playlist.isEmpty) {
           // Удалили последний трек очереди — только тогда останавливаемся.
@@ -3063,6 +3064,36 @@ class PlayerProvider extends ChangeNotifier {
     _shuffleOrder = buildShuffleOrder(n, _currentIndex);
     _shufflePos = _shuffleOrder.isEmpty ? -1 : 0;
   }
+  /// Корректировка порядка shuffle при вставке `count` треков на позицию
+  /// `index` (играть следующими / добавление в конец): индексы >= index
+  /// сдвигаются вверх, позиция курсора [_shufflePos] остаётся на месте.
+  void _adjustShuffleOrderForInsert(int index, int count) {
+    if (!_shuffleMode || _shuffleOrder.isEmpty || count <= 0) return;
+    for (var p = 0; p < _shuffleOrder.length; p++) {
+      if (_shuffleOrder[p] >= index) _shuffleOrder[p] += count;
+    }
+  }
+
+  /// Корректировка порядка shuffle при удалении трека с позиции `index`:
+  /// сам элемент выкидывается из раунда, индексы после него сдвигаются вниз.
+  /// Если удалили «следующий к проигрыванию», курсор остаётся на той же
+  /// позиции раунда (теперь указывает на последующий трек).
+  void _adjustShuffleOrderForRemove(int index) {
+    if (!_shuffleMode || _shuffleOrder.isEmpty) return;
+    var p = _shuffleOrder.indexOf(index);
+    if (p >= 0) {
+      _shuffleOrder.removeAt(p);
+      if (p < _shufflePos) _shufflePos -= 1;
+      if (_shufflePos >= _shuffleOrder.length) {
+        _shufflePos = _shuffleOrder.length - 1;
+      }
+    }
+    for (var i = 0; i < _shuffleOrder.length; i++) {
+      if (_shuffleOrder[i] > index) _shuffleOrder[i] -= 1;
+    }
+  }
+
+  /// Следующий трек в порядке shuffle: раунд проигрывается целиком,
 
   /// Следующий трек в порядке shuffle: раунд проигрывается целиком,
   /// затем строится новый (B1 — раньше был случайный индекс по модулю).
@@ -3273,6 +3304,17 @@ class PlayerProvider extends ChangeNotifier {
     _notify('setVolume');
   }
 
+  /// Лёгкое применение громкости во время drag слайдера: без записи
+  /// в prefs и без `_notify` (иначе каждый пиксель перетаскивания
+  /// перестраивал бы все подписчики — тот же урок, что с SeekSlider S1).
+  /// Финальное значение фиксируется обычным [setVolume] в `onChangeEnd`.
+  Future<void> previewVolume(double v) async {
+    _volume = v.clamp(0.0, 1.0);
+    try {
+      await _audioPlayer.setVolume(_volume);
+    } catch (_) {}
+  }
+
   Future<void> addToQueueNext(AudioTrack track) =>
       addManyToQueueNext([track]);
 
@@ -3289,6 +3331,9 @@ class PlayerProvider extends ChangeNotifier {
     }
     final insertIndex = _currentIndex + 1;
     _playlist.insertAll(insertIndex, tracks);
+    // Shuffle-раунд должен узнать о новых индексах, иначе «следующий»
+    // после вставки может указывать на чужой трек (сдвиг индексов).
+    _adjustShuffleOrderForInsert(insertIndex, tracks.length);
 
     // FIX: вставляем источники в нативный плеер без перезапуска текущего трека.
     // Раньше вызывался _rebuildPlaylist(), который делает setAudioSources(force:true)
@@ -3330,6 +3375,7 @@ class PlayerProvider extends ChangeNotifier {
     // Текущий трек удалён — окно пересобираем и переходим к следующему.
     if (index == _currentIndex) {
       _playlist.removeAt(index);
+      _adjustShuffleOrderForRemove(index);
       if (_playlist.isEmpty) {
         _currentIndex = -1;
       } else if (_currentIndex >= _playlist.length) {
@@ -3341,6 +3387,7 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     _playlist.removeAt(index);
+    _adjustShuffleOrderForRemove(index);
 
     // B3: удаление «не текущего» трека — БЕЗ пересборки окна
     // (setAudioSources + seek давали слышимый разрыв). Правим нативную

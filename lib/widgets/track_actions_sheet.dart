@@ -7,6 +7,7 @@ import '../ui/theme.dart';
 import 'neon_snack.dart';
 import 'playlist_picker_sheet.dart';
 import 'queue_sheet.dart';
+import 'track_bookmarks_sheet.dart';
 import 'track_info_dialog.dart';
 
 /// Единое меню «три точки» для всех плееров (простой / кинематографичный /
@@ -134,6 +135,15 @@ class TrackActionsSheet extends StatelessWidget {
           accent: AppTheme.accentPink,
           active: isFav,
           onTap: () => player.toggleFavorite(track),
+        ),
+        _ActionTile(
+          icon: Icons.bookmark_added_rounded,
+          label: 'Закладки',
+          accent: AppTheme.accentLight,
+          onTap: () {
+            Navigator.pop(context);
+            showTrackBookmarks(context, track);
+          },
         ),
         _ActionTile(
           icon: Icons.playlist_play_rounded,
