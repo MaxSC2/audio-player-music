@@ -228,6 +228,17 @@ class PlayerProvider extends ChangeNotifier {
   bool _sleepUntilTrackEnd = false;
   double _volume = 1.0;
 
+  // E3-часть 2: адаптивный автобаланс громкости. Идея: настоящего ReplayGain
+  // в метаданных локальных файлов нет (MediaStore/SongModel громкости
+  // не отдают, DSP-замер пиков недоступен из just_audio 0.10), поэтому
+  // учимся на поведении: если пользователь прибавляет громкость на треке —
+  // трек тише среднего (поднимаем его поправку), убавляет — громче среднего
+  // (опускаем). Поправка хранится на трек (cap 400, как букмарки), выводится
+  // в диапазон [0.5 … 1.6], скорость обучения 0.5× от отклонения.
+  bool _autoBalance = false;
+  final Map<int, double> _trackFix = {};
+  double _baseVolumeMark = -1; // эталон: громкость в начале текущего трека
+
   String _equalizerPreset = 'Flat (Стандарт)';
 
   bool _resumePlayback = false;
@@ -687,6 +698,11 @@ class PlayerProvider extends ChangeNotifier {
         _lastHistoryTrackId = t.id;
         _recordHistory(t);
         _audioHandler?.setFavoriteState(isFavorite(t.id));
+        // E3-часть 2: нативный автопереход (мимо playAt) — тоже применяем
+        // баланс к новому треку, иначе поправка «залипнет» от прошлого.
+        _baseVolumeMark = _volume;
+        _applyLoudness();
+        _audioPlayer.setVolume(_effectiveVolumeFor(t.id)).catchError((_) {});
       }
     }
     if (indexChanged) {
@@ -844,6 +860,22 @@ class PlayerProvider extends ChangeNotifier {
     _sleepFadeOut = prefs.getBool('sleep_fade') ?? true;
     _sleepUntilTrackEnd = prefs.getBool('sleep_until_end') ?? false;
     _volume = (prefs.getDouble('volume') ?? 1.0).clamp(0.0, 1.0);
+    _autoBalance = prefs.getBool('auto_balance') ?? false;
+    final savedFix = prefs.getString('balance_fix');
+    if (savedFix != null) {
+      try {
+        final raw = jsonDecode(savedFix) as Map;
+        raw.forEach((k, v) {
+          final id = int.tryParse(k.toString());
+          final fix = (v as num?)?.toDouble();
+          if (id != null && fix != null) {
+            _trackFix[id] = fix.clamp(0.5, 1.6);
+          }
+        });
+      } catch (_) {
+        _trackFix.clear();
+      }
+    }
     final savedDiscovery = prefs.getString('dj_discovery');
     if (savedDiscovery != null) {
       _discoveryLevel = DiscoveryLevel.values.firstWhere(
@@ -3019,6 +3051,13 @@ class PlayerProvider extends ChangeNotifier {
     _lastHistoryTrackId = _playlist[index].id;
     await _audioPlayer.seek(Duration.zero, index: index - _nativeOffset);
     if (req != _playReqSeq) return;
+    // E3-часть 2: стартуем с итоговой громкостью (баланс + X-Boost),
+    // эталон для обучения — пользовательская громкость.
+    _baseVolumeMark = _volume;
+    _applyLoudness();
+    try {
+      await _audioPlayer.setVolume(_effectiveVolumeFor(_playlist[index].id));
+    } catch (_) {}
     await _audioPlayer.play();
     if (req != _playReqSeq) return;
     _audioHandler?.setFavoriteState(isFavorite(_playlist[index].id));
@@ -3352,12 +3391,90 @@ class PlayerProvider extends ChangeNotifier {
   double get volume => _volume;
   bool get sleepFadeOut => _sleepFadeOut;
   bool get sleepUntilTrackEnd => _sleepUntilTrackEnd;
+  bool get autoBalance => _autoBalance;
+
+  /// Поправка трека, ограниченная диапазоном [0.5 … 1.6].
+  double trackFixFor(int trackId) =>
+      ((_trackFix[trackId] ?? 1.0)).clamp(0.5, 1.6);
+
+  /// Поправка в дБ для LoudnessEnhancer (0 дБ = без изменений).
+  /// 20·log10(fix): ×1.6 ≈ +4.1 дБ, ×0.5 ≈ −6.0 дБ.
+  double _trackGainDb(int trackId) {
+    if (trackId < 0) return 0.0;
+    final fix = trackFixFor(trackId);
+    if ((fix - 1.0).abs() < 0.01) return 0.0;
+    return (20 * _log10(fix)).clamp(-6.0, 4.0);
+  }
+
+  // log10 через dart:math (уже импортирован как math для shuffle).
+  static double _log10(double x) => x <= 0 ? 0 : math.log(x) / math.ln10;
+
+  /// Включение/выключение автобаланса (persist + применение к текущему).
+  Future<void> setAutoBalance(bool on) async {
+    _autoBalance = on;
+    _prefs?.setBool('auto_balance', on);
+    await _applyBalanceToCurrent();
+    _notify('setAutoBalance');
+  }
+
+  /// Сброс выученных поправок.
+  Future<void> resetBalanceFixes() async {
+    _trackFix.clear();
+    _prefs?.remove('balance_fix');
+    await _applyBalanceToCurrent();
+    _notify('resetBalanceFixes');
+  }
+
+  /// Применить баланс к текущему треку: эталон = пользовательская
+  /// громкость, итог = effective. Вызывается при старте трека и смене
+  /// настроек (баланс/X-Boost).
+  Future<void> _applyBalanceToCurrent() async {
+    final id = _currentTrackId;
+    _baseVolumeMark = _volume;
+    _applyLoudness();
+    try {
+      await _audioPlayer.setVolume(_effectiveVolumeFor(id));
+    } catch (_) {}
+  }
+
+  /// Обучение на ручной правке громкости: отклонение от эталона начала
+  /// трека наполовину уходит в поправку трека. Вызывается из setVolume
+  /// (финального) когда автобаланс включён и трек играет.
+  void _learnFromVolumeChange(double oldMark, double newVolume, int trackId) {
+    if (!_autoBalance || trackId < 0 || oldMark < 0) return;
+    final delta = newVolume - oldMark;
+    if (delta.abs() < 0.02) return; // шум/тап без смысла — не учим
+    final cur = _trackFix[trackId] ?? 1.0;
+    final next = (cur * (1 + 0.5 * delta)).clamp(0.5, 1.6);
+    if ((next - cur).abs() < 0.005) return;
+    _trackFix[trackId] = next;
+    if (_trackFix.length > 400) {
+      _trackFix.remove(_trackFix.keys.first);
+    }
+    _prefs?.setString(
+      'balance_fix',
+      jsonEncode(_trackFix.map((k, v) => MapEntry('$k', v))),
+    );
+    _baseVolumeMark = newVolume;
+  }
+
+  int get _currentTrackId {
+    if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+      return _playlist[_currentIndex].id;
+    }
+    return -1;
+  }
 
   Future<void> setVolume(double v) async {
+    final oldMark = _baseVolumeMark;
+    final trackId = _currentTrackId;
     _volume = v.clamp(0.0, 1.0);
     _prefs?.setDouble('volume', _volume);
+    // Учимся только на осмысленной ручной правке во время игры.
+    if (_isPlaying) _learnFromVolumeChange(oldMark, _volume, trackId);
+    _baseVolumeMark = _volume;
     try {
-      await _audioPlayer.setVolume(_volume);
+      await _audioPlayer.setVolume(_effectiveVolumeFor(trackId));
     } catch (_) {}
     _notify('setVolume');
   }
@@ -3607,13 +3724,30 @@ class PlayerProvider extends ChangeNotifier {
       _notify('toggleXBoost');
       return;
     }
-    if (_xBoost) {
-      _loudness.setEnabled(true);
-      _loudness.setTargetGain(6.0);
-    } else {
-      _loudness.setEnabled(false);
-    }
+    _applyLoudness();
     _notify('toggleXBoost');
+  }
+
+  /// E3-часть 2: единый пересчёт усиления. X-Boost даёт +6 дБ и считается
+  /// частью «производной» громкости, поэтому итог:
+  ///   effectiveVolume = userVolume × trackFix × (xBoost ? boost : 1)
+  /// где boost подобран так, чтобы +6 дБ не упирались в клиппинг
+  /// (6 дБ ≈ ×2.0 амплитуды; ограничиваем ×1.6 и итоговым потолком 1.0).
+  void _applyLoudness() {
+    try {
+      _loudness.setEnabled(true);
+      _loudness.setTargetGain(
+        _xBoost ? 6.0 : (_autoBalance ? _trackGainDb(_currentTrackId) : 0.0),
+      );
+    } catch (_) {}
+  }
+
+  /// Итоговая громкость с учётом пользовательской, поправки трека
+  /// и X-Boost. Вызывается при старте трека и при смене настроек.
+  double _effectiveVolumeFor(int trackId) {
+    var v = _volume * trackFixFor(trackId);
+    if (_xBoost) v *= 1.6;
+    return v.clamp(0.0, 1.0);
   }
 
   void tapRepeatAB() {

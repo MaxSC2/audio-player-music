@@ -307,6 +307,54 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          // E3-часть 2: автобаланс громкости между треками.
+          _SettingsCard(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const _TileIcon(Icons.balance_rounded),
+                  title: Text(
+                    'Автобаланс громкости',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                  subtitle: Text(
+                    player.autoBalance
+                        ? 'Учится на ваших правках громкости'
+                        : 'Тихие треки — громче, громкие — тише',
+                    style: TextStyle(
+                      color: AppTheme.textMuted,
+                      fontSize: 13,
+                    ),
+                  ),
+                  value: player.autoBalance,
+                  activeTrackColor: AppTheme.accent,
+                  onChanged: player.setAutoBalance,
+                ),
+                if (player.autoBalance)
+                  ListTile(
+                    leading: const _TileIcon(Icons.restart_alt_rounded),
+                    title: Text(
+                      'Сбросить выученные поправки',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppTheme.textMuted,
+                    ),
+                    onTap: () => player.resetBalanceFixes(),
+                  ),
+              ],
+            ),
+          ),
+
           // Resume playback
           _SettingsCard(
             child: SwitchListTile(
