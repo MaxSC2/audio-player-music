@@ -61,15 +61,25 @@ class CinematicPlayerBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
+    // P-10: select-запись вместо watch — rebuild только при смене трека,
+    // очереди, индекса, визуализации или размера библиотеки, а не на любое
+    // уведомление провайдера (громкость, избранное, жанры и т.д.).
+    final state = context.select<PlayerProvider,
+        ({AudioTrack? track, List<AudioTrack> playlist, bool playing, int index, int libCount})>(
+      (p) => (
+        track: p.currentTrack,
+        playlist: p.playlist,
+        playing: p.playingVisuals,
+        index: p.currentIndex,
+        libCount: p.visibleTracks.length,
+      ),
+    );
     DebugLog.rebuild('CinematicBody');
-    final track = player.currentTrack;
-    final playlist = player.playlist;
+    final track = state.track;
+    final playlist = state.playlist;
 
     if (track == null || playlist.isEmpty) {
-      return _EmptyState(
-        hasLibrary: player.visibleTracks.isNotEmpty,
-      );
+      return _EmptyState(hasLibrary: state.libCount > 0);
     }
 
     final accent = cinematicAccent(context, track.id);
@@ -80,7 +90,7 @@ class CinematicPlayerBody extends StatelessWidget {
           child: _CinematicCarousel(
             key: ValueKey('carousel-${playlist.length}'),
             playlist: playlist,
-            currentIndex: player.currentIndex,
+            currentIndex: state.index, // P-10
             accent: accent,
             edgeGlow: edgeGlow,
             stageRings: stageRings,
@@ -89,13 +99,13 @@ class CinematicPlayerBody extends StatelessWidget {
         if (edgeGlow)
           // Neon: живой эквалайзер, реагирующий на реальный звук.
           LiveEqualizer(
-            isPlaying: player.playingVisuals,
+            isPlaying: state.playing, // P-10
             accent: accent,
             height: 78,
           )
         else
           CinematicVisualizer(
-            isPlaying: player.playingVisuals,
+            isPlaying: state.playing, // P-10
             trackId: track.id,
           ),
         _TrackInfo(track: track),
@@ -1031,7 +1041,9 @@ class _TrackInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
+    // P-10: провайдер нужен только для toggleFavorite — без подписки;
+    // ребилд приходит от родителя при смене трека (вместе с isFavorite).
+    final player = context.read<PlayerProvider>();
     final sub = track.album?.isNotEmpty == true ? track.album! : track.artist;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 4, 16, 0),
@@ -1164,8 +1176,13 @@ class _ProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
-    final accent = cinematicAccent(context, player.currentTrack?.id);
+    // P-10: подписка только на смену трека (accent); позиция живёт внутри
+    // SeekSlider и не должна ребилдить эту строку.
+    final player = context.read<PlayerProvider>();
+    final trackId = context.select<PlayerProvider, int?>(
+      (p) => p.currentTrack?.id,
+    );
+    final accent = cinematicAccent(context, trackId);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
       child: SeekSlider(
@@ -1221,7 +1238,16 @@ class _ControlsRowState extends State<_ControlsRow>
 
   @override
   Widget build(BuildContext context) {
-    final player = context.watch<PlayerProvider>();
+    // P-10: методы — через read, реактивные флаги — одной select-записью.
+    final player = context.read<PlayerProvider>();
+    final flags = context.select<PlayerProvider,
+        ({bool shuffle, bool playing, PlayerRepeatMode repeat})>(
+      (p) => (
+        shuffle: p.shuffleMode,
+        playing: p.isPlaying,
+        repeat: p.repeatMode,
+      ),
+    );
     final accent = cinematicAccent(context, player.currentTrack?.id);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 2, 0, 6),
@@ -1233,7 +1259,7 @@ class _ControlsRowState extends State<_ControlsRow>
               onPressed: player.toggleShuffle,
               icon: Icon(
                 Icons.shuffle_rounded,
-                color: player.shuffleMode
+                color: flags.shuffle // P-10
                     ? accent
                     : CinematicTheme.textDim,
                 size: 22,
@@ -1283,7 +1309,7 @@ class _ControlsRowState extends State<_ControlsRow>
                   ],
                 ),
                 child: Icon(
-                  player.isPlaying
+                  flags.playing // P-10
                       ? Icons.pause_rounded
                       : Icons.play_arrow_rounded,
                   color: Colors.white,
@@ -1307,10 +1333,10 @@ class _ControlsRowState extends State<_ControlsRow>
             IconButton(
               onPressed: player.toggleRepeat,
               icon: Icon(
-                player.repeatMode == PlayerRepeatMode.one
+                flags.repeat == PlayerRepeatMode.one // P-10
                     ? Icons.repeat_one_rounded
                     : Icons.repeat_rounded,
-                color: player.repeatMode == PlayerRepeatMode.off
+                color: flags.repeat == PlayerRepeatMode.off
                     ? CinematicTheme.textDim
                     : accent,
                 size: 22,

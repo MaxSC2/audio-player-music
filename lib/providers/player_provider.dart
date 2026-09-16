@@ -925,6 +925,11 @@ class PlayerProvider extends ChangeNotifier {
   Future<String?> createPlaylist(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return null;
+    // B15: идемпотентность — плейлисты с дублирующимися именами запрещены.
+    // Возвращаем id существующего, чтобы вызывающий добавил треки туда.
+    for (final p in _playlists) {
+      if (p.name.toLowerCase() == trimmed.toLowerCase()) return p.id;
+    }
     final id = 'pl_${DateTime.now().millisecondsSinceEpoch}';
     _playlists.add(
       CustomPlaylist(
@@ -2499,6 +2504,24 @@ class PlayerProvider extends ChangeNotifier {
     _notify('deleteQueueSnapshot');
   }
 
+  /// B15: переименование снапшота очереди. Если имя занято другим
+  /// снапшотом — старый владелец имени удаляется (уникальность имён).
+  void renameQueueSnapshot(String oldName, String newName) {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || trimmed == oldName) return;
+    final i = _queueSnapshots.indexWhere((s) => s.name == oldName);
+    if (i < 0) return;
+    final old = _queueSnapshots[i];
+    _queueSnapshots.removeWhere((s) => s.name == trimmed);
+    _queueSnapshots[i] = QueueSnapshot(
+      name: trimmed,
+      createdAt: old.createdAt,
+      trackIds: old.trackIds,
+    );
+    _persistSnapshots();
+    _notify('renameQueueSnapshot');
+  }
+
   Future<void> applyQueueSnapshot(QueueSnapshot snapshot) async {
     final tracks = <AudioTrack>[];
     final byId = _tracksById;
@@ -2920,18 +2943,21 @@ class PlayerProvider extends ChangeNotifier {
     // R1: токен запроса — если пользователь уже тапнул следующий трек,
     // устаревший playAt прекращается после каждого await.
     final req = ++_playReqSeq;
-    _currentIndex = index;
-    _lastEventIndex = index;
-    _lastHistoryTrackId = _playlist[index].id;
     _switchingSource = true;
     try {
       await _buildNativeSlice(index);
-      if (req != _playReqSeq) return;
     } finally {
       _lastEventIndex = _currentIndex;
       _switchingSource = false;
     }
+    // B5: оптимистичный индекс пишем только когда запрос всё ещё актуален
+    // и состав очереди не изменился — иначе UI показывает трек, который
+    // не играет (прерванный запрос перетирал свежее состояние).
     if (req != _playReqSeq) return;
+    if (index < 0 || index >= _playlist.length) return;
+    _currentIndex = index;
+    _lastEventIndex = index;
+    _lastHistoryTrackId = _playlist[index].id;
     await _audioPlayer.seek(Duration.zero, index: index - _nativeOffset);
     if (req != _playReqSeq) return;
     await _audioPlayer.play();

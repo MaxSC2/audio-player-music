@@ -92,12 +92,16 @@ class PlaylistDetailScreen extends StatelessWidget {
                     side: BorderSide(color: AppTheme.cardBorder),
                   ),
                   onSelected: (value) async {
+                    // B18: локальная non-null переменная вместо `playlist!`
+                    // в асинхронном колбэке (плейлист мог удалиться).
+                    final pl = playlist;
+                    if (pl == null) return;
                     if (value == 'rename') {
-                      await _renamePlaylist(context, player, playlist!);
+                      await _renamePlaylist(context, player, pl);
                     } else if (value == 'delete') {
                       final ok = await _confirmDelete(context);
                       if (ok == true && context.mounted) {
-                        player.deletePlaylist(playlist!.id);
+                        player.deletePlaylist(pl.id);
                         if (context.mounted) Navigator.pop(context);
                       }
                     }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
@@ -517,6 +518,9 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          // B17: диагностический каркас — только в debug-сборках
+          // (в release эти тумблеры не имеют смысла и раздували прод-код).
+          if (kDebugMode) ...[
           const _SectionHeader('Диагностика (v41)'),
 
           _SettingsCard(
@@ -935,6 +939,7 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+          ], // B17: конец debug-секции
 
           const _SectionHeader('О приложении'),
 

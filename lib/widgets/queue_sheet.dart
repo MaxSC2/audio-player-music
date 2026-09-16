@@ -174,6 +174,45 @@ class QueueSheet extends StatelessWidget {
                               player.applyQueueSnapshot(s);
                               Navigator.pop(context);
                             },
+                            // B15: долгое нажатие — переименовать снапшот
+                            onLongPress: () {
+                              final ctrl =
+                                  TextEditingController(text: s.name);
+                              showDialog<void>(
+                                context: context,
+                                builder: (dctx) => AlertDialog(
+                                  backgroundColor: AppTheme.surface,
+                                  title: const Text('Переименовать очередь'),
+                                  content: TextField(
+                                    controller: ctrl,
+                                    autofocus: true,
+                                    maxLength: 40,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Название',
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(dctx),
+                                      child: const Text('Отмена'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        final nn = ctrl.text.trim();
+                                        if (nn.isNotEmpty &&
+                                            nn != s.name) {
+                                          player.renameQueueSnapshot(
+                                              s.name, nn);
+                                        }
+                                        ctrl.dispose();
+                                        Navigator.pop(dctx);
+                                      },
+                                      child: const Text('Сохранить'),
+                                    ),
+                                  ],
+                                ),
+                              ).then((_) => ctrl.dispose());
+                            },
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

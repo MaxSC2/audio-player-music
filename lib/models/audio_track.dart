@@ -47,30 +47,45 @@ class AudioTrack {
   }
 
   AudioTrack copyWith({
-    int? id,
-    String? title,
-    String? artist,
-    String? album,
-    String? uri,
-    int? duration,
-    int? size,
-    int? dateAdded,
-    String? data,
-    int? albumId,
-    bool? isFavorite,
+    Object? id = _sentinel,
+    Object? title = _sentinel,
+    Object? artist = _sentinel,
+    Object? album = _sentinel,
+    Object? uri = _sentinel,
+    Object? duration = _sentinel,
+    Object? size = _sentinel,
+    Object? dateAdded = _sentinel,
+    Object? data = _sentinel,
+    Object? albumId = _sentinel,
+    Object? isFavorite = _sentinel,
   }) {
+    // B13: копия с возможностью явно сбросить nullable-поля в null —
+    // передайте AudioTrack.unset вместо значения (обычный `null` = «не менять»).
     return AudioTrack(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      artist: artist ?? this.artist,
-      album: album ?? this.album,
-      uri: uri ?? this.uri,
-      duration: duration ?? this.duration,
-      size: size ?? this.size,
-      dateAdded: dateAdded ?? this.dateAdded,
-      data: data ?? this.data,
-      albumId: albumId ?? this.albumId,
-      isFavorite: isFavorite ?? this.isFavorite,
+      id: id == _sentinel ? this.id : id! as int,
+      title: title == _sentinel ? this.title : title! as String,
+      artist: artist == _sentinel ? this.artist : artist! as String,
+      album: album == _sentinel ? this.album : album as String?,
+      uri: uri == _sentinel ? this.uri : uri! as String,
+      duration: duration == _sentinel ? this.duration : duration! as int,
+      size: size == _sentinel ? this.size : size as int?,
+      dateAdded:
+          dateAdded == _sentinel ? this.dateAdded : dateAdded as int?,
+      data: data == _sentinel ? this.data : data as String?,
+      albumId: albumId == _sentinel ? this.albumId : albumId as int?,
+      isFavorite:
+          isFavorite == _sentinel ? this.isFavorite : isFavorite! as bool,
     );
   }
+
+  /// Маркер «не менять поле» для [copyWith].
+  static const Object _sentinel = _Unset();
+
+  /// Передайте в [copyWith], чтобы сбросить nullable-поле в null:
+  /// `track.copyWith(album: AudioTrack.unset)`.
+  static const Object unset = _Unset();
+}
+
+class _Unset {
+  const _Unset();
 }

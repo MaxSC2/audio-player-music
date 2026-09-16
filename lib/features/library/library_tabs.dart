@@ -1412,8 +1412,8 @@ class _LibraryTabsState extends State<LibraryTabs>
       );
     }
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    // B20: «сегодня» из кэша — не пересчитывать DateTime на каждый rebuild.
+    final today = _today;
     final yesterday = today.subtract(const Duration(days: 1));
 
     // M6-perf: неленивый ListView(children:) строил ВСЕ треки истории
@@ -1542,6 +1542,13 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
   }
 
+  /// B20: «сегодня» кэшируется на уровне State — один DateTime на кадр
+  /// вместо пересчёта в каждом build-методе (история/Journey/подписи дней).
+  DateTime get _today {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
   String _dayLabel(DateTime d) {
     const months = [
       'января',
@@ -1557,11 +1564,10 @@ class _LibraryTabsState extends State<LibraryTabs>
       'ноября',
       'декабря',
     ];
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = _today; // B20: кэш «сегодня»
     final diff = today.difference(d).inDays;
     if (diff == 2) return 'Позавчера';
-    if (d.year == now.year) return '${d.day} ${months[d.month - 1]}';
+    if (d.year == today.year) return '${d.day} ${months[d.month - 1]}';
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
@@ -1647,8 +1653,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   ) {
     if (all.isEmpty) return const SizedBox.shrink();
 
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayStart = _today; // B20: кэш «сегодня»
     final today = all.where((e) => e.time.isAfter(todayStart)).toList();
 
     final playsToday = today.length;
