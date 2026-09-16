@@ -4,6 +4,141 @@ import '../../providers/player_provider.dart';
 import '../../ui/theme.dart';
 import '../../core/debug_log.dart';
 
+/// Активность по дням недели (Пн..Вс): 7 мини-баров в одну строку.
+class _WeekBars extends StatelessWidget {
+  final List<int> days;
+
+  const _WeekBars({required this.days});
+
+  static const _labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+  @override
+  Widget build(BuildContext context) {
+    final max = days.fold<int>(1, (a, b) => a > b ? a : b);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: List.generate(7, (i) {
+        final frac = days[i] / max;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${days[i]}',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: 26,
+              height: 56,
+              alignment: Alignment.bottomCenter,
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceLight,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: FractionallySizedBox(
+                heightFactor: frac.clamp(0.04, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _labels[i],
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+/// Полоса жанра: название + доля от топа + число прослушиваний.
+/// Tap — запустить все треки жанра.
+class _GenreBar extends StatelessWidget {
+  final String genre;
+  final int plays;
+  final int max;
+  final VoidCallback onTap;
+
+  const _GenreBar({
+    required this.genre,
+    required this.plays,
+    required this.max,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final frac = (plays / (max <= 0 ? 1 : max)).clamp(0.04, 1.0);
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 110,
+              child: Text(
+                genre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceLight,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: frac,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 30,
+              child: Text(
+                '$plays',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: AppTheme.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class MusicDnaTab extends StatelessWidget {
   Color get _cardColor =>
       neon ? const Color(0x0FFFFFFF) : AppTheme.card;
@@ -168,6 +303,47 @@ class MusicDnaTab extends StatelessWidget {
                   timeBar('Вечер', profile.evening, AppTheme.accentPink),
                 ],
               ),
+              const SizedBox(height: 14),
+              Text(
+                'Активность по дням',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _WeekBars(days: player.playsByWeekday),
+              const SizedBox(height: 14),
+              Text(
+                'Жанры в прослушиваниях',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...player.topGenres(limit: 5).map(
+                    (g) => _GenreBar(
+                      genre: g.genre,
+                      plays: g.plays,
+                      max: player.topGenres(limit: 5).fold<int>(
+                        1,
+                        (a, b) => a > b.plays ? a : b.plays,
+                      ),
+                      onTap: () {
+                        final tracks = player.visibleTracks
+                            .where(
+                              (t) => player.primaryGenre(t) == g.genre,
+                            )
+                            .toList();
+                        if (tracks.isNotEmpty) {
+                          player.playFromPlaylist(tracks, 0);
+                        }
+                      },
+                    ),
+                  ),
             ],
           ),
         ),

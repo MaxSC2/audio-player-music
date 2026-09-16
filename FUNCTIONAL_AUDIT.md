@@ -100,9 +100,10 @@
 - [x] **Импорт M3U/M3U8** — `importM3U()` в провайдере + диалог в настройках (вставка содержимого, матчинг по basename) (v117)
 - [x] **Экспорт M3U** — `_showExportM3UDialog` в настройках: очередь или плейлист копируется как M3U (F1)
 - [ ] Crossfade/gapless (just_audio 0.10 без встроенного — нужен отдельный пакет/ветка)
-- [x] **Громкость в плеере (E3-часть 1)** — `VolumeControl` в ряду функций: иконка + слайдер + %, drag через лёгкий `previewVolume` (без notify-шторма), финал через `setVolume` + persist (v126)
+- [x] **Громкость в плеере (E3-часть 1)** — `VolumeControl` в ряду функций: иконка + слайдер + %, drag через лёгкий `previewVolume` (без notify-шторма), финал через `setVolume` + persist (v127)
 - [ ] Автобаланс громкости между треками (E3-часть 2, ReplayGain/preGain — нет даже заготовки)
 - [x] **Sleep Timer: fade-out + «до конца трека» (L3)** — `_fadeOutAndPause` (~8 сек), `_fireSleepTimer` с дослушиванием, persist `sleep_fade/sleep_until_end`, оба тумблера в диалоге таймера
+- [x] **Статистика с графиками (v128)** — DNA-карточка расширена: `_WeekBars` (активность Пн..Вс), `_GenreBar` (топ-5 жанров по прослушиваниям, tap запускает жанр); провайдер: `playsByWeekday`, `topGenres`, кэш `uniqueTracksListened`/`listeningTimeProfile`
 - [ ] Статистика с графиками (часы/дни/жанры)
 
 ### P2 — стратегия

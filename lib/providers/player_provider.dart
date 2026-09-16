@@ -2084,15 +2084,22 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   int get uniqueTracksListened {
+    final cached = _uniqueTracksCache;
+    if (cached != null) return cached;
     final set = <int>{};
     for (final e in _historyRaw) {
       final id = e['id'];
       if (id != null) set.add(id);
     }
+    _uniqueTracksCache = set.length;
     return set.length;
   }
 
+  int? _uniqueTracksCache;
+
   ({int morning, int day, int evening}) get listeningTimeProfile {
+    final cached = _timeProfileCache;
+    if (cached != null) return cached;
     var morning = 0, day = 0, evening = 0;
     for (final e in _historyRaw) {
       final ts = e['ts'];
@@ -2106,8 +2113,55 @@ class PlayerProvider extends ChangeNotifier {
         evening++;
       }
     }
-    return (morning: morning, day: day, evening: evening);
+    const r = (morning: 0, day: 0, evening: 0);
+    _timeProfileCache = (morning: morning, day: day, evening: evening);
+    return _timeProfileCache ?? r;
   }
+
+  ({int morning, int day, int evening})? _timeProfileCache;
+
+  /// Активность по дням недели (Пн..Вс) — для графиков DNA.
+  /// Кэшируется вместе с остальными DNA-агрегатами.
+  List<int> get playsByWeekday {
+    final cached = _weekdayCache;
+    if (cached != null) return cached;
+    final days = List<int>.filled(7, 0);
+    for (final e in _historyRaw) {
+      final ts = e['ts'];
+      if (ts == null) continue;
+      days[DateTime.fromMillisecondsSinceEpoch(ts).weekday - 1]++;
+    }
+    _weekdayCache = days;
+    return days;
+  }
+
+  List<int>? _weekdayCache;
+
+  /// Топ жанров по прослушиваниям (взвешено историей, не библиотекой).
+  List<({String genre, int plays})> topGenres({int limit = 6}) {
+    final cached = _topGenresCache[limit];
+    if (cached != null) return cached;
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
+    final counts = <String, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      final t = byId[id];
+      if (t == null) continue;
+      final g = primaryGenre(t);
+      counts[g] = (counts[g] ?? 0) + 1;
+    }
+    final ranked = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final result = ranked
+        .take(limit)
+        .map((e) => (genre: e.key, plays: e.value))
+        .toList();
+    _topGenresCache[limit] = result;
+    return result;
+  }
+
+  final Map<int, List<({String genre, int plays})>> _topGenresCache = {};
 
   // ─── Music Time Machine ────────────────────────────────────────────
   List<({AudioTrack track, DateTime time})> tracksForDay(DateTime day) {
@@ -2671,6 +2725,10 @@ class PlayerProvider extends ChangeNotifier {
     _notNowCache = null;
     _topTracksCache.clear();
     _topArtistsCache.clear();
+    _uniqueTracksCache = null;
+    _timeProfileCache = null;
+    _weekdayCache = null;
+    _topGenresCache.clear();
   }
 
   Map<int, AudioTrack>? _tracksByIdCache;
