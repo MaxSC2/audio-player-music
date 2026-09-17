@@ -1,6 +1,6 @@
 # NeonWave — Единый реестр находок и работ
 
-Дата: 2026-09-14 · Ветки: `stack-upgrade` = `master` · Последняя версия кода: **v119**
+Дата: 2026-09-17 · Ветки: `stack-upgrade` = `master` · Последняя версия кода: **v130**
 
 Это **единственный** список багов/задач. Всё, что уже проверено и найдено — здесь,
 чтобы не искать заново по коду. Рядом — `FUNCTIONAL_AUDIT.md` (инвентарь функций и стратегия).
@@ -62,6 +62,20 @@
 | **F4** | Таймер сна: **плавное затухание** (~8 c, 20 шагов, громкость восстанавливается после паузы) + опция **«дослушать текущий трек»**. Переключатели в диалоге, выбор сохраняется в prefs (`sleep_fade`, `sleep_until_end`) | `player_provider.dart`, `sleep_timer_dialog.dart` |
 | **F1** | **Экспорт M3U** (симметрично импорту): `exportM3U()` / `queueAsM3U` / `playlistTracks()`, диалог в настройках — очередь или любой плейлист → в буфер обмена | `player_provider.dart`, `settings_screen.dart` |
 | **F3-задел** | Появилось управление громкостью: `_volume` + `setVolume()` (сохраняется в prefs) — база для регулятора в плеере и ReplayGain | `player_provider.dart` |
+
+---
+
+### v130 — очередь drag&drop + «сохранить как плейлист» (P2 / F7)
+
+| ID | Что сделано | Файл |
+|---|---|---|
+| **F7** | Drag&drop очереди: `ReorderableListView.builder` + `onReorderItem` (актуальный API — `onReorder` устарел после v3.41), `buildDefaultDragHandles: false` + ручка `ReorderableDragStartListener`, поэтому тап по строке по-прежнему запускает трек | `queue_sheet.dart` |
+| **F7** | `moveInQueueRaw(oldIndex, target)`: `ReorderableListView` отдаёт `target` уже скорректированным по удалению (повторно не вычитаем); порядок списка меняется **синхронным** срезом, нативно — `moveAudioSource(fromLocal, toLocal)` внутри окна, при выходе за окно — `_rebuildPlaylist()`; корректируются `_currentIndex` и shuffle-раунд | `player_provider.dart` |
+| **F7** | `saveQueueAsPlaylist(name)`: очередь → именованный плейлист через `createPlaylist` (дедуп имён B15: повтор имени вернёт существующий id) + кнопка с диалогом имени в шапке очереди | `player_provider.dart`, `queue_sheet.dart` |
+| **N8** | Найдено тестом: **перерисовка очереди ждала нативный ответ** — `_notify` стоял после `await moveAudioSource`, поэтому порядок в UI (и нативный) обновлялся только по возврату платформенного вызова. Теперь состояние публикуется сразу после мутации списка, нативная работа — следом | `player_provider.dart` |
+| **N9** | Найдено тестом: **пока перенос в полёте, `currentIndex`/`currentTrack` указывали на соседний трек** — геттеры читают числовой индекс just_audio, который пересчитывается только по завершении `concatenatingMove`. Добавлен флаг `_queueMoving` (+`_queueMoveSeq`): на время переноса отдаём собственный `_currentIndex` | `player_provider.dart` |
+| **N10** | Найдено тестом: строки очереди вызывали framework-assertion `ListTile background color or ink splashes may be invisible` (ListTile внутри декорированного `Container` без `Material`) → ink-эффекты тапа не рисовались. Обёрнуто в `Material(type: transparency)` | `queue_sheet.dart` |
+| **тесты** | `test/queue_sheet_integration_test.dart` — реальные `PlayerProvider` + `QueueSheet` на заглушке аудио-каналов: (1) жест за ручку меняет очередь в провайдере и в UI; (2) реальный `onReorderItem` двигает нативную очередь (`moves`) **без** перезагрузки (`loads` = 1). Удалён `queue_reorder_test.dart`: он копировал старый контракт `onReorder` вместо вызова кода | `test/` |
 
 ---
 
@@ -139,7 +153,7 @@
 | **F4** | Sleep Timer: fade-out + «до конца трека» / «через N треков» | сейчас резкая пауза | ✅ v124 (fade + до конца трека); «через N треков» — осталось |
 | **F5** | Статистика с графиками (часы пика, дни недели, жанры) | данные уже есть в агрегатах | 1 день |
 | **F6** | EQ/X-Boost: пере-применение при потере аудио-сессии/смене гарнитуры (E1/E2) | пресет молча слетает на Flat | ✅ v122 |
-| **F7** | Очередь: drag&drop + «сохранить как плейлист» + rename снимков | UX | 1 день |
+| **F7** | Очередь: drag&drop + «сохранить как плейлист» + rename снимков | UX | ✅ v130 (drag&drop + плейлист; rename снимков — осталось) |
 | **F8** | Редактирование тегов/обложек (MediaStore.update) | «взрослый» плеер | 2–3 дня |
 | **F9** | Last.fm / ListenBrainz скробблинг | автостатистика + рекомендации | 1 день |
 | **F10** | Android Auto (AAOS) | отдельная причина держать приложение | 3–5 дней |
@@ -182,7 +196,7 @@
 | Тяжёлые вкладки (DNA/Категории) | используют `context.select((p) => p.dataEpoch)` — пересчёт только при смене данных ✅ |
 | `setQueue`/`sortOrder`/`_maybeResume` | инварианты и инвалидации проверены ✅ |
 | Манифест APK vs репо | паритет подтверждён `aapt2` (разрешения + `AudioService foregroundServiceType=mediaPlayback`) ✅ |
-| `flutter analyze` / `flutter test` | чисто / 12 из 12 ✅ |
+| `flutter analyze` / `flutter test` | чисто / 33 из 33 ✅ (v130) |
 
 ---
 

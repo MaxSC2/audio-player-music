@@ -122,6 +122,96 @@ class QueueSheet extends StatelessWidget {
                 },
                 tooltip: 'Сохранить очередь',
               ),
+              // P2: сохранить очередь как именованный плейлист.
+              IconButton(
+                icon: Icon(
+                  Icons.playlist_add_rounded,
+                  color: AppTheme.textSecondary,
+                ),
+                onPressed: () async {
+                  if (queue.isEmpty) return;
+                  final controller = TextEditingController(
+                    text:
+                        'Очередь ${DateTime.now().day.toString().padLeft(2, '0')}.${DateTime.now().month.toString().padLeft(2, '0')}',
+                  );
+                  final name = await showDialog<String>(
+                    context: context,
+                    builder: (dctx) => AlertDialog(
+                      backgroundColor: AppTheme.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(color: AppTheme.cardBorder),
+                      ),
+                      title: Text(
+                        'Очередь → плейлист',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      content: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        style: TextStyle(color: AppTheme.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Название плейлиста',
+                          hintStyle:
+                              TextStyle(color: AppTheme.textMuted),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: AppTheme.cardBorder),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: AppTheme.accent),
+                          ),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dctx),
+                          child: Text(
+                            'Отмена',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.accent,
+                            foregroundColor: Colors.black,
+                          ),
+                          onPressed: () => Navigator.pop(
+                            dctx,
+                            controller.text.trim(),
+                          ),
+                          child: const Text('Сохранить'),
+                        ),
+                      ],
+                    ),
+                  );
+                  controller.dispose();
+                  if (name == null || name.isEmpty || !context.mounted) {
+                    return;
+                  }
+                  final id = await player.saveQueueAsPlaylist(name);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        id == null
+                            ? 'Не удалось сохранить плейлист'
+                            : 'Плейлист «$name» сохранён (${queue.length})',
+                      ),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                tooltip: 'Сохранить как плейлист',
+              ),
               IconButton(
                 icon: Icon(Icons.close_rounded, color: AppTheme.textSecondary),
                 onPressed: () => Navigator.pop(context),
@@ -269,7 +359,7 @@ class QueueSheet extends StatelessWidget {
             Divider(color: AppTheme.cardBorder),
           ],
 
-          // Queue List
+          // Queue List (P2: drag&drop — ручка справа; tap запускает трек)
           if (queue.isEmpty)
             Padding(
               padding: const EdgeInsets.all(32.0),
@@ -280,13 +370,21 @@ class QueueSheet extends StatelessWidget {
             )
           else
             Expanded(
-              child: ListView.builder(
+              child: ReorderableListView.builder(
+                buildDefaultDragHandles: false,
                 itemCount: queue.length,
+                // onReorderItem (актуальный API): newIndex уже скорректирован
+                // под удаление (ReorderableListView сам вычитает сдвиг),
+                // поэтому в moveInQueue НЕ вычитаем повторно.
+                onReorderItem: (oldIndex, newIndex) {
+                  player.moveInQueueRaw(oldIndex, newIndex);
+                },
                 itemBuilder: (context, index) {
                   final track = queue[index];
                   final isCurrent = index == currentIndex;
 
                   return Container(
+                    key: ValueKey('queue_${track.id}_$index'),
                     margin: const EdgeInsets.symmetric(vertical: 3),
                     decoration: BoxDecoration(
                       color: isCurrent
@@ -304,74 +402,95 @@ class QueueSheet extends StatelessWidget {
                             )
                           : null,
                     ),
-                    child: ListTile(
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 2,
-                      ),
-                      leading: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isCurrent
-                              ? AppTheme.accent
-                              : AppTheme.surfaceLight,
-                          borderRadius: BorderRadius.circular(8),
+                          horizontal: 10,
+                          vertical: 2,
                         ),
-                        child: Center(
-                          child: isCurrent
-                              ? AnimatedWaveform(
-                                  isPlaying: playingVisuals,
-                                  barCount: 3,
-                                  height: 16,
-                                  width: 16,
-                                  gradient: const LinearGradient(
-                                    colors: [Colors.white, Colors.white],
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isCurrent
+                                ? AppTheme.accent
+                                : AppTheme.surfaceLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: isCurrent
+                                ? AnimatedWaveform(
+                                    isPlaying: playingVisuals,
+                                    barCount: 3,
+                                    height: 16,
+                                    width: 16,
+                                    gradient: const LinearGradient(
+                                      colors: [Colors.white, Colors.white],
+                                    ),
+                                  )
+                                : Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                )
-                              : Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    color: AppTheme.textMuted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          ),
+                        ),
+                        title: Text(
+                          track.title,
+                          style: TextStyle(
+                            color: isCurrent
+                                ? AppTheme.accentLight
+                                : AppTheme.textPrimary,
+                            fontWeight: isCurrent
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          track.artist,
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              track.formattedDuration,
+                              style: TextStyle(
+                                color: AppTheme.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            // P2: ручка перетаскивания (только она начинает
+                            // drag — tap по строке по-прежнему запускает трек).
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Icon(
+                                  Icons.drag_handle_rounded,
+                                  color: AppTheme.textMuted,
+                                  size: 20,
                                 ),
+                              ),
+                            ),
+                          ],
                         ),
+                        onTap: () {
+                          player.playTrack(track);
+                        },
                       ),
-                      title: Text(
-                        track.title,
-                        style: TextStyle(
-                          color: isCurrent
-                              ? AppTheme.accentLight
-                              : AppTheme.textPrimary,
-                          fontWeight: isCurrent
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        track.artist,
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: Text(
-                        track.formattedDuration,
-                        style: TextStyle(
-                          color: AppTheme.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                      onTap: () {
-                        player.playTrack(track);
-                      },
                     ),
                   );
                 },

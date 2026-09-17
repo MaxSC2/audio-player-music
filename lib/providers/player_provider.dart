@@ -142,6 +142,12 @@ class PlayerProvider extends ChangeNotifier {
   int _lastHistoryTrackId = -1;
   bool _notifCustomActions = true;
   bool _switchingSource = false;
+  // P2 drag&drop: пока идёт нативный перенос источника, числовой индекс
+  // just_audio ещё не пересчитан под новый порядок, поэтому геттеры
+  // currentIndex/currentTrack должны доверять своему _currentIndex —
+  // иначе UI на этот промежуток показывал бы соседний трек.
+  bool _queueMoving = false;
+  int _queueMoveSeq = 0;
 
   // ── Treadmill ──
   // В нативном плеере держим окно ±40 вокруг текущего трека, а не все
@@ -349,19 +355,23 @@ class PlayerProvider extends ChangeNotifier {
   /// (81 трек) UI/мини-плеер/уведомление/виджет показывали трек со смещением
   /// _nativeOffset. Теперь оба геттера переводят индекс так же.
   int get currentIndex {
-    final native = _audioPlayer.currentIndex;
-    if (native != null) {
-      final idx = native + _nativeOffset;
-      if (idx >= 0 && idx < _playlist.length) return idx;
+    if (!_queueMoving) {
+      final native = _audioPlayer.currentIndex;
+      if (native != null) {
+        final idx = native + _nativeOffset;
+        if (idx >= 0 && idx < _playlist.length) return idx;
+      }
     }
     return _currentIndex;
   }
 
   AudioTrack? get currentTrack {
-    final native = _audioPlayer.currentIndex;
-    if (native != null) {
-      final idx = native + _nativeOffset;
-      if (idx >= 0 && idx < _playlist.length) return _playlist[idx];
+    if (!_queueMoving) {
+      final native = _audioPlayer.currentIndex;
+      if (native != null) {
+        final idx = native + _nativeOffset;
+        if (idx >= 0 && idx < _playlist.length) return _playlist[idx];
+      }
     }
     return (_currentIndex >= 0 && _currentIndex < _playlist.length)
         ? _playlist[_currentIndex]
@@ -3542,6 +3552,110 @@ class PlayerProvider extends ChangeNotifier {
     }
     _notify('addManyToQueueNext');
     WidgetService.playerChanged(this);
+  }
+
+  /// Перемещение трека внутри очереди (drag&drop, P2).
+  /// Корректирует текущий индекс, порядок shuffle и нативное окно так,
+  /// чтобы играющий трек не перезапускался и не терялся.
+  ///
+  /// Контракт `onReorderItem` (Flutter ≥3.41): `newIndex` уже скорректирован
+  /// фреймворком под удаление элемента (вычитать повторно НЕ нужно).
+  Future<void> moveInQueueRaw(int oldIndex, int target) async {
+    if (oldIndex < 0 || oldIndex >= _playlist.length) return;
+    if (target < 0 || target >= _playlist.length) return;
+    if (oldIndex == target) return;
+    final wasCurrent = oldIndex == _currentIndex;
+    final reordered = List<AudioTrack>.of(_playlist);
+    final track = reordered.removeAt(oldIndex);
+    reordered.insert(target, track);
+    _playlist = reordered;
+    await _afterQueueMove(oldIndex, target, wasCurrent);
+  }
+
+  /// Общая пост-обработка перемещения: текущий индекс, shuffle-раунд,
+  /// нативное окно, persist + notify.
+  Future<void> _afterQueueMove(
+    int oldIndex,
+    int target,
+    bool wasCurrent,
+  ) async {
+    // Текущий индекс следует за играющим треком.
+    if (wasCurrent) {
+      _currentIndex = target;
+    } else if (oldIndex < _currentIndex && target >= _currentIndex) {
+      _currentIndex -= 1;
+    } else if (oldIndex > _currentIndex && target <= _currentIndex) {
+      _currentIndex += 1;
+    }
+
+    // Shuffle-раунд: выкидываем старую позицию и вставляем новую,
+    // курсор сохраняем на том же элементе раунда.
+    if (_shuffleMode && _shuffleOrder.isNotEmpty) {
+      final pos = _shuffleOrder.indexOf(oldIndex);
+      final curPos = _shufflePos;
+      final without = _shuffleOrder.where((i) => i != oldIndex).map((i) {
+        var v = i;
+        if (oldIndex < i) v -= 1;
+        return v;
+      }).toList();
+      final mapped = without.map((i) => i >= target ? i + 1 : i).toList();
+      final insertPos = pos >= 0 ? pos.clamp(0, mapped.length) : mapped.length;
+      mapped.insert(insertPos, target);
+      _shuffleOrder = mapped;
+      _shufflePos = curPos.clamp(0, mapped.isEmpty ? 0 : mapped.length - 1);
+    }
+
+    // Список уже переставлен и индекс скорректирован — состояние для UI
+    // публикуем СРАЗУ, не дожидаясь нативного ответа: иначе перерисовка
+    // очереди зависела бы от скорости платформенного вызова (заметный лаг).
+    _queueMoving = true;
+    final moveSeq = ++_queueMoveSeq;
+    _persistQueueSnapshot();
+    _notify('moveInQueue');
+    WidgetService.playerChanged(this);
+
+    // Нативное окно: точечно двигаем источник вместо полной пересборки.
+    _switchingSource = true;
+    try {
+      final fromLocal = oldIndex - _nativeOffset;
+      final toLocal = target - _nativeOffset;
+      final fromIn = fromLocal >= 0 && fromLocal < _nativeLength;
+      final toIn = toLocal >= 0 && toLocal < _nativeLength;
+      if (fromIn && toIn) {
+        await _audioPlayer.moveAudioSource(fromLocal, toLocal);
+        _lastEventIndex = _currentIndex;
+      } else {
+        // Перемещение через границу окна — дешевле пересобрать,
+        // позиция играющего трека сохраняется через seek в _rebuildPlaylist.
+        await _rebuildPlaylist();
+      }
+      _audioHandler?.setQueue(_playlist);
+    } catch (_) {
+      await _rebuildPlaylist();
+    } finally {
+      _lastEventIndex = _currentIndex;
+      _switchingSource = false;
+      // Нативная очередь и её индекс снова согласованы — возвращаемся
+      // к обычному источнику истины (индексу just_audio). Сбрасываем только
+      // если за время переноса не стартовало более новое перетаскивание.
+      if (moveSeq == _queueMoveSeq) _queueMoving = false;
+    }
+  }
+
+  /// Сохранить текущую очередь как именованный плейлист (P2).
+  /// Возвращает id плейлиста (новый или существующий при дедупе имён).
+  Future<String?> saveQueueAsPlaylist(String name) async {
+    if (_playlist.isEmpty) return null;
+    final id = await createPlaylist(name);
+    if (id == null) return null;
+    final idx = _playlists.indexWhere((p) => p.id == id);
+    if (idx < 0) return null;
+    _playlists[idx] = _playlists[idx].copyWith(
+      trackIds: _playlist.map((t) => t.id).toList(),
+    );
+    await _savePlaylists();
+    _notify('saveQueueAsPlaylist');
+    return id;
   }
 
   Future<void> removeFromQueue(int index) async {
