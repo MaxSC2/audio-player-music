@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/audio_track.dart';
+import '../../models/display_names.dart';
 import '../../providers/player_provider.dart';
 import '../../screens/artist_detail_screen.dart';
 import '../../widgets/cached_artwork.dart';
@@ -219,8 +220,12 @@ class _AlbumsGrid extends StatelessWidget {
         entries.sort((a, b) => plays(b.tracks).compareTo(plays(a.tracks)));
         break;
       case 3:
+        // A–Z: сравниваем человеко-читаемые имена, чтобы файловый мусор
+        // ([…], №, кавычки) не собирал треть коллекции в начало списка.
         entries.sort(
-          (a, b) => a.album.toLowerCase().compareTo(b.album.toLowerCase()),
+          (a, b) => DisplayNames.album(a.album)
+              .toLowerCase()
+              .compareTo(DisplayNames.album(b.album).toLowerCase()),
         );
         break;
     }
@@ -319,7 +324,9 @@ class _CollectionAlbumCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      album,
+                      // Коллекция: грязные теги в читаемый вид,
+                      // <unknown> → подпись.
+                      DisplayNames.album(album),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -329,9 +336,8 @@ class _CollectionAlbumCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      artist.isEmpty
-                          ? '${tracks.length}'
-                          : '$artist • ${tracks.length}',
+                      // «DMX • 2» → «DMX • 2 трека»: имя + счётчик со склонением.
+                      '${DisplayNames.artist(artist)} • ${DisplayNames.tracks(tracks.length)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -584,7 +590,7 @@ class _DarkArtistRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '$albumCount • ${tracks.length}',
+                    '${DisplayNames.albums(albumCount)} • ${DisplayNames.tracks(tracks.length)}',
                     style: const TextStyle(
                       color: CinematicTheme.textDim,
                       fontSize: 11,

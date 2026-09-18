@@ -86,7 +86,7 @@ class QueueSheet extends StatelessWidget {
                 icon: Icon(Icons.pin_rounded, color: AppTheme.textSecondary),
                 onPressed: () {
                   if (queue.isEmpty) return;
-                  showModalBottomSheet(
+                  showModalBottomSheet<int>(
                     context: context,
                     backgroundColor: AppTheme.surface,
                     isScrollControlled: true,
@@ -96,7 +96,14 @@ class QueueSheet extends StatelessWidget {
                       ),
                     ),
                     builder: (_) => const NumpadSheet(),
-                  );
+                  ).then((picked) {
+                    // B11: очередь закрывает себя сама, когда переход выполнен.
+                    // Раньше NumpadSheet делал два `pop()` вслепую и закрывал
+                    // бы любой чужой маршрут, если его откроют иначе.
+                    if (picked != null && context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  });
                 },
                 tooltip: 'Перейти к треку по номеру',
               ),

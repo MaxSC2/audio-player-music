@@ -1002,6 +1002,27 @@ class PlayerProvider extends ChangeNotifier {
     _notify('renamePlaylist');
   }
 
+  /// Создать плейлист с именем и сразу добавить треки (вариант A):
+  /// возвращает id (дедуп имён — B15), пустые треки игнорируются.
+  Future<String?> createPlaylistWithTracks(
+    String name,
+    List<AudioTrack> tracks,
+  ) async {
+    final id = await createPlaylist(name);
+    if (id == null) return null;
+    final index = _playlists.indexWhere((p) => p.id == id);
+    if (index < 0) return null;
+    final seen = _playlists[index].trackIds.toSet();
+    final merged = List<int>.of(_playlists[index].trackIds);
+    for (final t in tracks) {
+      if (seen.add(t.id)) merged.add(t.id);
+    }
+    _playlists[index] = _playlists[index].copyWith(trackIds: merged);
+    await _savePlaylists();
+    _notify('createPlaylistWithTracks');
+    return id;
+  }
+
   Future<void> addToPlaylist(String playlistId, AudioTrack track) async {
     final index = _playlists.indexWhere((p) => p.id == playlistId);
     if (index < 0) return;

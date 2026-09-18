@@ -27,20 +27,30 @@ class _NumpadSheetState extends State<NumpadSheet> {
   void _submit(PlayerProvider player) {
     final n = int.tryParse(_input);
     final queueLen = player.playlist.length;
-    if (n == null || n < 1) return;
+    if (n == null || n < 1) {
+      // B11: раньше кнопка молча ничего не делала (пусто/«0»/ведущие нули) —
+      // теперь пользователь понимает, почему перехода нет.
+      _hint('Введите номер от 1 до $queueLen');
+      return;
+    }
     if (n > queueLen) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('В очереди только $queueLen треков'),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _hint('В очереди только $queueLen треков');
       return;
     }
     player.playAt(n - 1);
-    Navigator.of(context).pop();
-    Navigator.of(context).pop();
+    // B11: сообщаем выбор наружу (индекс трека) вместо двойного `pop()`
+    // вслепую — закрытием очереди занимается вызывающая сторона.
+    Navigator.of(context).pop(n - 1);
+  }
+
+  void _hint(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
