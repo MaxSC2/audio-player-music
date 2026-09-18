@@ -77,6 +77,21 @@
 | **N10** | Найдено тестом: строки очереди вызывали framework-assertion `ListTile background color or ink splashes may be invisible` (ListTile внутри декорированного `Container` без `Material`) → ink-эффекты тапа не рисовались. Обёрнуто в `Material(type: transparency)` | `queue_sheet.dart` |
 | **тесты** | `test/queue_sheet_integration_test.dart` — реальные `PlayerProvider` + `QueueSheet` на заглушке аудио-каналов: (1) жест за ручку меняет очередь в провайдере и в UI; (2) реальный `onReorderItem` двигает нативную очередь (`moves`) **без** перезагрузки (`loads` = 1). Удалён `queue_reorder_test.dart`: он копировал старый контракт `onReorder` вместо вызова кода | `test/` |
 
+### Проверено кодом (v130) — закрыто попутно, из реестра перенесено
+
+| ID | Что проверено | Файл |
+|---|---|---|
+| **B3** | Удаление **не текущего** трека идёт без пересборки окна: `removeAudioSourceAt(local)` + `_nativeLength -= 1` + `setQueue`; за границей окна — фолбэк на `_rebuildPlaylist()` | `player_provider.dart` |
+| **B6** | Свайп «В очередь» с `await` + `try/catch` → snackbar «Не удалось добавить в очередь» (не fire-and-forget) | `library_tabs.dart` |
+| **B7** | `SeekSlider.onChangeEnd` сразу фиксирует `_displayPos` — микро-отскока ползунка нет | `seek_slider.dart` |
+| **B13** | `AudioTrack.copyWith` умеет сбрасывать nullable-поля через `AudioTrack.unset` и `_sentinel` | `models/audio_track.dart` |
+| **B14** | `_loadFavorites` пропускает непарсящиеся записи (`int.tryParse` + `whereType<int>`) — id=0 в избранное больше не попадает | `player_provider.dart` |
+| **B15** | `renameQueueSnapshot(old, new)` (уникальность имён: занятое имя вытесняет старого владельца) + UI переименования в очереди | `player_provider.dart`, `queue_sheet.dart` |
+| **B16** | Контроллеры диалогов «по ссылке» и «текст/имя» диспозятся в `.then((_) => …dispose())` | `settings_screen.dart` |
+| **B18** | `playlist!` убран — в колбэке меню локальная non-null переменная | `screens/playlist_detail_screen.dart` |
+| **B20** | `DateTime.now()` в build-путях заменён кэшем `_today` на уровне State; оставшийся вызов — в обработчике выбора даты | `library_tabs.dart`, `music_dna_tab.dart` |
+| **B12** | `SwipeAction.tooltip` больше не мёртвое поле: иконка действия обёрнута в `Tooltip` (long-press подсказка + семантика) | `swipe_reveal.dart` |
+
 ---
 
 ## 2. Открытые баги
@@ -90,8 +105,6 @@
 |---|---|---|---|
 | **B1** | **Shuffle — не shuffle.** Трек может сыграть дважды, пока не сыграют все; модульное смещение | `_playRandom()`: `index = microsecondsSinceEpoch % _playlist.length`, защита только от немедленного повтора | При включении shuffle — копия пула + Knuth shuffle, идти по ней; при исчерпании новый раунд |
 | **B2** | **Repeat-one: слышен хвост следующего трека** (~200–800 мс) | `_handleIndexEvent` ловит автопереход и делает `seek(0, index: back)` уже после старта следующего | Нативный `setLoopMode(LoopMode.one)`; ручной путь — фолбэк |
-| **B3** | **Удаление трека из очереди пересобирает окно** (`setAudioSources` + `seek`) → возможен разрыв/перезапуск | `removeFromQueue()` → `_rebuildPlaylist()` | Для не-текущего индекса: `removeAudioSourceAt(index - _nativeOffset)` + `_nativeLength -= 1` + `setQueue` (симметрично N0/N1) |
-| **B4** | **Визуализатор не останавливается**: после ухода с экрана `EventChannel` + нативный `Visualizer` живут (микрофон/батарея). Плюс `_requested` — односторонняя защёлка | `AudioVisualizer.stop()` есть, но **не вызывается нигде** | Звать `stop()` в `dispose()` потребителей (`live_equalizer`, cinematic body); сбрасывать `_requested` при отказе в разрешении |
 | **B5** | **Оптимистичный индекс при сбое `playAt`**: `_currentIndex`/`_lastHistoryTrackId` пишутся до старта; если запрос прерван — UI показывает трек, который не играет | `playAt()` — запись вне `try` | Применять оптимистичный индекс только под `if (req == _playReqSeq)` |
 
 **✅ Пакет v122 закрыл B1, B2, B4 (переведены в раздел 1).**
@@ -100,26 +113,17 @@
 
 | ID | Симптом | Причина / где | Как фиксить |
 |---|---|---|---|
-| **B6** | Свайп «В очередь» — fire-and-forget: ошибка вставки не видна | `library_tabs.dart:459` без `await` | `await` + `try/catch` → snackbar |
-| **B7** | Ползунок после отпускания на миг отскакивает к старой позиции | `SeekSlider._displayPos` обновляется только следующим тиком | В `onChangeEnd` сразу выставить `_displayPos = target` |
 | **B8** | ✅ v125: дубли drag-логики перемотки устранены — cinematic/cover-flow NP + cover-flow home переведены на единый `SeekSlider` (−270 строк дублей) | `cinematic_player_body.dart:1171`, `cover_flow_now_playing_screen.dart:230`, `cover_flow_home_screen.dart:313` | — |
 | **B9** / ⬜ | `setQueue` отправляет **все** MediaItem очереди (при 6k — тысячи объектов на каждую смену/вставку) | `audio_handler.setQueue()` | Дизайн фикса: окно ±N вокруг текущего + `_queueWindowStart`; `queueIndex` считать относительно окна; `skipToQueueItem(i)` → `onPlayAt(i + windowStart)`. Требует переработки `audio_handler` — риск для шторки/локскрина, делать отдельным пакетом |
 | **B10** | ✅ v123: поиск с debounce 200 мс (`Timer` + cancel в `dispose`/clear) | `library_tabs.dart` | — |
 | **B11** | `NumpadSheet`: проверить UX ввода (0/ведущие нули, закрытие при успехе) | `lib/widgets/numpad_sheet.dart` | Ручной прогон ⏳ |
-| **B12** | Мёртвый код: `_close()`/`_toggleClose()` дублируются; `SwipeAction.tooltip` не используется | `swipe_reveal.dart` | Убрать дубль, обернуть в `Tooltip` |
 
 ### 🟢 Низкие
 
 | ID | Симптом | Где |
 |---|---|---|
-| **B13** | `AudioTrack.copyWith` не умеет сбрасывать nullable-поля в `null` | `lib/models/audio_track.dart` |
-| **B14** | `_loadFavorites`: битые записи → id=0 (мусор в избранном) | `player_provider.dart` |
-| **B15** | `QueueSnapshot` идентифицируется по имени: сохранение с тем же именем перезаписывает, rename нет | `saveQueueSnapshot` |
-| **B16** | Контроллеры в диалогах `settings_screen` — проверить `dispose()` | `settings_screen.dart:958–1053` ⏳ |
 | **B17** | Диагностический каркас в прод-коде: 4 kill-switch + `DebugLog.rebuild` в 18 `build()` | `debug_log.dart` + экраны |
-| **B18** | `playlist!` в колбэке меню (теоретический NPE) | `playlist_detail_screen.dart:100` |
 | **B19** | ✅ v125: `didUpdateWidget` — пере-подписка на positionTick при смене `player` | `lib/widgets/seek_slider.dart:77-86` |
-| **B20** | `DateTime.now()` в «сегодня/эта неделя»-вычислениях, вызываемых из `build` → пересчёт на каждый rebuild | `library_tabs.dart:1404,1549,1639`, `music_dna_tab.dart:425` |
 | **B21** | `settings_screen.dart` — 1936 строк в одном файле (то же, что F13 для провайдера) | `lib/features/settings/settings_screen.dart` |
 | **B22** | История/избранное читаются единым `String` из prefs; при росте истории вынести тяжёлый стейт в отдельный файл | `player_provider.dart` |
 | **B23** | Автопереход внутри окна идёт мимо `next()`; ложный skip для треков <25 c из `_onTrackComplete` | ✅ v123 (`next(userInitiated: false)`) |

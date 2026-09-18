@@ -4,6 +4,10 @@ import '../models/audio_track.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 
+// ─── ФАЗА 2 (вариант A): выбор треков для нового плейлиста ─────────────
+// Отдельный шит: поиск + «выбрать показанные/очистить» + счётчик.
+part 'track_pick_sheet.dart';
+
 class PlaylistPickerSheet extends StatelessWidget {
   final AudioTrack track;
 
@@ -72,23 +76,135 @@ class PlaylistPickerSheet extends StatelessWidget {
       return;
     }
 
-    final player = context.read<PlayerProvider>();
-    // createPlaylist возвращает id — не завязываемся на playlists.last.
-    final created = await player.createPlaylist(name);
-    if (created != null) {
-      await player.addToPlaylist(created, track);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    // ФАЗА 2 (вариант A): сначала выбираем треки (начальный уже отмечен),
+    // затем создаём плейлист с именем и составом одним вызовом.
+    final picked = await TrackPickSheet.show(context, initial: [track]);
+    if (!context.mounted) {
+      controller.dispose();
+      return;
     }
+    if (picked == null) {
+      // Отмена выбора — возвращаемся в пикер, плейлист не создаём.
+      controller.dispose();
+      return;
+    }
+
+    final player = context.read<PlayerProvider>();
+    final byId = <int, AudioTrack>{
+      for (final t in player.visibleTracks) t.id: t,
+      track.id: track,
+    };
+    final tracks = <AudioTrack>[
+      for (final id in picked)
+        if (byId[id] != null) byId[id]!,
+    ];
+        // createPlaylistWithTracks возвращает id — не завязываемся на
+    // playlists.last; дедуп имён — B15, дедуп треков — внутри метода.
+        final created =
+        await player.createPlaylistWithTracks(name, tracks);
     controller.dispose();
 
     if (context.mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      navigator.pop();
+      messenger.showSnackBar(
         SnackBar(
-          content: Text('Добавлено в плейлист "$name"'),
+          content: Text(
+            created == null
+                ? 'Не удалось создать плейлист'
+                : 'Плейлист «$name»: ${tracks.length}',
+          ),
           duration: const Duration(seconds: 1),
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  /// ФАЗА 2 (вариант A): создание плейлиста сразу с выбранными треками.
+  /// Кнопка под списком пикеров (начальный трек не навязываем).
+  Future<void> _createPlaylistWithTracks(BuildContext context) async {
+    final controller = TextEditingController();
+    try {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: AppTheme.cardBorder),
+          ),
+          title: Text(
+            'Новый плейлист',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: TextStyle(color: AppTheme.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Название плейлиста',
+              hintStyle: TextStyle(color: AppTheme.textMuted),
+              filled: true,
+              fillColor: AppTheme.surfaceLight,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Отмена',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: Text(
+                'Далее',
+                style: TextStyle(
+                  color: AppTheme.accentLight,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (name == null || name.isEmpty || !context.mounted) return;
+      final picked = await TrackPickSheet.show(context);
+      if (picked == null || !context.mounted) return;
+      final player = context.read<PlayerProvider>();
+      final byId = <int, AudioTrack>{
+        for (final t in player.visibleTracks) t.id: t,
+      };
+      final tracks = <AudioTrack>[
+        for (final id in picked)
+          if (byId[id] != null) byId[id]!,
+      ];
+      final created = await player.createPlaylistWithTracks(name, tracks);
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            created == null
+                ? 'Не удалось создать плейлист'
+                : 'Плейлист «$name»: ${tracks.length}',
+          ),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      controller.dispose();
     }
   }
 
@@ -246,6 +362,20 @@ class PlaylistPickerSheet extends StatelessWidget {
               ),
               icon: const Icon(Icons.add_rounded),
               label: const Text('Создать новый плейлист'),
+            ),
+            // ФАЗА 2 (вариант A): выбор треков для нового плейлиста —
+            // имя спрашиваем здесь, треки отмечаем в TrackPickSheet.
+            TextButton.icon(
+              onPressed: () => _createPlaylistWithTracks(context),
+              icon: Icon(
+                Icons.checklist_rounded,
+                color: AppTheme.accentLight,
+                size: 18,
+              ),
+              label: Text(
+                'Новый плейлист с выбором треков',
+                style: TextStyle(color: AppTheme.accentLight),
+              ),
             ),
           ],
         ),

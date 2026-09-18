@@ -273,7 +273,13 @@ class _ActionButton extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(action.icon, color: iconColor, size: 20),
+            // B12: поле `tooltip` раньше нигде не использовалось (в нём лежал
+            // текст действия). Теперь это настоящая подсказка по long-press
+            // и семантика для accessibility.
+            Tooltip(
+              message: action.tooltip,
+              child: Icon(action.icon, color: iconColor, size: 20),
+            ),
             const SizedBox(height: 3),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
