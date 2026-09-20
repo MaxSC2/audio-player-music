@@ -29,6 +29,23 @@ double calculateEffectiveVolume(double userVolume, double trackFix) {
 /// Rec 4 (pure helpers): сортировка — чистая функция без состояния провайдера.
 /// Вынесена на верхнем уровне, чтобы можно было тестировать без binding
 /// и переиспользовать вне провайдера.
+/// History is stored newest-first (index 0 = most recently played).
+/// Returns the newest history index for an id from a single pass.
+int latestHistoryIndex(
+  List<Map<String, int>> history,
+  int trackId,
+) {
+  for (var i = 0; i < history.length; i++) {
+    if (history[i]['id'] == trackId) return i;
+  }
+  return -1;
+}
+
+/// Converts a newest-first history index to the number of played entries since
+/// that track. Index 0 means it was the most recent entry.
+int historyDistanceFromNewest(int historyIndex) =>
+    historyIndex < 0 ? -1 : historyIndex;
+
 List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
   final list = List<AudioTrack>.from(tracks);
   switch (order) {
@@ -2381,13 +2398,12 @@ class PlayerProvider extends ChangeNotifier {
 
     var affinity = 0.0;
     var genreAffinity = 0.0;
-    var lastSeen = -1;
+    final lastSeen = latestHistoryIndex(_historyRaw, t.id);
     final byId = _tracksById;
     final targetGenre = primaryGenre(t);
     for (var i = 0; i < n; i++) {
       final id = _historyRaw[i]['id'];
       if (id == null) continue;
-      if (id == t.id) lastSeen = i;
       final historyTrack = byId[id];
       final artist = historyTrack?.artist;
       if (artist == null) continue;
@@ -2407,8 +2423,8 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     if (lastSeen >= 0) {
-      final since = n - 1 - lastSeen;
-      if (since < 10) {
+      final since = historyDistanceFromNewest(lastSeen);
+      if (since >= 0 && since < 10) {
         out['Играл недавно'] = -45 * math.exp(-since / 2.2);
       }
     }
@@ -2510,7 +2526,8 @@ class PlayerProvider extends ChangeNotifier {
     for (var i = 0; i < n; i++) {
       final id = _historyRaw[i]['id'];
       if (id == null) continue;
-      lastSeen[id] = i;
+      // History is newest-first; keep the FIRST occurrence as the latest play.
+      lastSeen.putIfAbsent(id, () => i);
       final ht = byId[id];
       if (ht == null) continue;
       final age = i; // 0 = самый свежий
@@ -2576,8 +2593,8 @@ class PlayerProvider extends ChangeNotifier {
 
         final lastI = lastSeen[t.id];
         if (lastI != null) {
-          final since = n - 1 - lastI; // сколько треков назад играл
-          if (since < 10) {
+          final since = historyDistanceFromNewest(lastI);
+          if (since >= 0 && since < 10) {
             score -= 45 * math.exp(-since / 2.2);
           }
         }
