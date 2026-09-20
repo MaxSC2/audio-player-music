@@ -375,12 +375,16 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     });
 
     player.currentIndexStream.listen((nativeIndex) {
-      // Нативный индекс относится к окну treadmill — переводим в провайдерный
-      // (очередь _queueTracks полная).
-      final index =
+      // Native index is local to the bounded MediaSession queue. The provider
+      // index is still computed for diagnostics/translation semantics, but
+      // MediaItem lookup must use the local window index.
+      final providerIndex =
           nativeIndex == null ? null : translateIndex(nativeIndex);
-      if (index != null && index >= 0 && index < _queueTracks.length) {
-        final track = _queueTracks[index];
+      if (providerIndex != null &&
+          nativeIndex != null &&
+          nativeIndex >= 0 &&
+          nativeIndex < _queueTracks.length) {
+        final track = _queueTracks[nativeIndex];
         mediaItem.add(_toMediaItem(track));
         unawaited(_attachArt(track));
       }
