@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 
@@ -80,6 +81,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   int _queueProviderOffset = 0;
   final OnAudioQuery _audioQuery = OnAudioQuery();
   final Map<int, String> _artPaths = {};
+  final Map<String, BehaviorSubject<Map<String, dynamic>>> _browseSubjects = {};
 
   PlayerAudioHandler(
     this.player, {
@@ -428,6 +430,20 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
+      (_browseSubjects[parentMediaId] ??=
+              BehaviorSubject<Map<String, dynamic>>.seeded(const {}))
+          .stream;
+
+  /// Notifies Android Auto/browser clients that the library tree has changed.
+  /// Clients subscribed to a parent should call getChildren again.
+  void notifyBrowseChanged() {
+    for (final subject in _browseSubjects.values) {
+      if (!subject.isClosed) subject.add(const {});
+    }
+  }
+
+  @override
   Future<MediaItem?> getMediaItem(String mediaId) async {
     await ensureLibraryLoaded();
     if (!mediaId.startsWith('neonwave:track:')) return null;
@@ -464,6 +480,15 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> playMediaItem(MediaItem mediaItem) =>
       playFromMediaId(mediaItem.id);
+
+  @override
+  Future<void> onTaskRemoved() async {
+    for (final subject in _browseSubjects.values) {
+      await subject.close();
+    }
+    _browseSubjects.clear();
+    await super.onTaskRemoved();
+  }
 
   @override
   Future<void> stop() async {
