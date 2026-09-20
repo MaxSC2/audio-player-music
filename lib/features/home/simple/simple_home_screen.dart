@@ -16,7 +16,9 @@ class SimpleHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('SimpleHome');
-    final player = context.watch<PlayerProvider>();
+    final libraryCount = context.select<PlayerProvider, int>(
+      (player) => player.allTracks.length,
+    );
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -37,11 +39,11 @@ class SimpleHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            if (player.allTracks.isNotEmpty)
+            if (libraryCount > 0)
               Padding(
                 padding: const EdgeInsets.only(left: 10),
                 child: Text(
-                  '${player.allTracks.length}',
+                  '$libraryCount',
                   style: TextStyle(
                     color: AppTheme.textMuted,
                     fontSize: 13,
