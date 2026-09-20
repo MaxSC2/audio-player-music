@@ -543,6 +543,10 @@ class PlayerProvider extends ChangeNotifier {
     handler.setRepeatState(_repeatMode.index);
     final track = currentTrack;
     if (track != null) handler.setFavoriteState(isFavorite(track.id));
+    // The MediaSession may attach after the initial native window has been
+    // materialized. Publish the current bounded window immediately so the
+    // lockscreen/notification starts from a consistent queue.
+    _syncAudioHandlerQueue();
     _notify('attachAudioHandler');
   }
 
