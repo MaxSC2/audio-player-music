@@ -22,6 +22,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   bool _shuffleOn = false;
   bool _favoriteOn = false;
   int _repeat = 0;
+  int _queueProviderOffset = 0;
   final OnAudioQuery _audioQuery = OnAudioQuery();
   final Map<int, String> _artPaths = {};
 
@@ -275,12 +276,29 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> skipToPrevious() => onPrevious();
 
   @override
-  Future<void> skipToQueueItem(int index) => onPlayAt(index);
+  Future<void> skipToQueueItem(int index) {
+    if (index < 0 || index >= _queueTracks.length) return Future.value();
+    return onPlayAt(_queueProviderOffset + index);
+  }
 
   @override
   Future<void> stop() async {
     await player.stop();
     await super.stop();
+  }
+
+  /// Publishes only the materialized just_audio window to the system
+  /// MediaSession. [providerOffset] maps local MediaSession queue indices to
+  /// the provider's full playlist indices.
+  void setQueueWindow(List<AudioTrack> tracks, int providerOffset) {
+    _queueTracks = List.of(tracks);
+    _queueProviderOffset = providerOffset;
+    queue.add(_queueTracks.map(_toMediaItem).toList(growable: false));
+    final nativeIdx = player.currentIndex;
+    final mediaQueueIndex = nativeIdx == null
+        ? null
+        : (nativeIdx >= 0 && nativeIdx < _queueTracks.length ? nativeIdx : null);
+    playbackState.add(_state.copyWith(queueIndex: mediaQueueIndex));
   }
 
   void setQueue(List<AudioTrack> tracks) {
@@ -289,8 +307,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     final nativeIdx = player.currentIndex;
     playbackState.add(
       _state.copyWith(
-        queueIndex:
-            nativeIdx == null ? null : translateIndex(nativeIdx),
+        queueIndex: nativeIdx == null
+            ? null
+            : (nativeIdx >= 0 && nativeIdx < _queueTracks.length
+                ? nativeIdx
+                : null),
       ),
     );
   }
@@ -330,7 +351,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
             : AudioServiceShuffleMode.none,
         queueIndex: player.currentIndex == null
             ? null
-            : translateIndex(player.currentIndex!),
+            : (player.currentIndex! >= 0 &&
+                    player.currentIndex! < _queueTracks.length
+                ? player.currentIndex
+                : null),
       );
       _log(
         'PUBLISH playing=$playing processing=${state.processingState} '
@@ -352,7 +376,12 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         mediaItem.add(_toMediaItem(track));
         unawaited(_attachArt(track));
       }
-      playbackState.add(_state.copyWith(queueIndex: index));
+      final mediaQueueIndex = nativeIndex == null
+          ? null
+          : (nativeIndex >= 0 && nativeIndex < _queueTracks.length
+              ? nativeIndex
+              : null);
+      playbackState.add(_state.copyWith(queueIndex: mediaQueueIndex));
     });
   }
 
