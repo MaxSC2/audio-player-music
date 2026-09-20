@@ -2322,6 +2322,11 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Explain Recommendation ────────────────────────────────────────
+    result.sort((a, b) => a.time.compareTo(b.time));
+    return result;
+  }
+
+  // ─── Explain Recommendation ────────────────────────────────────────
   Map<String, double> trackScoreBreakdown(AudioTrack t) {
     final out = <String, double>{};
 
@@ -2341,7 +2346,7 @@ class PlayerProvider extends ChangeNotifier {
     final favSet = _favoriteIds.toSet();
 
     if (favSet.contains(t.id)) {
-      out['Избранное'] = 45 * favWeight;
+      out['Избранное'] = 45 * favWeight + 8;
     }
 
     if (t.artist == currentTrack?.artist) {
@@ -2349,20 +2354,30 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     var affinity = 0.0;
+    var genreAffinity = 0.0;
     var lastSeen = -1;
     final byId = _tracksById;
+    final targetGenre = primaryGenre(t);
     for (var i = 0; i < n; i++) {
       final id = _historyRaw[i]['id'];
       if (id == null) continue;
       if (id == t.id) lastSeen = i;
-      final artist = byId[id]?.artist;
+      final historyTrack = byId[id];
+      final artist = historyTrack?.artist;
       if (artist == null) continue;
+      final weight = math.pow(0.88, i).toDouble();
       if (artist == t.artist) {
-        affinity += math.pow(0.88, i).toDouble();
+        affinity += weight;
+      }
+      if (primaryGenre(historyTrack!) == targetGenre) {
+        genreAffinity += weight;
       }
     }
     if (affinity > 0) {
       out['Любимый исполнитель'] = math.min(16.0, affinity) * 1.3;
+    }
+    if (genreAffinity > 0) {
+      out['Любимый жанр'] = math.min(12.0, genreAffinity) * 1.1;
     }
 
     if (lastSeen >= 0) {
@@ -2381,6 +2396,21 @@ class PlayerProvider extends ChangeNotifier {
         t.album == currentTrack!.album &&
         t.id != currentTrack!.id) {
       out['С альбома текущего'] = 10;
+    }
+
+    var categoryBoost = 0.0;
+    for (final c in categoriesForTrack(t)) {
+      if (activeCtx.contains(c)) {
+        final w = _categoryWeights[c] ?? 1.0;
+        if (w > categoryBoost) categoryBoost = w;
+      }
+    }
+    if (categoryBoost > 0) {
+      out['Под текущий контекст'] = 4 + categoryBoost * 5;
+    }
+
+    if (t.id == currentTrack?.id) {
+      out['Текущий трек'] = -50;
     }
 
     var playCount = 0;
@@ -2503,6 +2533,92 @@ class PlayerProvider extends ChangeNotifier {
 
         final affinity = artistAffinity[t.artist] ?? 0;
         score += math.min(16.0, affinity) * 1.3;
+  // ─── Personal DJ / Smart Queue ─────────────────────────────────────
+  List<AudioTrack> buildSmartQueue({
+    int count = 60,
+    Set<ListeningContext>? contexts,
+    DiscoveryLevel? discovery,
+    bool? deepCuts,
+    Set<int>? exclude,
+  }) {
+    _expireNotNow();
+    final activeCtx = contexts ?? _activeContexts;
+    final useDeepCuts = deepCuts ?? _deepCuts;
+    final pool = visibleTracks
+        .where((t) => !isNotNow(t.id))
+        .where((t) => exclude == null || !exclude.contains(t.id))
+        .toList();
+    if (pool.isEmpty) return const [];
+
+    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
+    final playCount = <int, int>{};
+    final artistPlayCount = <String, int>{};
+    for (final e in _historyRaw) {
+      final id = e['id'];
+      if (id == null) continue;
+      playCount[id] = (playCount[id] ?? 0) + 1;
+      final ht = byId[id];
+      if (ht != null) {
+        artistPlayCount[ht.artist] = (artistPlayCount[ht.artist] ?? 0) + 1;
+      }
+    }
+
+    final n = _historyRaw.length;
+    final lastSeen = <int, int>{};
+    final artistAffinity = <String, double>{};
+    final genreAffinity = <String, double>{};
+    for (var i = 0; i < n; i++) {
+      final id = _historyRaw[i]['id'];
+      if (id == null) continue;
+      lastSeen[id] = i;
+      final ht = byId[id];
+      if (ht == null) continue;
+      final age = i; // 0 = самый свежий
+      final w = math.pow(0.88, age).toDouble();
+      artistAffinity[ht.artist] = (artistAffinity[ht.artist] ?? 0) + w;
+      final hg = primaryGenre(ht);
+      genreAffinity[hg] = (genreAffinity[hg] ?? 0) + w;
+    }
+
+    final currentArtist = currentTrack?.artist;
+    final favSet = _favoriteIds.toSet();
+    final queue = <AudioTrack>[];
+    final used = <int>{};
+    final usedArtistCount = <String, int>{};
+    int seed = DateTime.now().millisecondsSinceEpoch;
+
+    final hasEnergy = activeCtx.any(
+      (c) => c == ListeningContext.energy || c == ListeningContext.party,
+    );
+    final hasCalm = activeCtx.any(
+      (c) => c == ListeningContext.calm || c == ListeningContext.focus,
+    );
+    double favWeight = 1.0;
+    for (final c in activeCtx) {
+      final w = _categoryWeights[c] ?? 1.0;
+      if (w > favWeight) favWeight = w;
+    }
+
+    final discoveryF = (discovery ?? _discoveryLevel).factor;
+
+    int nextRand() {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed;
+    }
+
+    while (queue.length < count && used.length < pool.length) {
+      AudioTrack? best;
+      double bestScore = -1e9;
+
+      for (final t in pool) {
+        if (used.contains(t.id)) continue;
+
+        double score = 0;
+        if (favSet.contains(t.id)) score += 45 * favWeight;
+        if (t.artist == currentArtist) score += 18;
+
+        final affinity = artistAffinity[t.artist] ?? 0;
+        score += math.min(16.0, affinity) * 1.3;
 
         // Аффинность жанра: что слушал — то и подмешиваем
         final tg = primaryGenre(t);
@@ -2536,8 +2652,6 @@ class PlayerProvider extends ChangeNotifier {
             t.album == currentTrack!.album &&
             t.id != currentTrack!.id;
         if (sameAlbum) score += 10;
-
-        if (queue.contains(t)) score -= 40;
 
         if (t.isFavorite) score += 8;
         if (t.id == currentTrack?.id) score -= 50;
