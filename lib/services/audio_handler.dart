@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/audio_track.dart';
+import '../models/custom_playlist.dart';
 
 /// Maps a local MediaSession queue index to the provider's full playlist.
 /// Returns null when the local index is outside the published window.
@@ -18,6 +20,42 @@ int? providerIndexFromMediaQueueIndex(
   return providerOffset + mediaQueueIndex;
 }
 
+const String _allTracksBrowseId = 'neonwave:all_tracks';
+const String _favoritesBrowseId = 'neonwave:favorites';
+const String _recentBrowseId = 'neonwave:recent';
+const String _playlistsBrowseId = 'neonwave:playlists';
+const int _defaultBrowsePageSize = 100;
+const int _maxBrowsePageSize = 200;
+
+int _browseInt(
+  Map<String, dynamic>? options,
+  String key,
+  int fallback,
+) {
+  final value = options?[key];
+  if (value is int) return value;
+  return int.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+List<T> _browsePage<T>(List<T> items, Map<String, dynamic>? options) {
+  final rawPage = _browseInt(
+    options,
+    'android.media.browse.extra.PAGE',
+    0,
+  );
+  final rawSize = _browseInt(
+    options,
+    'android.media.browse.extra.PAGE_SIZE',
+    _defaultBrowsePageSize,
+  );
+  final page = rawPage < 0 ? 0 : rawPage;
+  final size = rawSize.clamp(1, _maxBrowsePageSize);
+  final start = page * size;
+  if (start >= items.length) return const [];
+  final end = math.min(start + size, items.length);
+  return items.sublist(start, end);
+}
+
 class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final AudioPlayer player;
   final VoidCallback onToggleRepeat;
@@ -28,6 +66,12 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final Future<void> Function(int index) onPlayAt;
   final Future<void> Function(bool on) onApplyShuffle;
   final Future<void> Function(int mode) onApplyRepeat;
+  final List<AudioTrack> Function() getLibraryTracks;
+  final List<AudioTrack> Function() getFavoriteTracks;
+  final List<AudioTrack> Function() getRecentTracks;
+  final List<CustomPlaylist> Function() getPlaylists;
+  final List<AudioTrack> Function(CustomPlaylist playlist) getPlaylistTracks;
+  final Future<void> Function(int trackId) onPlayTrackById;
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
   bool _favoriteOn = false;
@@ -46,6 +90,12 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     required this.onPlayAt,
     required this.onApplyShuffle,
     required this.onApplyRepeat,
+    required this.getLibraryTracks,
+    required this.getFavoriteTracks,
+    required this.getRecentTracks,
+    required this.getPlaylists,
+    required this.getPlaylistTracks,
+    required this.onPlayTrackById,
   }) {
     _listen();
   }
@@ -293,6 +343,123 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     if (providerIndex == null) return Future.value();
     return onPlayAt(providerIndex);
   }
+
+  @override
+  Future<List<MediaItem>> getChildren(
+    String parentMediaId, [
+    Map<String, dynamic>? options,
+  ]) async {
+    List<AudioTrack> tracksFor(String id) {
+      switch (id) {
+        case _allTracksBrowseId:
+          return getLibraryTracks();
+        case _favoritesBrowseId:
+          return getFavoriteTracks();
+        case _recentBrowseId:
+          return getRecentTracks();
+        default:
+          if (id.startsWith('neonwave:playlist:')) {
+            final playlistId =
+                id.substring('neonwave:playlist:'.length);
+            for (final playlist in getPlaylists()) {
+              if (playlist.id == playlistId) {
+                return getPlaylistTracks(playlist);
+              }
+            }
+          }
+          return const [];
+      }
+    }
+
+    if (parentMediaId == AudioService.browsableRootId) {
+      return const [
+        MediaItem(
+          id: _allTracksBrowseId,
+          title: 'Все треки',
+          playable: false,
+        ),
+        MediaItem(
+          id: _favoritesBrowseId,
+          title: 'Избранное',
+          playable: false,
+        ),
+        MediaItem(
+          id: _recentBrowseId,
+          title: 'Недавние',
+          playable: false,
+        ),
+        MediaItem(
+          id: _playlistsBrowseId,
+          title: 'Плейлисты',
+          playable: false,
+        ),
+      ];
+    }
+
+    if (parentMediaId == _playlistsBrowseId) {
+      final items = getPlaylists()
+          .map(
+            (playlist) => MediaItem(
+              id: 'neonwave:playlist:${playlist.id}',
+              title: playlist.name,
+              playable: false,
+            ),
+          )
+          .toList(growable: false);
+      return _browsePage(items, options);
+    }
+
+    final tracks = tracksFor(parentMediaId);
+    final items = _browsePage(tracks, options)
+        .map(
+          (track) => MediaItem(
+            id: 'neonwave:track:${track.id}',
+            album: track.album,
+            title: track.title,
+            artist: track.artist,
+            duration: Duration(milliseconds: track.duration),
+            playable: true,
+          ),
+        )
+        .toList(growable: false);
+    return items;
+  }
+
+  @override
+  Future<MediaItem?> getMediaItem(String mediaId) async {
+    if (!mediaId.startsWith('neonwave:track:')) return null;
+    final rawId = mediaId.substring('neonwave:track:'.length);
+    final id = int.tryParse(rawId);
+    if (id == null) return null;
+    for (final track in getLibraryTracks()) {
+      if (track.id == id) {
+        return MediaItem(
+          id: mediaId,
+          album: track.album,
+          title: track.title,
+          artist: track.artist,
+          duration: Duration(milliseconds: track.duration),
+          playable: true,
+        );
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> playFromMediaId(
+    String mediaId, [
+    Map<String, dynamic>? extras,
+  ]) async {
+    if (!mediaId.startsWith('neonwave:track:')) return;
+    final rawId = mediaId.substring('neonwave:track:'.length);
+    final id = int.tryParse(rawId);
+    if (id != null) await onPlayTrackById(id);
+  }
+
+  @override
+  Future<void> playMediaItem(MediaItem mediaItem) =>
+      playFromMediaId(mediaItem.id);
 
   @override
   Future<void> stop() async {
