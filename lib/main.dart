@@ -52,7 +52,6 @@ Future<void> main() async {
   final palette = PaletteController();
 
   await playerProvider.ready;
-  await playerProvider.loadTracksIfAuthorized();
 
   await palette.init();
   await uiStyle.init();
@@ -70,6 +69,7 @@ Future<void> main() async {
       onPlayAt: (i) => playerProvider.playAt(i),
       onApplyShuffle: playerProvider.applyShuffle,
       onApplyRepeat: playerProvider.applyRepeatIndex,
+      ensureLibraryLoaded: playerProvider.loadTracksIfAuthorized,
       getLibraryTracks: () => playerProvider.visibleTracks,
       getFavoriteTracks: () => playerProvider.favoriteTracks,
       getRecentTracks: () => playerProvider.smartRecentlyPlayed,
