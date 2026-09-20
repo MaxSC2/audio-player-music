@@ -3,8 +3,24 @@ import 'dart:math' as math;
 import '../models/audio_track.dart';
 import '../models/recommendation_types.dart';
 
+/// History is newest-first (index 0 = most recent).
+int latestHistoryIndex(
+  List<Map<String, int>> history,
+  int trackId,
+) {
+  for (var i = 0; i < history.length; i++) {
+    if (history[i]['id'] == trackId) return i;
+  }
+  return -1;
+}
+
+/// In a newest-first history, the index is already the distance from newest.
+int historyDistanceFromNewest(int historyIndex) =>
+    historyIndex < 0 ? -1 : historyIndex;
+
 class RecommendationEngine {
   final List<AudioTrack> pool;
+  final List<AudioTrack> catalog;
   final List<Map<String, int>> history;
   final Set<int> favoriteIds;
   final Map<ListeningContext, double> categoryWeights;
@@ -19,6 +35,7 @@ class RecommendationEngine {
 
   RecommendationEngine({
     required this.pool,
+    required this.catalog,
     required this.history,
     required this.favoriteIds,
     required this.categoryWeights,
@@ -33,7 +50,7 @@ class RecommendationEngine {
   }) : exclude = exclude ?? const <int>{};
 
   _RecommendationContext _context() {
-    final byId = <int, AudioTrack>{for (final t in pool) t.id: t};
+    final byId = <int, AudioTrack>{for (final t in catalog) t.id: t};
     final playCount = <int, int>{};
     final artistPlayCount = <String, int>{};
     final lastSeen = <int, int>{};
