@@ -493,6 +493,10 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  void _notifyMediaBrowseChanged() {
+    _audioHandler?.notifyBrowseChanged();
+  }
+
   void setMediaServiceError(String message) {
     _mediaServiceError = message;
     _notify('setMediaServiceError');
@@ -571,6 +575,7 @@ class PlayerProvider extends ChangeNotifier {
         }
       }
 
+        _notifyMediaBrowseChanged();
       _notify('deleteTrack');
       return true;
     } catch (_) {
@@ -1093,6 +1098,7 @@ class PlayerProvider extends ChangeNotifier {
       ),
     );
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('createPlaylist');
     return id;
   }
@@ -1101,6 +1107,7 @@ class PlayerProvider extends ChangeNotifier {
     _playlistTracksCache.remove(id);
     _playlists.removeWhere((p) => p.id == id);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('deletePlaylist');
   }
 
@@ -1111,6 +1118,7 @@ class PlayerProvider extends ChangeNotifier {
     if (index < 0) return;
     _playlists[index] = _playlists[index].copyWith(name: trimmed);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('renamePlaylist');
   }
 
@@ -1123,6 +1131,7 @@ class PlayerProvider extends ChangeNotifier {
     );
     _playlistTracksCache.remove(playlistId);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('addToPlaylist');
   }
 
@@ -1134,6 +1143,7 @@ class PlayerProvider extends ChangeNotifier {
     );
     _playlistTracksCache.remove(playlistId);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('removeFromPlaylist');
   }
 
@@ -1282,6 +1292,7 @@ class PlayerProvider extends ChangeNotifier {
       _favoriteIds
         ..clear()
         ..addAll(saved.map(int.tryParse).whereType<int>());
+      _notifyMediaBrowseChanged();
       _notify('_loadFavorites');
     }
   }
@@ -1305,6 +1316,7 @@ class PlayerProvider extends ChangeNotifier {
     _invalidateDerivedCaches();
     _refreshTrackFavoriteFlags();
     _audioHandler?.setFavoriteState(isFavorite(track.id));
+    _notifyMediaBrowseChanged();
     _notify('toggleFavorite');
     WidgetService.playerChanged(this);
   }
@@ -1463,6 +1475,7 @@ class PlayerProvider extends ChangeNotifier {
     _invalidateDerivedCaches();
     _invalidateSmartCaches();
     await _prefs?.remove('history');
+    _notifyMediaBrowseChanged();
     _notify('clearHistory');
   }
 
@@ -2856,6 +2869,7 @@ class PlayerProvider extends ChangeNotifier {
     _allTracks = sortTracks(_allTracks, _sortOrder);
     _invalidateFolderCache();
     _invalidateCategoryCache();
+    _notifyMediaBrowseChanged();
     _notify('loadTracks');
     await _maybeResume();
     await _prepareInitialPlaylist();
@@ -3618,6 +3632,7 @@ class PlayerProvider extends ChangeNotifier {
     );
     _playlistTracksCache.remove(id);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('saveQueueAsPlaylist');
     return id;
   }
