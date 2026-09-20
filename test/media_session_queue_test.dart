@@ -61,8 +61,6 @@ void main() {
       expect(providerIndexFromMediaQueueIndex(10, 120, 0), isNull);
     });
   });
-}
-
 
   group('recommendation history recency', () {
     test('newest-first history uses the first matching entry', () {
