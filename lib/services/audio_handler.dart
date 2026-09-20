@@ -301,19 +301,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     playbackState.add(_state.copyWith(queueIndex: mediaQueueIndex));
   }
 
+  /// Backward-compatible full-queue API. New provider code should use
+  /// [setQueueWindow] so the system MediaSession never receives the full
+  /// thousands-item provider playlist.
   void setQueue(List<AudioTrack> tracks) {
-    _queueTracks = List.of(tracks);
-    queue.add(_queueTracks.map(_toMediaItem).toList());
-    final nativeIdx = player.currentIndex;
-    playbackState.add(
-      _state.copyWith(
-        queueIndex: nativeIdx == null
-            ? null
-            : (nativeIdx >= 0 && nativeIdx < _queueTracks.length
-                ? nativeIdx
-                : null),
-      ),
-    );
+    setQueueWindow(tracks, 0);
   }
 
   DateTime _lastPositionPublish = DateTime.fromMillisecondsSinceEpoch(0);
