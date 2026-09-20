@@ -94,7 +94,12 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('CinematicHome');
-    final player = context.watch<PlayerProvider>();
+    final playerView = context.select<PlayerProvider, ({bool hasQueue, int? trackId})>(
+      (player) => (
+        hasQueue: playerView.hasQueue,
+        trackId: playerView.trackId,
+      ),
+    );
 
     return Scaffold(
       backgroundColor: CinematicTheme.bg,
@@ -110,7 +115,7 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
                       controller: _tabs,
                       showTabBar: false,
                       neon: true,
-                      bottomInset: player.currentTrack != null
+                      bottomInset: playerView.trackId != null
                           ? _overlayInset
                           : _overlayInsetNoMini,
                     ),
