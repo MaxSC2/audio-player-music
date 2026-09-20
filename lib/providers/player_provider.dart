@@ -46,6 +46,38 @@ int latestHistoryIndex(
 int historyDistanceFromNewest(int historyIndex) =>
     historyIndex < 0 ? -1 : historyIndex;
 
+/// Normalizes an M3U local path for safe case-insensitive matching.
+String normalizeM3uPath(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return '';
+  final uri = Uri.tryParse(trimmed);
+  final path = uri != null && uri.scheme.toLowerCase() == 'file'
+      ? uri.path
+      : trimmed.split('?').first;
+  return path.replaceAll('\\', '/').replaceAll(RegExp(r'/+'), '/').toLowerCase();
+}
+
+String m3uBasename(String raw) {
+  final normalized = normalizeM3uPath(raw);
+  final slash = normalized.lastIndexOf('/');
+  return slash >= 0 ? normalized.substring(slash + 1) : normalized;
+}
+
+/// Matches an M3U line against exact normalized paths first. A basename
+/// fallback is allowed only when that basename identifies exactly one track;
+/// ambiguous basenames are intentionally skipped instead of selecting an
+/// arbitrary file.
+AudioTrack? matchM3uLine(
+  String line,
+  Map<String, AudioTrack> byPath,
+  Map<String, List<AudioTrack>> byBasename,
+) {
+  final exact = byPath[normalizeM3uPath(line)];
+  if (exact != null) return exact;
+  final candidates = byBasename[m3uBasename(line)];
+  return candidates != null && candidates.length == 1 ? candidates.single : null;
+}
+
 List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
   final list = List<AudioTrack>.from(tracks);
   switch (order) {
@@ -2201,17 +2233,32 @@ class PlayerProvider extends ChangeNotifier {
         .where((l) => l.isNotEmpty && !l.startsWith('#'))
         .toList();
     if (lines.isEmpty) return 0;
-    // Поиск по basename (case-insensitive) среди локальных треков.
-    final byLower = <String, AudioTrack>{};
+    // Сначала строим точный индекс по локальному пути, затем — индекс
+    // basename. Неоднозначные basename намеренно не выбираем случайно.
+    final byPath = <String, AudioTrack>{};
+    final byBasename = <String, List<AudioTrack>>{};
     for (final t in _allTracks) {
-      final bn = t.uri.split('/').last.toLowerCase();
-      byLower.putIfAbsent(bn, () => t);
+      final sources = <String>[
+        if (t.data != null && t.data!.isNotEmpty) t.data!,
+        t.uri,
+      ];
+      for (final source in sources) {
+        final normalized = normalizeM3uPath(source);
+        if (normalized.isNotEmpty) {
+          byPath.putIfAbsent(normalized, () => t);
+        }
+      }
+      final basename = m3uBasename(t.data ?? t.uri);
+      if (basename.isNotEmpty) {
+        (byBasename[basename] ??= <AudioTrack>[]).add(t);
+      }
     }
+
     final found = <AudioTrack>[];
+    final foundIds = <int>{};
     for (final line in lines) {
-      final bn = line.split('/').last.toLowerCase().split('?').first;
-      final hit = byLower[bn];
-      if (hit != null && !found.any((t) => t.id == hit.id)) {
+      final hit = matchM3uLine(line, byPath, byBasename);
+      if (hit != null && foundIds.add(hit.id)) {
         found.add(hit);
       }
     }
