@@ -7,6 +7,17 @@ import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/audio_track.dart';
 
+/// Maps a local MediaSession queue index to the provider's full playlist.
+/// Returns null when the local index is outside the published window.
+int? providerIndexFromMediaQueueIndex(
+  int mediaQueueIndex,
+  int providerOffset,
+  int queueLength,
+) {
+  if (mediaQueueIndex < 0 || mediaQueueIndex >= queueLength) return null;
+  return providerOffset + mediaQueueIndex;
+}
+
 class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final AudioPlayer player;
   final VoidCallback onToggleRepeat;
@@ -277,8 +288,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToQueueItem(int index) {
-    if (index < 0 || index >= _queueTracks.length) return Future.value();
-    return onPlayAt(_queueProviderOffset + index);
+    final providerIndex = providerIndexFromMediaQueueIndex(
+      index,
+      _queueProviderOffset,
+      _queueTracks.length,
+    );
+    if (providerIndex == null) return Future.value();
+    return onPlayAt(providerIndex);
   }
 
   @override
