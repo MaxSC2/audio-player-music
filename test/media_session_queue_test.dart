@@ -8,6 +8,7 @@ import 'package:audio_player/services/recommendation_engine.dart';
 import 'package:audio_player/services/audio_handler.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('calculateNativeWindowTrim', () {
     test('does not trim when the native queue is already bounded', () {
       expect(
