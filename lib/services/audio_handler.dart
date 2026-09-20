@@ -28,7 +28,6 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final Future<void> Function(int index) onPlayAt;
   final Future<void> Function(bool on) onApplyShuffle;
   final Future<void> Function(int mode) onApplyRepeat;
-  final int Function(int nativeIndex) translateIndex;
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
   bool _favoriteOn = false;
@@ -47,7 +46,6 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     required this.onPlayAt,
     required this.onApplyShuffle,
     required this.onApplyRepeat,
-    required this.translateIndex,
   }) {
     _listen();
   }
@@ -374,13 +372,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     });
 
     player.currentIndexStream.listen((nativeIndex) {
-      // Native index is local to the bounded MediaSession queue. The provider
-      // index is still computed for diagnostics/translation semantics, but
-      // MediaItem lookup must use the local window index.
-      final providerIndex =
-          nativeIndex == null ? null : translateIndex(nativeIndex);
-      if (providerIndex != null &&
-          nativeIndex != null &&
+      // Native index is local to the bounded MediaSession queue.
+      // MediaItem lookup therefore uses the local window index directly.
+      if (nativeIndex != null &&
           nativeIndex >= 0 &&
           nativeIndex < _queueTracks.length) {
         final track = _queueTracks[nativeIndex];
