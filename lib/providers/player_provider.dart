@@ -18,9 +18,6 @@ import '../services/audio_handler.dart';
 import '../services/widget_service.dart';
 import 'package:http/http.dart' as http;
 
-/// Rec 4 (pure helpers): сортировка — чистая функция без состояния провайдера.
-/// Вынесена на верхний уровень, чтобы можно было тестировать без binding
-/// и переиспользовать вне провайдера.
 /// Applies the learned per-track correction to the user's base volume.
 /// X-Boost is intentionally excluded here because it is applied separately by
 /// AndroidLoudnessEnhancer; combining both paths would double-apply gain.
@@ -29,6 +26,9 @@ double calculateEffectiveVolume(double userVolume, double trackFix) {
   return (userVolume.clamp(0.0, 1.0) * fix).clamp(0.0, 1.0).toDouble();
 }
 
+/// Rec 4 (pure helpers): сортировка — чистая функция без состояния провайдера.
+/// Вынесена на верхнем уровне, чтобы можно было тестировать без binding
+/// и переиспользовать вне провайдера.
 List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
   final list = List<AudioTrack>.from(tracks);
   switch (order) {
