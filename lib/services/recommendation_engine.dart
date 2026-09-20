@@ -57,9 +57,8 @@ class RecommendationEngine {
     final artistAffinity = <String, double>{};
     final genreAffinity = <String, double>{};
 
-    for (final entry in history.indexed) {
-      final i = entry.$1;
-      final raw = entry.$2;
+    for (var i = 0; i < history.length; i++) {
+      final raw = history[i];
       final id = raw['id'];
       if (id == null) continue;
       lastSeen.putIfAbsent(id, () => i);
@@ -99,98 +98,103 @@ class RecommendationEngine {
     );
   }
 
-  Map<String, double> _components(
+  double _scoreTrack(
     AudioTrack track,
     _RecommendationContext ctx, {
+    Map<String, double>? breakdown,
     Map<String, int>? usedArtistCount,
     double randomJitter = 0,
   }) {
-    final out = <String, double>{};
+    var total = 0.0;
+
+    void add(String label, double value) {
+      if (value == 0) return;
+      total += value;
+      breakdown?[label] = value;
+    }
 
     if (favoriteIds.contains(track.id)) {
-      out['Избранное'] = 45 * ctx.favoriteWeight + 8;
+      add('Избранное', 45 * ctx.favoriteWeight + 8);
     }
 
     if (track.artist == currentTrack?.artist) {
-      out['Похоже на текущего'] = 18;
+      add('Похоже на текущего', 18);
     }
 
     final artistAffinity = ctx.artistAffinity[track.artist] ?? 0;
     if (artistAffinity > 0) {
-      out['Любимый исполнитель'] = math.min(16.0, artistAffinity) * 1.3;
+      add('Любимый исполнитель', math.min(16.0, artistAffinity) * 1.3);
     }
 
     final targetGenre = primaryGenre(track);
     final genreAffinity = ctx.genreAffinity[targetGenre] ?? 0;
     if (genreAffinity > 0) {
-      out['Любимый жанр'] = math.min(12.0, genreAffinity) * 1.1;
+      add('Любимый жанр', math.min(12.0, genreAffinity) * 1.1);
     }
 
     final lastSeen = ctx.lastSeen[track.id];
     if (lastSeen != null && lastSeen < 10) {
-      out['Играл недавно'] = -45 * math.exp(-lastSeen / 2.2);
+      add('Играл недавно', -45 * math.exp(-lastSeen / 2.2));
     }
 
     final skips = skipCount[track.id] ?? 0;
     if (skips > 0) {
-      out['Скипали'] = -math.min(30.0, (skips * 12).toDouble());
+      add('Скипали', -math.min(30.0, (skips * 12).toDouble()));
     }
 
-    double categoryBoost = 0;
+    var categoryBoost = 0.0;
     for (final context in categoriesForTrack(track)) {
       if (!activeContexts.contains(context)) continue;
       final weight = categoryWeights[context] ?? 1.0;
       if (weight > categoryBoost) categoryBoost = weight;
     }
     if (categoryBoost > 0) {
-      out['Под текущий контекст'] = 4 + categoryBoost * 5;
+      add('Под текущий контекст', 4 + categoryBoost * 5);
     }
 
     if (currentTrack != null &&
         track.album == currentTrack!.album &&
         track.id != currentTrack!.id) {
-      out['С альбома текущего'] = 10;
+      add('С альбома текущего', 10);
     }
 
     if (track.id == currentTrack?.id) {
-      out['Текущий трек'] = -50;
+      add('Текущий трек', -50);
     }
 
     final played = ctx.playCount[track.id] ?? 0;
     if (deepCuts) {
-      out['Deep Cuts'] = (1 - math.min(1.0, played / 8)) * 30;
+      add('Deep Cuts', (1 - math.min(1.0, played / 8)) * 30);
     }
 
     final artistPlays = ctx.artistPlayCount[track.artist] ?? 0;
     final known = math.min(1.0, artistPlays / 10);
     final discoveryFactor = discovery.factor;
     if (discoveryFactor < 0.5) {
-      out['Знакомый стиль'] = known * (1 - discoveryFactor) * 20;
+      add('Знакомый стиль', known * (1 - discoveryFactor) * 20);
     } else {
-      out['Новый для тебя'] =
-          (1 - known) * discoveryFactor * 20;
+      add('Новый для тебя', (1 - known) * discoveryFactor * 20);
     }
 
     if (ctx.hasEnergy &&
         track.duration > 0 &&
         track.duration < 3 * 60 * 1000) {
-      out['Короткий, под энергию'] = 12;
+      add('Короткий, под энергию', 12);
     }
     if (ctx.hasCalm && track.duration >= 3 * 60 * 1000) {
-      out['Длинный, для спокойствия'] = 12;
+      add('Длинный, для спокойствия', 12);
     }
 
     final artistCount = usedArtistCount?[track.artist] ?? 0;
     if (artistCount > 0) {
-      out['Разнообразие исполнителей'] = -artistCount * 34;
+      add('Разнообразие исполнителей', -artistCount * 34);
     }
 
     if (randomJitter != 0) {
-      out['Случайность'] = randomJitter;
+      add('Случайность', randomJitter);
     }
 
-    out.removeWhere((_, value) => value == 0);
-    return out;
+    return total;
   }
 
   double score(
@@ -198,18 +202,19 @@ class RecommendationEngine {
     _RecommendationContext ctx, {
     required Map<String, int> usedArtistCount,
     double randomJitter = 0,
-  }) {
-    return _components(
-      track,
-      ctx,
-      usedArtistCount: usedArtistCount,
-      randomJitter: randomJitter,
-    ).values.fold(0.0, (sum, value) => sum + value);
-  }
+  }) =>
+      _scoreTrack(
+        track,
+        ctx,
+        usedArtistCount: usedArtistCount,
+        randomJitter: randomJitter,
+      );
 
   Map<String, double> explain(AudioTrack track) {
     final ctx = _context();
-    return _components(track, ctx);
+    final breakdown = <String, double>{};
+    _scoreTrack(track, ctx, breakdown: breakdown);
+    return breakdown;
   }
 
   List<AudioTrack> buildQueue({int count = 60}) {
@@ -272,7 +277,6 @@ class _RecommendationContext {
   final bool hasCalm;
 
   const _RecommendationContext({
-    required this.byId,
     required this.playCount,
     required this.artistPlayCount,
     required this.lastSeen,
