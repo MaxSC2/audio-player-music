@@ -613,6 +613,7 @@ class PlayerProvider extends ChangeNotifier {
   bool isFavorite(int id) => _favoriteIds.contains(id);
 
   late final Future<void> _initFuture;
+  Future<bool>? _authorizedLoadFuture;
 
   PlayerProvider() : _audioQuery = OnAudioQuery() {
     _equalizer = AndroidEqualizer();
@@ -2736,7 +2737,23 @@ class PlayerProvider extends ChangeNotifier {
   /// This is safe for Android Auto/background cold-start: it never prompts the
   /// user, but lets the service expose the local library when permission was
   /// granted during a previous phone session.
-  Future<bool> loadTracksIfAuthorized() async {
+  Future<bool> loadTracksIfAuthorized() {
+    if (_allTracks.isNotEmpty) return Future.value(true);
+
+    final existing = _authorizedLoadFuture;
+    if (existing != null) return existing;
+
+    final future = _loadTracksIfAuthorizedOnce();
+    _authorizedLoadFuture = future;
+    future.whenComplete(() {
+      if (identical(_authorizedLoadFuture, future)) {
+        _authorizedLoadFuture = null;
+      }
+    });
+    return future;
+  }
+
+  Future<bool> _loadTracksIfAuthorizedOnce() async {
     await ready;
     if (_allTracks.isNotEmpty) return true;
     try {
