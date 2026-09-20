@@ -197,7 +197,7 @@ class RecommendationEngine {
     return total;
   }
 
-  double score(
+  double _score(
     AudioTrack track,
     _RecommendationContext ctx, {
     required Map<String, int> usedArtistCount,
@@ -243,7 +243,7 @@ class RecommendationEngine {
       for (final track in candidates) {
         if (used.contains(track.id)) continue;
         final jitter = (nextRand() % 400) / 100.0;
-        final scoreValue = score(
+        final scoreValue = _score(
           track,
           ctx,
           usedArtistCount: usedArtistCount,
