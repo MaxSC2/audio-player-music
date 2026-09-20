@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:audio_player/providers/player_provider.dart';
 
 import 'dart:math' as math;
 
