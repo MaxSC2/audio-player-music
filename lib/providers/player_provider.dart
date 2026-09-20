@@ -1453,9 +1453,9 @@ class PlayerProvider extends ChangeNotifier {
   static const int _notNowExpiryMs = 7 * 24 * 3600 * 1000;
 
   List<AudioTrack> get notNowTracks {
+    _expireNotNow();
     final cached = _notNowCache;
     if (cached != null) return cached;
-    _expireNotNow();
     final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     final result = <AudioTrack>[];
     for (final e in _notNowRaw) {
@@ -1469,13 +1469,26 @@ class PlayerProvider extends ChangeNotifier {
     return result;
   }
 
-  bool isNotNow(int id) => _notNowRaw.any((e) => e['id'] == id);
+  bool isNotNow(int id) => _notNowIds.contains(id);
+
+  Set<int> get _notNowIds {
+    final cached = _notNowIdsCache;
+    if (cached != null) return cached;
+    final ids = <int>{
+      for (final e in _notNowRaw)
+        if (e['id'] != null) e['id']!,
+    };
+    _notNowIdsCache = ids;
+    return ids;
+  }
 
   void _expireNotNow() {
     final now = DateTime.now().millisecondsSinceEpoch;
     final before = _notNowRaw.length;
     _notNowRaw.removeWhere((e) => (now - (e['ts'] ?? 0)) > _notNowExpiryMs);
     if (_notNowRaw.length != before) {
+      _notNowCache = null;
+      _notNowIdsCache = null;
       _prefs?.setString('not_now', jsonEncode(_notNowRaw));
     }
   }
@@ -1494,6 +1507,8 @@ class PlayerProvider extends ChangeNotifier {
         _notNowRaw.removeRange(200, _notNowRaw.length);
       }
     }
+    _notNowCache = null;
+    _notNowIdsCache = null;
     _prefs?.setString('not_now', jsonEncode(_notNowRaw));
     _invalidateDerivedCaches();
     _notify('toggleNotNow');
@@ -2873,6 +2888,7 @@ class PlayerProvider extends ChangeNotifier {
   List<AudioTrack>? _favoriteCache;
   List<({AudioTrack track, DateTime time})>? _historyEntriesCache;
   List<AudioTrack>? _notNowCache;
+  Set<int>? _notNowIdsCache;
   final Map<int, List<({AudioTrack track, int plays})>> _topTracksCache = {};
   final Map<int, List<({String artist, int plays})>> _topArtistsCache = {};
 
