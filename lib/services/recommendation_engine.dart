@@ -84,7 +84,6 @@ class RecommendationEngine {
     }
 
     return _RecommendationContext(
-      byId: byId,
       playCount: playCount,
       artistPlayCount: artistPlayCount,
       lastSeen: lastSeen,
@@ -263,7 +262,6 @@ class RecommendationEngine {
 }
 
 class _RecommendationContext {
-  final Map<int, AudioTrack> byId;
   final Map<int, int> playCount;
   final Map<String, int> artistPlayCount;
   final Map<int, int> lastSeen;
