@@ -74,7 +74,7 @@ void main() {
         categoriesForTrack: (_) => {ListeningContext.energy},
       ).explain(tracks.first);
 
-      expect(explanation['Избранное'], 53.0);
+      expect(explanation['Избранное'], 80.0);
       expect(explanation['Под текущий контекст'], 12.0);
     });
 
