@@ -482,15 +482,6 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       playFromMediaId(mediaItem.id);
 
   @override
-  Future<void> onTaskRemoved() async {
-    for (final subject in _browseSubjects.values) {
-      await subject.close();
-    }
-    _browseSubjects.clear();
-    await super.onTaskRemoved();
-  }
-
-  @override
   Future<void> stop() async {
     await player.stop();
     await super.stop();
