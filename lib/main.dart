@@ -67,7 +67,6 @@ Future<void> main() async {
       onPlayAt: (i) => playerProvider.playAt(i),
       onApplyShuffle: playerProvider.applyShuffle,
       onApplyRepeat: playerProvider.applyRepeatIndex,
-      translateIndex: playerProvider.toProviderIndex,
     ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.audio_player.channel.audio',
