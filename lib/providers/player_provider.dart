@@ -612,6 +612,8 @@ class PlayerProvider extends ChangeNotifier {
 
   bool isFavorite(int id) => _favoriteIds.contains(id);
 
+  late final Future<void> _initFuture;
+
   PlayerProvider() : _audioQuery = OnAudioQuery() {
     _equalizer = AndroidEqualizer();
     _loudness = AndroidLoudnessEnhancer();
@@ -620,8 +622,11 @@ class PlayerProvider extends ChangeNotifier {
         androidAudioEffects: [_equalizer, _loudness],
       ),
     );
-    _init();
+    _initFuture = _init();
   }
+
+  /// Completes after persisted settings and the audio session are initialized.
+  Future<void> get ready => _initFuture;
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
@@ -2717,6 +2722,24 @@ class PlayerProvider extends ChangeNotifier {
     _searchCacheResult = null;
     _invalidateSmartCaches();
     _invalidateDerivedCaches();
+  }
+
+  /// Loads MediaStore only when the audio permission is already granted.
+  /// This is safe for Android Auto/background cold-start: it never prompts the
+  /// user, but lets the service expose the local library when permission was
+  /// granted during a previous phone session.
+  Future<bool> loadTracksIfAuthorized() async {
+    await ready;
+    if (_allTracks.isNotEmpty) return true;
+    try {
+      final status = await Permission.audio.status;
+      if (!status.isGranted) return false;
+      await loadTracks();
+      return _allTracks.isNotEmpty;
+    } catch (e) {
+      DebugLog.log('loadTracksIfAuthorized failed', e);
+      return false;
+    }
   }
 
   Future<void> requestPermission() async {
