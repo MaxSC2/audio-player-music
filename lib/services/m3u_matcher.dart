@@ -9,7 +9,7 @@ String normalizeM3uPath(String raw) {
       ? uri.path
       : trimmed.split('?').first;
   return path
-      .replaceAll(r'', '/')
+      .replaceAll('\\', '/')
       .replaceAll(RegExp(r'/+'), '/')
       .toLowerCase();
 }
