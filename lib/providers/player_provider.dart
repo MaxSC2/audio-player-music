@@ -1075,6 +1075,7 @@ class PlayerProvider extends ChangeNotifier {
           .map((e) => CustomPlaylist.fromJson(e as Map<String, dynamic>))
           .toList();
       _playlists = list;
+      _playlistTracksCache.clear();
       _notify('_loadPlaylists');
     } catch (_) {
       _playlists = [];
@@ -1100,6 +1101,7 @@ class PlayerProvider extends ChangeNotifier {
       if (p.name.toLowerCase() == trimmed.toLowerCase()) return p.id;
     }
     final id = 'pl_${DateTime.now().millisecondsSinceEpoch}';
+    _playlistTracksCache.clear();
     _playlists.add(
       CustomPlaylist(
         id: id,
@@ -1113,6 +1115,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> deletePlaylist(String id) async {
+    _playlistTracksCache.remove(id);
     _playlists.removeWhere((p) => p.id == id);
     await _savePlaylists();
     _notify('deletePlaylist');
@@ -1135,6 +1138,7 @@ class PlayerProvider extends ChangeNotifier {
     _playlists[index] = _playlists[index].copyWith(
       trackIds: [..._playlists[index].trackIds, track.id],
     );
+    _playlistTracksCache.remove(playlistId);
     await _savePlaylists();
     _notify('addToPlaylist');
   }
@@ -1145,6 +1149,7 @@ class PlayerProvider extends ChangeNotifier {
     _playlists[index] = _playlists[index].copyWith(
       trackIds: _playlists[index].trackIds.where((t) => t != trackId).toList(),
     );
+    _playlistTracksCache.remove(playlistId);
     await _savePlaylists();
     _notify('removeFromPlaylist');
   }
@@ -3595,6 +3600,7 @@ class PlayerProvider extends ChangeNotifier {
     _playlists[idx] = _playlists[idx].copyWith(
       trackIds: _playlist.map((t) => t.id).toList(),
     );
+    _playlistTracksCache.remove(id);
     await _savePlaylists();
     _notify('saveQueueAsPlaylist');
     return id;
