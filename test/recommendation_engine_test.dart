@@ -61,10 +61,26 @@ void main() {
         catalog: tracks,
         favorites: {1},
         contexts: {ListeningContext.energy},
+      );
+      final explanation = RecommendationEngine(
+        pool: tracks,
+        catalog: tracks,
+        history: const [],
+        favoriteIds: {1},
+        categoryWeights: const {
+          ListeningContext.energy: 1.6,
+        },
+        activeContexts: const {ListeningContext.energy},
+        currentTrack: null,
+        skipCount: const {},
+        deepCuts: false,
+        discovery: DiscoveryLevel.balanced,
+        primaryGenre: (_) => 'Test',
+        categoriesForTrack: (_) => {ListeningContext.energy},
       ).explain(tracks.first);
 
-      expect(result['Избранное'], 53.0);
-      expect(result['Под текущий контекст'], 12.0);
+      expect(explanation['Избранное'], 53.0);
+      expect(explanation['Под текущий контекст'], 12.0);
     });
 
     test('newest-first history uses the latest occurrence for recency', () {
