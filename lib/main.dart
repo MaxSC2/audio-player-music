@@ -51,6 +51,9 @@ Future<void> main() async {
   final uiStyle = UiStyleController();
   final palette = PaletteController();
 
+  await playerProvider.ready;
+  await playerProvider.loadTracksIfAuthorized();
+
   await palette.init();
   await uiStyle.init();
 
