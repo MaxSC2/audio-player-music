@@ -96,8 +96,8 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
     DebugLog.rebuild('CinematicHome');
     final playerView = context.select<PlayerProvider, ({bool hasQueue, int? trackId})>(
       (player) => (
-        hasQueue: playerView.hasQueue,
-        trackId: playerView.trackId,
+        hasQueue: player.playlist.isNotEmpty,
+        trackId: player.currentTrack?.id,
       ),
     );
 
@@ -106,7 +106,7 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
       body: SafeArea(
         child: Column(
           children: [
-            _TopBar(hasQueue: player.playlist.isNotEmpty),
+            _TopBar(hasQueue: playerView.hasQueue),
             Expanded(
               child: Stack(
                 children: [
@@ -126,7 +126,7 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: _buildBottomOverlay(player.currentTrack?.id),
+                    child: _buildBottomOverlay(playerView.trackId),
                   ),
                 ],
               ),
