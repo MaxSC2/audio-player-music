@@ -49,7 +49,7 @@ List<T> _browsePage<T>(List<T> items, Map<String, dynamic>? options) {
     _defaultBrowsePageSize,
   );
   final page = rawPage < 0 ? 0 : rawPage;
-  final size = rawSize.clamp(1, _maxBrowsePageSize);
+  final size = rawSize.clamp(1, _maxBrowsePageSize).toInt();
   final start = page * size;
   if (start >= items.length) return const [];
   final end = math.min(start + size, items.length);
