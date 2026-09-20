@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:audio_player/models/audio_track.dart';
-import 'package:audio_player/providers/player_provider.dart';
+import 'package:audio_player/services/m3u_matcher.dart';
 
 AudioTrack track(int id, String path) => AudioTrack(
   id: id,
