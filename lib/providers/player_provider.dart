@@ -2362,8 +2362,8 @@ class PlayerProvider extends ChangeNotifier {
     Set<int>? exclude,
   }) {
     _expireNotNow();
-    final catalog = visibleTracks;
-    final pool = catalog.where((track) => !isNotNow(track.id)).toList();
+    final catalog = _allTracks;
+    final pool = visibleTracks.where((track) => !isNotNow(track.id)).toList();
     return RecommendationEngine(
       pool: pool,
       catalog: catalog,
