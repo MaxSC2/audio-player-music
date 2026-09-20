@@ -57,11 +57,6 @@ void main() {
         track(id: 1, artist: 'A', favorite: true),
         track(id: 2, artist: 'B'),
       ];
-      final result = engine(
-        catalog: tracks,
-        favorites: {1},
-        contexts: {ListeningContext.energy},
-      );
       final explanation = RecommendationEngine(
         pool: tracks,
         catalog: tracks,
