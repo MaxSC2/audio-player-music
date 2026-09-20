@@ -24,11 +24,12 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - iTunes + MusicBrainz genre fallback.
 - History, skip learning, favorites, bookmarks and statistics.
 - Smart playlists and queue snapshots.
-- M3U import/export.
+- M3U import/export with path-aware deterministic matching.
 - Four UI styles: Simple, Cover Flow 3D, Cinematic, Neon.
 - Preset/custom palettes and light/dark modes.
 - Visualizers with lifecycle handling.
 - Widgets and Android MediaSession controls.
+- Android Auto browse tree (library, favorites, recent, playlists) with paged track browsing.
 - URL playback.
 - Sleep timer and fade.
 - Resume playback.
@@ -69,6 +70,10 @@ Fixed:
 - recency distance uses the newest-first index directly;
 - recommendation explanation follows the same recency semantics.
 
+### P2 — Playback error observability
+
+Added errorStream-backed playback diagnostics and debug UI visibility for the last playback error, timestamp and count.
+
 ### P2 — Recommendation explanation consistency
 
 Fixed drift between recommendation scoring and the explanation sheet:
@@ -79,6 +84,10 @@ Fixed drift between recommendation scoring and the explanation sheet:
 - authoritative favorite ID source.
 
 Removed a dead `queue.contains()` scoring condition that could never trigger because selected IDs are already excluded.
+
+### P1 — Auto Balance / gain semantics
+
+Separated learned per-track correction from X-Boost and made the Auto Balance toggle actually disable stored correction application without discarding learned data.
 
 ### P2 — Not-now performance/cache
 
@@ -133,7 +142,7 @@ The GitHub repository currently exposes no workflow run for this draft branch, s
 - MediaSession notification.
 - Lockscreen controls.
 - Android widget.
-- Android Auto.
+- Android Auto browse tree and track playback.
 - App restart/resume.
 - EQ after interruption.
 - X-Boost + Auto Balance combinations.
