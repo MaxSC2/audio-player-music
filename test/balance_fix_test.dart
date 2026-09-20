@@ -31,23 +31,17 @@ void main() {
       expect((learn(1.0, 0.019) - 1.0).abs(), lessThan(0.01));
     });
 
-    test('дБ-пересчёт: ×1.6 ≈ +4.08 дБ, ×0.5 ≈ −6.02 дБ', () {
+    test('дБ-пересчёт поправки трека: ×1.6 ≈ +4.08 дБ, ×0.5 ≈ −6.02 дБ', () {
       double db(double fix) => 20 * math.log(fix) / math.ln10;
       expect(db(1.6), closeTo(4.08, 0.01));
       expect(db(0.5), closeTo(-6.02, 0.01));
       expect(db(1.0), closeTo(0.0, 1e-9));
     });
 
-    test('effectiveVolume: user × fix × xBoost, потолок 1.0', () {
-      double eff(double user, double fix, bool boost) {
-        var v = user * fix.clamp(0.5, 1.6);
-        if (boost) v *= 1.6;
-        return v.clamp(0.0, 1.0);
-      }
-
-      expect(eff(0.8, 1.2, false), closeTo(0.96, 1e-9));
-      expect(eff(0.8, 1.6, true), 1.0); // клиппинг обрезан
-      expect(eff(0.5, 0.5, false), closeTo(0.25, 1e-9));
+    test('effectiveVolume: user × trackFix, X-Boost is applied separately', () {
+      expect(calculateEffectiveVolume(0.8, 1.2), closeTo(0.96, 1e-9));
+      expect(calculateEffectiveVolume(0.8, 1.6), 1.0);
+      expect(calculateEffectiveVolume(0.5, 0.5), closeTo(0.25, 1e-9));
     });
   });
 }
