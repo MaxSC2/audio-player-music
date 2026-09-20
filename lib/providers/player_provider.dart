@@ -3346,7 +3346,6 @@ class PlayerProvider extends ChangeNotifier {
   void cancelSleepTimer() {
     _sleepTimer?.cancel();
     _sleepTimer = null;
-    _sleepFadeTimer?.cancel();
     _sleepTimerMinutes = 0;
     _notify('cancelSleepTimer');
   }
