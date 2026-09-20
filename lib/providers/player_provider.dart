@@ -319,7 +319,6 @@ class PlayerProvider extends ChangeNotifier {
 
   Timer? _sleepTimer;
   int _sleepTimerMinutes = 0;
-  Timer? _sleepFadeTimer;
   // F4: «плавное затухание» и «дослушать текущий трек» — выбираются в диалоге
   // таймера сна. Громкость держим здесь, чтобы fade-out восстанавливал её
   // после остановки (и это же поле использует регулятор громкости — F3).
@@ -3492,7 +3491,6 @@ class PlayerProvider extends ChangeNotifier {
     _prefs?.setBool('sleep_until_end', _sleepUntilTrackEnd);
     _sleepTimerMinutes = minutes;
     _sleepTimer?.cancel();
-    _sleepFadeTimer?.cancel();
     _sleepTimer = Timer(Duration(minutes: minutes), _fireSleepTimer);
     _notify('setSleepTimer');
   }
@@ -3551,7 +3549,6 @@ class PlayerProvider extends ChangeNotifier {
     _sleepTimer?.cancel();
     _sleepTimer = null;
     _sleepFadeTimer?.cancel();
-    _sleepFadeTimer = null;
     _sleepTimerMinutes = 0;
     _notify('cancelSleepTimer');
   }
