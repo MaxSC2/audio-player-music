@@ -4006,9 +4006,12 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Итоговая пользовательская громкость с учётом выученной поправки трека.
-  /// X-Boost сюда НЕ входит: он применяется отдельно через LoudnessEnhancer.
-  double _effectiveVolumeFor(int trackId) =>
-      calculateEffectiveVolume(_volume, trackFixFor(trackId));
+  /// Поправка применяется только при включённом автобалансе. X-Boost сюда
+  /// НЕ входит: он применяется отдельно через LoudnessEnhancer.
+  double _effectiveVolumeFor(int trackId) => calculateEffectiveVolume(
+    _volume,
+    _autoBalance ? trackFixFor(trackId) : 1.0,
+  );
 
   void tapRepeatAB() {
     if (_repeatA == null) {
