@@ -66,6 +66,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final Future<void> Function(int index) onPlayAt;
   final Future<void> Function(bool on) onApplyShuffle;
   final Future<void> Function(int mode) onApplyRepeat;
+  final Future<void> Function() ensureLibraryLoaded;
   final List<AudioTrack> Function() getLibraryTracks;
   final List<AudioTrack> Function() getFavoriteTracks;
   final List<AudioTrack> Function() getRecentTracks;
@@ -90,6 +91,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     required this.onPlayAt,
     required this.onApplyShuffle,
     required this.onApplyRepeat,
+    required this.ensureLibraryLoaded,
     required this.getLibraryTracks,
     required this.getFavoriteTracks,
     required this.getRecentTracks,
@@ -427,6 +429,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<MediaItem?> getMediaItem(String mediaId) async {
+    await ensureLibraryLoaded();
     if (!mediaId.startsWith('neonwave:track:')) return null;
     final rawId = mediaId.substring('neonwave:track:'.length);
     final id = int.tryParse(rawId);
@@ -451,6 +454,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     String mediaId, [
     Map<String, dynamic>? extras,
   ]) async {
+    await ensureLibraryLoaded();
     if (!mediaId.startsWith('neonwave:track:')) return;
     final rawId = mediaId.substring('neonwave:track:'.length);
     final id = int.tryParse(rawId);
