@@ -67,6 +67,19 @@ Future<void> main() async {
       onPlayAt: (i) => playerProvider.playAt(i),
       onApplyShuffle: playerProvider.applyShuffle,
       onApplyRepeat: playerProvider.applyRepeatIndex,
+      getLibraryTracks: () => playerProvider.allTracks,
+      getFavoriteTracks: () => playerProvider.favoriteTracks,
+      getRecentTracks: () => playerProvider.smartRecentlyPlayed,
+      getPlaylists: () => playerProvider.playlists,
+      getPlaylistTracks: playerProvider.tracksOfPlaylist,
+      onPlayTrackById: (id) async {
+        for (final track in playerProvider.allTracks) {
+          if (track.id == id) {
+            await playerProvider.playTrack(track);
+            return;
+          }
+        }
+      },
     ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.audio_player.channel.audio',
