@@ -4,7 +4,7 @@ import 'package:audio_player/state/palette_controller.dart';
 
 void main() {
   group('PaletteColors.decode', () {
-    const valid = '4278910016,4289011180,4290807804,4278644948,4289558681,4278245267,4294311935';
+    const valid = '4278914068,4289222135,4290807036,4278630100,4293675161,4279286145,4294286859';
 
     test('decodes a valid seven-color payload', () {
       final palette = PaletteColors.decode(valid);
