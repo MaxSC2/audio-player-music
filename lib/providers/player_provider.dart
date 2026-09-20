@@ -626,7 +626,15 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Completes after persisted settings and the audio session are initialized.
-  Future<void> get ready => _initFuture;
+  /// Initialization failures are logged but do not prevent the app from
+  /// starting, preserving the pre-existing provider resilience.
+  Future<void> get ready async {
+    try {
+      await _initFuture;
+    } catch (e, stack) {
+      DebugLog.log('PlayerProvider init failed', e, stack);
+    }
+  }
 
   final List<StreamSubscription<dynamic>> _subs = [];
 
@@ -635,9 +643,9 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
-    _loadFavorites();
-    _loadPlaylists();
-    _loadSettings();
+    await _loadFavorites();
+    await _loadPlaylists();
+    await _loadSettings();
     await _configureAudioSession();
 
     _subs.add(
