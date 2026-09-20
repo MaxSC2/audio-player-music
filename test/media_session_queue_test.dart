@@ -56,3 +56,24 @@ void main() {
     });
   });
 }
+
+
+group('recommendation history recency', () {
+  test('newest-first history uses the first matching entry', () {
+    final history = <Map<String, int>>[
+      {'id': 7, 'ts': 300},
+      {'id': 8, 'ts': 200},
+      {'id': 7, 'ts': 100},
+    ];
+    expect(latestHistoryIndex(history, 7), 0);
+    expect(latestHistoryIndex(history, 8), 1);
+    expect(latestHistoryIndex(history, 9), -1);
+  });
+
+  test('history index equals distance from newest', () {
+    expect(historyDistanceFromNewest(0), 0);
+    expect(historyDistanceFromNewest(9), 9);
+    expect(historyDistanceFromNewest(10), 10);
+    expect(historyDistanceFromNewest(-1), -1);
+  });
+});
