@@ -437,6 +437,9 @@ class PlayerProvider extends ChangeNotifier {
       ValueNotifier(Duration.zero);
   PlayerAudioHandler? _audioHandler;
   String? _mediaServiceError;
+  String? _lastPlaybackError;
+  DateTime? _lastPlaybackErrorAt;
+  int _playbackErrorCount = 0;
 
   AudioPlayer get player => _audioPlayer;
 
@@ -489,6 +492,10 @@ class PlayerProvider extends ChangeNotifier {
   bool get resumePlayback => _resumePlayback;
   bool get mediaServiceReady => _audioHandler != null;
   String? get mediaServiceError => _mediaServiceError;
+  String? get lastPlaybackError => _lastPlaybackError;
+  DateTime? get lastPlaybackErrorAt => _lastPlaybackErrorAt;
+  int get playbackErrorCount => _playbackErrorCount;
+
   List<String> get mediaDebugLog {
     try {
       return _audioHandler?.debugLog ?? const [];
@@ -703,6 +710,16 @@ class PlayerProvider extends ChangeNotifier {
         if (state == ProcessingState.completed) {
           _onTrackComplete();
         }
+      }),
+    );
+
+    _subs.add(
+      _audioPlayer.errorStream.listen((error) {
+        _lastPlaybackError = error.toString();
+        _lastPlaybackErrorAt = DateTime.now();
+        _playbackErrorCount += 1;
+        DebugLog.log('playback_error: $_lastPlaybackError');
+        _notify('errorStream');
       }),
     );
 
@@ -3206,6 +3223,7 @@ class PlayerProvider extends ChangeNotifier {
     } catch (_) {}
     await _audioPlayer.play();
     if (req != _playReqSeq) return;
+    _lastPlaybackError = null;
     _audioHandler?.setFavoriteState(isFavorite(_playlist[index].id));
     _notify('playAt');
     WidgetService.playerChanged(this);
