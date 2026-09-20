@@ -180,6 +180,27 @@ class PlayerProvider extends ChangeNotifier {
 
   int toProviderIndex(int nativeIndex) => nativeIndex + _nativeOffset;
 
+  /// Synchronizes the system media-session queue with the same bounded
+  /// native window used by just_audio. The provider playlist remains the
+  /// source of truth for the full queue; audio_service only receives the
+  /// currently materialized native window to avoid marshaling thousands of
+  /// MediaItem objects for large libraries.
+  void _syncAudioHandlerQueue() {
+    final handler = _audioHandler;
+    if (handler == null) return;
+    if (_playlist.isEmpty || _nativeLength <= 0) {
+      handler.setQueueWindow(const [], _nativeOffset);
+      return;
+    }
+    final start = _nativeOffset.clamp(0, _playlist.length);
+    final end = (start + _nativeLength).clamp(start, _playlist.length);
+    if (start >= end) {
+      handler.setQueueWindow(const [], start);
+      return;
+    }
+    handler.setQueueWindow(_playlist.sublist(start, end), start);
+  }
+
   /// Строит нативное окно вокруг provider-индекса. Без гарда —
   /// вызывать только под гардом _switchingSource.
   Future<void> _buildNativeSlice(int centerProvider, {bool force = false}) async {
@@ -1138,7 +1159,7 @@ class PlayerProvider extends ChangeNotifier {
     } finally {
       _switchingSource = false;
     }
-    _audioHandler?.setQueue(_playlist);
+    _syncAudioHandlerQueue();
     _notify('_maybeResume');
   }
 
@@ -2950,7 +2971,7 @@ class PlayerProvider extends ChangeNotifier {
     } finally {
       _switchingSource = false;
     }
-    _audioHandler?.setQueue(_playlist);
+    _syncAudioHandlerQueue();
     _notify('_prepareInitialPlaylist');
   }
 
@@ -3022,7 +3043,7 @@ class PlayerProvider extends ChangeNotifier {
         _prefs?.setInt('last_track_id', tracks[startIndex].id); // D1
         // Только окно вокруг старта: маршалинг ~81 трека вместо тысяч.
         await _buildNativeSlice(startIndex, force: true);
-        _audioHandler?.setQueue(_playlist);
+        _syncAudioHandlerQueue();
       }
 
       // Оптимистичный индекс: UI сразу показывает выбранный трек,
@@ -3537,7 +3558,7 @@ class PlayerProvider extends ChangeNotifier {
       // _playlist, видел расхождение и делал лишний setAudioSources (перезапуск).
       _nativeLength += tracks.length;
       // Шторка/локскрин/виджет должны узнать о новом хвосте очереди.
-      _audioHandler?.setQueue(_playlist);
+      _syncAudioHandlerQueue();
     } catch (_) {
       // Фолбэк: очередь провайдера уже консистентна — пересобираем целиком.
       await _rebuildPlaylist();
@@ -3629,7 +3650,7 @@ class PlayerProvider extends ChangeNotifier {
         // позиция играющего трека сохраняется через seek в _rebuildPlaylist.
         await _rebuildPlaylist();
       }
-      _audioHandler?.setQueue(_playlist);
+      _syncAudioHandlerQueue();
     } catch (_) {
       await _rebuildPlaylist();
     } finally {
@@ -3704,7 +3725,7 @@ class PlayerProvider extends ChangeNotifier {
       // трека, поэтому provider-индекс уменьшаем ровно на 1 (сделано выше).
       _nativeLength -= 1;
       _lastEventIndex = _currentIndex;
-      _audioHandler?.setQueue(_playlist);
+      _syncAudioHandlerQueue();
     } catch (_) {
       await _rebuildPlaylist();
     } finally {
@@ -3728,13 +3749,14 @@ class PlayerProvider extends ChangeNotifier {
         _nativeOffset = 0;
         _nativeLength = 0;
         await _audioPlayer.stop();
+        _syncAudioHandlerQueue();
         return;
       }
-      _audioHandler?.setQueue(_playlist);
       await _buildNativeSlice(
         _currentIndex >= 0 ? _currentIndex : 0,
         force: true,
       );
+      _syncAudioHandlerQueue();
       if (_currentIndex >= 0) {
         await _audioPlayer.seek(
           _position,
