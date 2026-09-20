@@ -64,115 +64,116 @@ void main() {
 }
 
 
-group('recommendation history recency', () {
-  test('newest-first history uses the first matching entry', () {
-    final history = <Map<String, int>>[
-      {'id': 7, 'ts': 300},
-      {'id': 8, 'ts': 200},
-      {'id': 7, 'ts': 100},
-    ];
-    expect(latestHistoryIndex(history, 7), 0);
-    expect(latestHistoryIndex(history, 8), 1);
-    expect(latestHistoryIndex(history, 9), -1);
+  group('recommendation history recency', () {
+    test('newest-first history uses the first matching entry', () {
+      final history = <Map<String, int>>[
+        {'id': 7, 'ts': 300},
+        {'id': 8, 'ts': 200},
+        {'id': 7, 'ts': 100},
+      ];
+      expect(latestHistoryIndex(history, 7), 0);
+      expect(latestHistoryIndex(history, 8), 1);
+      expect(latestHistoryIndex(history, 9), -1);
+    });
+
+    test('history index equals distance from newest', () {
+      expect(historyDistanceFromNewest(0), 0);
+      expect(historyDistanceFromNewest(9), 9);
+      expect(historyDistanceFromNewest(10), 10);
+      expect(historyDistanceFromNewest(-1), -1);
+    });
   });
 
-  test('history index equals distance from newest', () {
-    expect(historyDistanceFromNewest(0), 0);
-    expect(historyDistanceFromNewest(9), 9);
-    expect(historyDistanceFromNewest(10), 10);
-    expect(historyDistanceFromNewest(-1), -1);
-  });
-});
+  group('Android Auto browse', () {
+    test('exposes root categories, paginates tracks and resolves playback ids', () async {
+      final track1 = AudioTrack(
+        id: 1,
+        title: 'First',
+        artist: 'Artist A',
+        album: 'Album A',
+        uri: 'file:///first.mp3',
+        duration: 1000,
+      );
+      final track2 = AudioTrack(
+        id: 2,
+        title: 'Second',
+        artist: 'Artist B',
+        album: 'Album B',
+        uri: 'file:///second.mp3',
+        duration: 2000,
+      );
+      final player = AudioPlayer();
+      final played = <int>[];
+      final playlist = CustomPlaylist(
+        id: 'pl_1',
+        name: 'Favorites Set',
+        trackIds: [2],
+        createdAt: 1,
+      );
 
-group('Android Auto browse', () {
-  test('exposes root categories, paginates tracks and resolves playback ids', () async {
-    final track1 = AudioTrack(
-      id: 1,
-      title: 'First',
-      artist: 'Artist A',
-      album: 'Album A',
-      uri: 'file:///first.mp3',
-      duration: 1000,
-    );
-    final track2 = AudioTrack(
-      id: 2,
-      title: 'Second',
-      artist: 'Artist B',
-      album: 'Album B',
-      uri: 'file:///second.mp3',
-      duration: 2000,
-    );
-    final player = AudioPlayer();
-    final played = <int>[];
-    final playlist = CustomPlaylist(
-      id: 'pl_1',
-      name: 'Favorites Set',
-      trackIds: [2],
-      createdAt: 1,
-    );
+      final handler = PlayerAudioHandler(
+        player,
+        onToggleRepeat: () {},
+        onToggleShuffle: () {},
+        onToggleFavorite: () {},
+        onNext: () async {},
+        onPrevious: () async {},
+        onPlayAt: (_) async {},
+        onApplyShuffle: (_) async {},
+        onApplyRepeat: (_) async {},
+        ensureLibraryLoaded: () async {},
+        getLibraryTracks: () => [track1, track2],
+        getFavoriteTracks: () => [track2],
+        getRecentTracks: () => [track1],
+        getPlaylists: () => [playlist],
+        getPlaylistTracks: (_) => [track2],
+        onPlayTrackById: (id) async => played.add(id),
+      );
 
-    final handler = PlayerAudioHandler(
-      player,
-      onToggleRepeat: () {},
-      onToggleShuffle: () {},
-      onToggleFavorite: () {},
-      onNext: () async {},
-      onPrevious: () async {},
-      onPlayAt: (_) async {},
-      onApplyShuffle: (_) async {},
-      onApplyRepeat: (_) async {},
-      getLibraryTracks: () => [track1, track2],
-      getFavoriteTracks: () => [track2],
-      getRecentTracks: () => [track1],
-      getPlaylists: () => [playlist],
-      getPlaylistTracks: (_) => [track2],
-      onPlayTrackById: (id) async => played.add(id),
-    );
+      final root = await handler.getChildren(AudioService.browsableRootId);
+      expect(
+        root.map((item) => item.id),
+        containsAll(<String>[
+          'neonwave:all_tracks',
+          'neonwave:favorites',
+          'neonwave:recent',
+          'neonwave:playlists',
+        ]),
+      );
 
-    final root = await handler.getChildren(AudioService.browsableRootId);
-    expect(
-      root.map((item) => item.id),
-      containsAll(<String>[
+      final page0 = await handler.getChildren(
         'neonwave:all_tracks',
-        'neonwave:favorites',
-        'neonwave:recent',
-        'neonwave:playlists',
-      ]),
-    );
+        <String, dynamic>{
+          'android.media.browse.extra.PAGE': 0,
+          'android.media.browse.extra.PAGE_SIZE': 1,
+        },
+      );
+      expect(page0.single.id, 'neonwave:track:1');
 
-    final page0 = await handler.getChildren(
-      'neonwave:all_tracks',
-      <String, dynamic>{
-        'android.media.browse.extra.PAGE': 0,
-        'android.media.browse.extra.PAGE_SIZE': 1,
-      },
-    );
-    expect(page0.single.id, 'neonwave:track:1');
+      final page1 = await handler.getChildren(
+        'neonwave:all_tracks',
+        <String, dynamic>{
+          'android.media.browse.extra.PAGE': 1,
+          'android.media.browse.extra.PAGE_SIZE': 1,
+        },
+      );
+      expect(page1.single.id, 'neonwave:track:2');
 
-    final page1 = await handler.getChildren(
-      'neonwave:all_tracks',
-      <String, dynamic>{
-        'android.media.browse.extra.PAGE': 1,
-        'android.media.browse.extra.PAGE_SIZE': 1,
-      },
-    );
-    expect(page1.single.id, 'neonwave:track:2');
+      final media = await handler.getMediaItem('neonwave:track:2');
+      expect(media?.title, 'Second');
+      expect(media?.playable, isTrue);
 
-    final media = await handler.getMediaItem('neonwave:track:2');
-    expect(media?.title, 'Second');
-    expect(media?.playable, isTrue);
+      await handler.playFromMediaId('neonwave:track:2');
+      expect(played, [2]);
 
-    await handler.playFromMediaId('neonwave:track:2');
-    expect(played, [2]);
+      final playlistItems = await handler.getChildren('neonwave:playlists');
+      expect(playlistItems.single.id, 'neonwave:playlist:pl_1');
 
-    final playlistItems =
-        await handler.getChildren('neonwave:playlists');
-    expect(playlistItems.single.id, 'neonwave:playlist:pl_1');
+      final playlistTracks =
+          await handler.getChildren('neonwave:playlist:pl_1');
+      expect(playlistTracks.single.id, 'neonwave:track:2');
 
-    final playlistTracks =
-        await handler.getChildren('neonwave:playlist:pl_1');
-    expect(playlistTracks.single.id, 'neonwave:track:2');
-
-    await player.dispose();
+      await player.dispose();
+    });
   });
-});
+}
