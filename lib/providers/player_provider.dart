@@ -2322,11 +2322,6 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Explain Recommendation ────────────────────────────────────────
-    result.sort((a, b) => a.time.compareTo(b.time));
-    return result;
-  }
-
-  // ─── Explain Recommendation ────────────────────────────────────────
   Map<String, double> trackScoreBreakdown(AudioTrack t) {
     final out = <String, double>{};
 
