@@ -14,13 +14,23 @@ import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../models/genre_taxonomy.dart';
 import '../models/queue_snapshot.dart';
+import '../models/recommendation_types.dart';
 import '../services/audio_handler.dart';
+import '../services/recommendation_engine.dart';
+import '../services/m3u_matcher.dart';
 import '../services/widget_service.dart';
 import 'package:http/http.dart' as http;
 
-/// Rec 4 (pure helpers): сортировка — чистая функция без состояния провайдера.
-/// Вынесена на верхний уровень, чтобы можно было тестировать без binding
-/// и переиспользовать вне провайдера.
+export '../models/recommendation_types.dart';
+
+/// Applies the learned per-track correction to the user's base volume.
+/// X-Boost is intentionally excluded here because it is applied separately by
+/// AndroidLoudnessEnhancer; combining both paths would double-apply gain.
+double calculateEffectiveVolume(double userVolume, double trackFix) {
+  final fix = trackFix.clamp(0.5, 1.6).toDouble();
+  return (userVolume.clamp(0.0, 1.0) * fix).clamp(0.0, 1.0).toDouble();
+}
+
 List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
   final list = List<AudioTrack>.from(tracks);
   switch (order) {
@@ -68,29 +78,44 @@ List<int> buildShuffleOrder(int n, int current, {math.Random? random}) {
   return order;
 }
 
+/// Calculates how many native-window items can be removed from the
+/// beginning/end while preserving the current local item.
+({int removeStart, int removeEnd}) calculateNativeWindowTrim({
+  required int currentLocalIndex,
+  required int nativeLength,
+  required int maxLength,
+}) {
+  if (maxLength < 1 ||
+      nativeLength <= maxLength ||
+      currentLocalIndex < 0 ||
+      currentLocalIndex >= nativeLength) {
+    return (removeStart: 0, removeEnd: 0);
+  }
+
+  var remaining = nativeLength - maxLength;
+  final before = currentLocalIndex;
+  final after = nativeLength - currentLocalIndex - 1;
+  var removeStart = 0;
+  var removeEnd = 0;
+
+  // Remove from the side farther from the current item first. If that side
+  // does not contain enough entries, consume the remainder from the other.
+  if (before >= after) {
+    removeStart = math.min(remaining, before);
+    remaining -= removeStart;
+    removeEnd = math.min(remaining, after);
+  } else {
+    removeEnd = math.min(remaining, after);
+    remaining -= removeEnd;
+    removeStart = math.min(remaining, before);
+  }
+
+  return (removeStart: removeStart, removeEnd: removeEnd);
+}
+
 enum PlayerRepeatMode { off, all, one }
 
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
-
-enum ListeningContext { balanced, energy, calm, party, focus }
-
-enum DiscoveryLevel { familiar, balanced, discovery, experimental }
-
-extension DiscoveryLevelX on DiscoveryLevel {
-  double get factor => switch (this) {
-    DiscoveryLevel.familiar => 0.0,
-    DiscoveryLevel.balanced => 0.35,
-    DiscoveryLevel.discovery => 0.7,
-    DiscoveryLevel.experimental => 1.0,
-  };
-
-  String get label => switch (this) {
-    DiscoveryLevel.familiar => 'Привычное',
-    DiscoveryLevel.balanced => 'Баланс',
-    DiscoveryLevel.discovery => 'Открытия',
-    DiscoveryLevel.experimental => 'Эксперимент',
-  };
-}
 
 class PlayerProvider extends ChangeNotifier {
   late final AudioPlayer _audioPlayer;
@@ -154,6 +179,7 @@ class PlayerProvider extends ChangeNotifier {
   // тысячи: маршалинг полного списка и ExoPlayer вешают UI-поток
   // (см. just_audio #294). Полный список живёт в _playlist для UI/логики.
   static const int _windowRadius = 40;
+  static const int _nativeWindowMax = _windowRadius * 2 + 1;
   int _nativeOffset = 0; // provider-индекс трека, лежащего в native[0]
   int _nativeLength = 0;
 
@@ -179,6 +205,27 @@ class PlayerProvider extends ChangeNotifier {
   int _shufflePos = -1;
 
   int toProviderIndex(int nativeIndex) => nativeIndex + _nativeOffset;
+
+  /// Synchronizes the system media-session queue with the same bounded
+  /// native window used by just_audio. The provider playlist remains the
+  /// source of truth for the full queue; audio_service only receives the
+  /// currently materialized native window to avoid marshaling thousands of
+  /// MediaItem objects for large libraries.
+  void _syncAudioHandlerQueue() {
+    final handler = _audioHandler;
+    if (handler == null) return;
+    if (_playlist.isEmpty || _nativeLength <= 0) {
+      handler.setQueueWindow(const [], _nativeOffset);
+      return;
+    }
+    final start = _nativeOffset.clamp(0, _playlist.length);
+    final end = (start + _nativeLength).clamp(start, _playlist.length);
+    if (start >= end) {
+      handler.setQueueWindow(const [], start);
+      return;
+    }
+    handler.setQueueWindow(_playlist.sublist(start, end), start);
+  }
 
   /// Строит нативное окно вокруг provider-индекса. Без гарда —
   /// вызывать только под гардом _switchingSource.
@@ -213,6 +260,34 @@ class PlayerProvider extends ChangeNotifier {
     _nativeLength = end - start;
   }
 
+  /// Keeps the native queue bounded after point mutations such as
+  /// addManyToQueueNext(). This never changes the provider queue.
+  Future<void> _trimNativeWindowToBound() async {
+    final plan = calculateNativeWindowTrim(
+      currentLocalIndex: _currentIndex - _nativeOffset,
+      nativeLength: _nativeLength,
+      maxLength: _nativeWindowMax,
+    );
+    if (plan.removeStart == 0 && plan.removeEnd == 0) return;
+
+    if (plan.removeStart > 0) {
+      await _audioPlayer.removeAudioSourceRange(
+        0,
+        plan.removeStart,
+      );
+      _nativeOffset += plan.removeStart;
+      _nativeLength -= plan.removeStart;
+    }
+
+    if (plan.removeEnd > 0) {
+      await _audioPlayer.removeAudioSourceRange(
+        _nativeLength - plan.removeEnd,
+        _nativeLength,
+      );
+      _nativeLength -= plan.removeEnd;
+    }
+  }
+
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -226,7 +301,6 @@ class PlayerProvider extends ChangeNotifier {
 
   Timer? _sleepTimer;
   int _sleepTimerMinutes = 0;
-  Timer? _sleepFadeTimer;
   // F4: «плавное затухание» и «дослушать текущий трек» — выбираются в диалоге
   // таймера сна. Громкость держим здесь, чтобы fade-out восстанавливал её
   // после остановки (и это же поле использует регулятор громкости — F3).
@@ -344,6 +418,9 @@ class PlayerProvider extends ChangeNotifier {
       ValueNotifier(Duration.zero);
   PlayerAudioHandler? _audioHandler;
   String? _mediaServiceError;
+  String? _lastPlaybackError;
+  DateTime? _lastPlaybackErrorAt;
+  int _playbackErrorCount = 0;
 
   AudioPlayer get player => _audioPlayer;
 
@@ -396,6 +473,10 @@ class PlayerProvider extends ChangeNotifier {
   bool get resumePlayback => _resumePlayback;
   bool get mediaServiceReady => _audioHandler != null;
   String? get mediaServiceError => _mediaServiceError;
+  String? get lastPlaybackError => _lastPlaybackError;
+  DateTime? get lastPlaybackErrorAt => _lastPlaybackErrorAt;
+  int get playbackErrorCount => _playbackErrorCount;
+
   List<String> get mediaDebugLog {
     try {
       return _audioHandler?.debugLog ?? const [];
@@ -410,6 +491,10 @@ class PlayerProvider extends ChangeNotifier {
     } catch (e) {
       return 'ошибка: $e';
     }
+  }
+
+  void _notifyMediaBrowseChanged() {
+    _audioHandler?.notifyBrowseChanged();
   }
 
   void setMediaServiceError(String message) {
@@ -490,6 +575,7 @@ class PlayerProvider extends ChangeNotifier {
         }
       }
 
+        _notifyMediaBrowseChanged();
       _notify('deleteTrack');
       return true;
     } catch (_) {
@@ -522,10 +608,17 @@ class PlayerProvider extends ChangeNotifier {
     handler.setRepeatState(_repeatMode.index);
     final track = currentTrack;
     if (track != null) handler.setFavoriteState(isFavorite(track.id));
+    // The MediaSession may attach after the initial native window has been
+    // materialized. Publish the current bounded window immediately so the
+    // lockscreen/notification starts from a consistent queue.
+    _syncAudioHandlerQueue();
     _notify('attachAudioHandler');
   }
 
   bool isFavorite(int id) => _favoriteIds.contains(id);
+
+  late final Future<void> _initFuture;
+  Future<bool>? _authorizedLoadFuture;
 
   PlayerProvider() : _audioQuery = OnAudioQuery() {
     _equalizer = AndroidEqualizer();
@@ -535,7 +628,18 @@ class PlayerProvider extends ChangeNotifier {
         androidAudioEffects: [_equalizer, _loudness],
       ),
     );
-    _init();
+    _initFuture = _init();
+  }
+
+  /// Completes after persisted settings and the audio session are initialized.
+  /// Initialization failures are logged but do not prevent the app from
+  /// starting, preserving the pre-existing provider resilience.
+  Future<void> get ready async {
+    try {
+      await _initFuture;
+    } catch (e, stack) {
+      DebugLog.log('PlayerProvider init failed', e, stack);
+    }
   }
 
   final List<StreamSubscription<dynamic>> _subs = [];
@@ -545,9 +649,9 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
-    _loadFavorites();
-    _loadPlaylists();
-    _loadSettings();
+    await _loadFavorites();
+    await _loadPlaylists();
+    await _loadSettings();
     await _configureAudioSession();
 
     _subs.add(
@@ -606,6 +710,16 @@ class PlayerProvider extends ChangeNotifier {
         if (state == ProcessingState.completed) {
           _onTrackComplete();
         }
+      }),
+    );
+
+    _subs.add(
+      _audioPlayer.errorStream.listen((error) {
+        _lastPlaybackError = error.toString();
+        _lastPlaybackErrorAt = DateTime.now();
+        _playbackErrorCount += 1;
+        DebugLog.log('playback_error: $_lastPlaybackError');
+        _notify('errorStream');
       }),
     );
 
@@ -949,6 +1063,7 @@ class PlayerProvider extends ChangeNotifier {
           .map((e) => CustomPlaylist.fromJson(e as Map<String, dynamic>))
           .toList();
       _playlists = list;
+      _playlistTracksCache.clear();
       _notify('_loadPlaylists');
     } catch (_) {
       _playlists = [];
@@ -974,6 +1089,7 @@ class PlayerProvider extends ChangeNotifier {
       if (p.name.toLowerCase() == trimmed.toLowerCase()) return p.id;
     }
     final id = 'pl_${DateTime.now().millisecondsSinceEpoch}';
+    _playlistTracksCache.clear();
     _playlists.add(
       CustomPlaylist(
         id: id,
@@ -982,13 +1098,16 @@ class PlayerProvider extends ChangeNotifier {
       ),
     );
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('createPlaylist');
     return id;
   }
 
   Future<void> deletePlaylist(String id) async {
+    _playlistTracksCache.remove(id);
     _playlists.removeWhere((p) => p.id == id);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('deletePlaylist');
   }
 
@@ -999,6 +1118,7 @@ class PlayerProvider extends ChangeNotifier {
     if (index < 0) return;
     _playlists[index] = _playlists[index].copyWith(name: trimmed);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('renamePlaylist');
   }
 
@@ -1009,7 +1129,9 @@ class PlayerProvider extends ChangeNotifier {
     _playlists[index] = _playlists[index].copyWith(
       trackIds: [..._playlists[index].trackIds, track.id],
     );
+    _playlistTracksCache.remove(playlistId);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('addToPlaylist');
   }
 
@@ -1019,7 +1141,9 @@ class PlayerProvider extends ChangeNotifier {
     _playlists[index] = _playlists[index].copyWith(
       trackIds: _playlists[index].trackIds.where((t) => t != trackId).toList(),
     );
+    _playlistTracksCache.remove(playlistId);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('removeFromPlaylist');
   }
 
@@ -1138,7 +1262,7 @@ class PlayerProvider extends ChangeNotifier {
     } finally {
       _switchingSource = false;
     }
-    _audioHandler?.setQueue(_playlist);
+    _syncAudioHandlerQueue();
     _notify('_maybeResume');
   }
 
@@ -1168,6 +1292,7 @@ class PlayerProvider extends ChangeNotifier {
       _favoriteIds
         ..clear()
         ..addAll(saved.map(int.tryParse).whereType<int>());
+      _notifyMediaBrowseChanged();
       _notify('_loadFavorites');
     }
   }
@@ -1191,6 +1316,7 @@ class PlayerProvider extends ChangeNotifier {
     _invalidateDerivedCaches();
     _refreshTrackFavoriteFlags();
     _audioHandler?.setFavoriteState(isFavorite(track.id));
+    _notifyMediaBrowseChanged();
     _notify('toggleFavorite');
     WidgetService.playerChanged(this);
   }
@@ -1349,6 +1475,7 @@ class PlayerProvider extends ChangeNotifier {
     _invalidateDerivedCaches();
     _invalidateSmartCaches();
     await _prefs?.remove('history');
+    _notifyMediaBrowseChanged();
     _notify('clearHistory');
   }
 
@@ -1356,9 +1483,9 @@ class PlayerProvider extends ChangeNotifier {
   static const int _notNowExpiryMs = 7 * 24 * 3600 * 1000;
 
   List<AudioTrack> get notNowTracks {
+    _expireNotNow();
     final cached = _notNowCache;
     if (cached != null) return cached;
-    _expireNotNow();
     final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
     final result = <AudioTrack>[];
     for (final e in _notNowRaw) {
@@ -1372,13 +1499,26 @@ class PlayerProvider extends ChangeNotifier {
     return result;
   }
 
-  bool isNotNow(int id) => _notNowRaw.any((e) => e['id'] == id);
+  bool isNotNow(int id) => _notNowIds.contains(id);
+
+  Set<int> get _notNowIds {
+    final cached = _notNowIdsCache;
+    if (cached != null) return cached;
+    final ids = <int>{
+      for (final e in _notNowRaw)
+        if (e['id'] != null) e['id']!,
+    };
+    _notNowIdsCache = ids;
+    return ids;
+  }
 
   void _expireNotNow() {
     final now = DateTime.now().millisecondsSinceEpoch;
     final before = _notNowRaw.length;
     _notNowRaw.removeWhere((e) => (now - (e['ts'] ?? 0)) > _notNowExpiryMs);
     if (_notNowRaw.length != before) {
+      _notNowCache = null;
+      _notNowIdsCache = null;
       _prefs?.setString('not_now', jsonEncode(_notNowRaw));
     }
   }
@@ -1397,6 +1537,8 @@ class PlayerProvider extends ChangeNotifier {
         _notNowRaw.removeRange(200, _notNowRaw.length);
       }
     }
+    _notNowCache = null;
+    _notNowIdsCache = null;
     _prefs?.setString('not_now', jsonEncode(_notNowRaw));
     _invalidateDerivedCaches();
     _notify('toggleNotNow');
@@ -2056,17 +2198,32 @@ class PlayerProvider extends ChangeNotifier {
         .where((l) => l.isNotEmpty && !l.startsWith('#'))
         .toList();
     if (lines.isEmpty) return 0;
-    // Поиск по basename (case-insensitive) среди локальных треков.
-    final byLower = <String, AudioTrack>{};
+    // Сначала строим точный индекс по локальному пути, затем — индекс
+    // basename. Неоднозначные basename намеренно не выбираем случайно.
+    final byPath = <String, AudioTrack>{};
+    final byBasename = <String, List<AudioTrack>>{};
     for (final t in _allTracks) {
-      final bn = t.uri.split('/').last.toLowerCase();
-      byLower.putIfAbsent(bn, () => t);
+      final sources = <String>[
+        if (t.data != null && t.data!.isNotEmpty) t.data!,
+        t.uri,
+      ];
+      for (final source in sources) {
+        final normalized = normalizeM3uPath(source);
+        if (normalized.isNotEmpty) {
+          byPath.putIfAbsent(normalized, () => t);
+        }
+      }
+      final basename = m3uBasename(t.data ?? t.uri);
+      if (basename.isNotEmpty) {
+        (byBasename[basename] ??= <AudioTrack>[]).add(t);
+      }
     }
+
     final found = <AudioTrack>[];
+    final foundIds = <int>{};
     for (final line in lines) {
-      final bn = line.split('/').last.toLowerCase().split('?').first;
-      final hit = byLower[bn];
-      if (hit != null && !found.any((t) => t.id == hit.id)) {
+      final hit = matchM3uLine(line, byPath, byBasename);
+      if (hit != null && foundIds.add(hit.id)) {
         found.add(hit);
       }
     }
@@ -2225,100 +2382,34 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Explain Recommendation ────────────────────────────────────────
-  Map<String, double> trackScoreBreakdown(AudioTrack t) {
-    final out = <String, double>{};
-
-    final hasEnergy = _activeContexts.any(
-      (c) => c == ListeningContext.energy || c == ListeningContext.party,
+  RecommendationEngine _recommendationEngine({
+    Set<ListeningContext>? contexts,
+    DiscoveryLevel? discovery,
+    bool? deepCuts,
+    Set<int>? exclude,
+  }) {
+    _expireNotNow();
+    final catalog = _allTracks;
+    final pool = visibleTracks.where((track) => !isNotNow(track.id)).toList();
+    return RecommendationEngine(
+      pool: pool,
+      catalog: catalog,
+      history: _historyRaw,
+      favoriteIds: _favoriteIds,
+      categoryWeights: _categoryWeights,
+      activeContexts: contexts ?? _activeContexts,
+      currentTrack: currentTrack,
+      skipCount: _skipCount,
+      deepCuts: deepCuts ?? _deepCuts,
+      discovery: discovery ?? _discoveryLevel,
+      exclude: exclude,
+      primaryGenre: primaryGenre,
+      categoriesForTrack: categoriesForTrack,
     );
-    final hasCalm = _activeContexts.any(
-      (c) => c == ListeningContext.calm || c == ListeningContext.focus,
-    );
-    double favWeight = 1.0;
-    for (final c in _activeContexts) {
-      final w = _categoryWeights[c] ?? 1.0;
-      if (w > favWeight) favWeight = w;
-    }
-
-    final n = _historyRaw.length;
-    final favSet = _favoriteIds.toSet();
-
-    if (favSet.contains(t.id)) {
-      out['Избранное'] = 45 * favWeight;
-    }
-
-    if (t.artist == currentTrack?.artist) {
-      out['Похоже на текущего'] = 18;
-    }
-
-    var affinity = 0.0;
-    var lastSeen = -1;
-    final byId = _tracksById;
-    for (var i = 0; i < n; i++) {
-      final id = _historyRaw[i]['id'];
-      if (id == null) continue;
-      if (id == t.id) lastSeen = i;
-      final artist = byId[id]?.artist;
-      if (artist == null) continue;
-      if (artist == t.artist) {
-        affinity += math.pow(0.88, i).toDouble();
-      }
-    }
-    if (affinity > 0) {
-      out['Любимый исполнитель'] = math.min(16.0, affinity) * 1.3;
-    }
-
-    if (lastSeen >= 0) {
-      final since = n - 1 - lastSeen;
-      if (since < 10) {
-        out['Играл недавно'] = -45 * math.exp(-since / 2.2);
-      }
-    }
-
-    final skips = _skipCount[t.id] ?? 0;
-    if (skips > 0) {
-      out['Скипали'] = -math.min(30.0, (skips * 12).toDouble());
-    }
-
-    if (currentTrack != null &&
-        t.album == currentTrack!.album &&
-        t.id != currentTrack!.id) {
-      out['С альбома текущего'] = 10;
-    }
-
-    var playCount = 0;
-    for (final e in _historyRaw) {
-      if (e['id'] == t.id) playCount++;
-    }
-    if (_deepCuts) {
-      out['Deep Cuts'] = (1 - math.min(1.0, playCount / 8)) * 30;
-    }
-
-    var artistPlays = 0;
-    final byId2 = _tracksById;
-    for (final e in _historyRaw) {
-      final id = e['id'];
-      if (id == null) continue;
-      if (byId2[id]?.artist == t.artist) artistPlays++;
-    }
-    final known = math.min(1.0, artistPlays / 10);
-    final discoveryF = _discoveryLevel.factor;
-    if (discoveryF < 0.5) {
-      if (known > 0) out['Знакомый стиль'] = known * (1 - discoveryF) * 20;
-    } else {
-      if (known < 1) out['Новый для тебя'] = (1 - known) * discoveryF * 20;
-    }
-
-    if (hasEnergy && t.duration > 0 && t.duration < 3 * 60 * 1000) {
-      out['Короткий, под энергию'] = 12;
-    }
-    if (hasCalm && t.duration >= 3 * 60 * 1000) {
-      out['Длинный, для спокойствия'] = 12;
-    }
-
-    out.removeWhere((_, v) => v == 0);
-    return out;
   }
+
+  Map<String, double> trackScoreBreakdown(AudioTrack t) =>
+      _recommendationEngine().explain(t);
 
   // ─── Personal DJ / Smart Queue ─────────────────────────────────────
   List<AudioTrack> buildSmartQueue({
@@ -2327,160 +2418,13 @@ class PlayerProvider extends ChangeNotifier {
     DiscoveryLevel? discovery,
     bool? deepCuts,
     Set<int>? exclude,
-  }) {
-    _expireNotNow();
-    final activeCtx = contexts ?? _activeContexts;
-    final useDeepCuts = deepCuts ?? _deepCuts;
-    final pool = visibleTracks
-        .where((t) => !isNotNow(t.id))
-        .where((t) => exclude == null || !exclude.contains(t.id))
-        .toList();
-    if (pool.isEmpty) return const [];
-
-    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
-    final playCount = <int, int>{};
-    final artistPlayCount = <String, int>{};
-    for (final e in _historyRaw) {
-      final id = e['id'];
-      if (id == null) continue;
-      playCount[id] = (playCount[id] ?? 0) + 1;
-      final ht = byId[id];
-      if (ht != null) {
-        artistPlayCount[ht.artist] = (artistPlayCount[ht.artist] ?? 0) + 1;
-      }
-    }
-
-    final n = _historyRaw.length;
-    final lastSeen = <int, int>{};
-    final artistAffinity = <String, double>{};
-    final genreAffinity = <String, double>{};
-    for (var i = 0; i < n; i++) {
-      final id = _historyRaw[i]['id'];
-      if (id == null) continue;
-      lastSeen[id] = i;
-      final ht = byId[id];
-      if (ht == null) continue;
-      final age = i; // 0 = самый свежий
-      final w = math.pow(0.88, age).toDouble();
-      artistAffinity[ht.artist] = (artistAffinity[ht.artist] ?? 0) + w;
-      final hg = primaryGenre(ht);
-      genreAffinity[hg] = (genreAffinity[hg] ?? 0) + w;
-    }
-
-    final currentArtist = currentTrack?.artist;
-    final favSet = _favoriteIds.toSet();
-    final queue = <AudioTrack>[];
-    final used = <int>{};
-    final usedArtistCount = <String, int>{};
-    int seed = DateTime.now().millisecondsSinceEpoch;
-
-    final hasEnergy = activeCtx.any(
-      (c) => c == ListeningContext.energy || c == ListeningContext.party,
-    );
-    final hasCalm = activeCtx.any(
-      (c) => c == ListeningContext.calm || c == ListeningContext.focus,
-    );
-    double favWeight = 1.0;
-    for (final c in activeCtx) {
-      final w = _categoryWeights[c] ?? 1.0;
-      if (w > favWeight) favWeight = w;
-    }
-
-    final discoveryF = (discovery ?? _discoveryLevel).factor;
-
-    int nextRand() {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      return seed;
-    }
-
-    while (queue.length < count && used.length < pool.length) {
-      AudioTrack? best;
-      double bestScore = -1e9;
-
-      for (final t in pool) {
-        if (used.contains(t.id)) continue;
-
-        double score = 0;
-        if (favSet.contains(t.id)) score += 45 * favWeight;
-        if (t.artist == currentArtist) score += 18;
-
-        final affinity = artistAffinity[t.artist] ?? 0;
-        score += math.min(16.0, affinity) * 1.3;
-
-        // Аффинность жанра: что слушал — то и подмешиваем
-        final tg = primaryGenre(t);
-        score += math.min(12.0, genreAffinity[tg] ?? 0) * 1.1;
-
-        // Буст категорий с учётом весов пользователя
-        double catBoost = 0;
-        for (final c in categoriesForTrack(t)) {
-          if (activeCtx.contains(c)) {
-            final w = _categoryWeights[c] ?? 1.0;
-            if (w > catBoost) catBoost = w;
-          }
-        }
-        if (catBoost > 0) score += 4 + catBoost * 5;
-
-        final lastI = lastSeen[t.id];
-        if (lastI != null) {
-          final since = n - 1 - lastI; // сколько треков назад играл
-          if (since < 10) {
-            score -= 45 * math.exp(-since / 2.2);
-          }
-        }
-
-        score -= math.min(30.0, (_skipCount[t.id] ?? 0) * 12);
-
-        final artistCount = usedArtistCount[t.artist] ?? 0;
-        score -= artistCount * 34;
-
-        final sameAlbum =
-            currentTrack != null &&
-            t.album == currentTrack!.album &&
-            t.id != currentTrack!.id;
-        if (sameAlbum) score += 10;
-
-        if (queue.contains(t)) score -= 40;
-
-        if (t.isFavorite) score += 8;
-        if (t.id == currentTrack?.id) score -= 50;
-
-        final pc = playCount[t.id] ?? 0;
-        if (useDeepCuts) {
-          score += (1 - math.min(1.0, pc / 8)) * 30;
-        }
-
-        final apc = artistPlayCount[t.artist] ?? 0;
-        final known = math.min(1.0, apc / 10);
-        if (discoveryF < 0.5) {
-          score += known * (1 - discoveryF) * 20;
-        } else {
-          score += (1 - known) * discoveryF * 20;
-        }
-
-        if (hasEnergy && t.duration > 0 && t.duration < 3 * 60 * 1000) {
-          score += 12;
-        }
-        if (hasCalm && t.duration >= 3 * 60 * 1000) {
-          score += 12;
-        }
-
-        score += (nextRand() % 400) / 100.0;
-
-        if (score > bestScore) {
-          bestScore = score;
-          best = t;
-        }
-      }
-
-      if (best == null) break;
-      used.add(best.id);
-      queue.add(best);
-      usedArtistCount[best.artist] = (usedArtistCount[best.artist] ?? 0) + 1;
-    }
-
-    return queue;
-  }
+  }) =>
+      _recommendationEngine(
+        contexts: contexts,
+        discovery: discovery,
+        deepCuts: deepCuts,
+        exclude: exclude,
+      ).buildQueue(count: count);
 
   Future<void> launchPersonalDJ({int count = 60}) async {
     final queue = buildSmartQueue(count: count);
@@ -2753,6 +2697,7 @@ class PlayerProvider extends ChangeNotifier {
   List<AudioTrack>? _favoriteCache;
   List<({AudioTrack track, DateTime time})>? _historyEntriesCache;
   List<AudioTrack>? _notNowCache;
+  Set<int>? _notNowIdsCache;
   final Map<int, List<({AudioTrack track, int plays})>> _topTracksCache = {};
   final Map<int, List<({String artist, int plays})>> _topArtistsCache = {};
 
@@ -2765,6 +2710,7 @@ class PlayerProvider extends ChangeNotifier {
     _favoriteCache = null;
     _historyEntriesCache = null;
     _notNowCache = null;
+    _notNowIdsCache = null;
     _topTracksCache.clear();
     _topArtistsCache.clear();
     _uniqueTracksCache = null;
@@ -2798,6 +2744,40 @@ class PlayerProvider extends ChangeNotifier {
     _searchCacheResult = null;
     _invalidateSmartCaches();
     _invalidateDerivedCaches();
+  }
+
+  /// Loads MediaStore only when the audio permission is already granted.
+  /// This is safe for Android Auto/background cold-start: it never prompts the
+  /// user, but lets the service expose the local library when permission was
+  /// granted during a previous phone session.
+  Future<bool> loadTracksIfAuthorized() {
+    if (_allTracks.isNotEmpty) return Future.value(true);
+
+    final existing = _authorizedLoadFuture;
+    if (existing != null) return existing;
+
+    final future = _loadTracksIfAuthorizedOnce();
+    _authorizedLoadFuture = future;
+    future.whenComplete(() {
+      if (identical(_authorizedLoadFuture, future)) {
+        _authorizedLoadFuture = null;
+      }
+    });
+    return future;
+  }
+
+  Future<bool> _loadTracksIfAuthorizedOnce() async {
+    await ready;
+    if (_allTracks.isNotEmpty) return true;
+    try {
+      final status = await Permission.audio.status;
+      if (!status.isGranted) return false;
+      await loadTracks();
+      return _allTracks.isNotEmpty;
+    } catch (e) {
+      DebugLog.log('loadTracksIfAuthorized failed', e);
+      return false;
+    }
   }
 
   Future<void> requestPermission() async {
@@ -2889,6 +2869,7 @@ class PlayerProvider extends ChangeNotifier {
     _allTracks = sortTracks(_allTracks, _sortOrder);
     _invalidateFolderCache();
     _invalidateCategoryCache();
+    _notifyMediaBrowseChanged();
     _notify('loadTracks');
     await _maybeResume();
     await _prepareInitialPlaylist();
@@ -2950,7 +2931,7 @@ class PlayerProvider extends ChangeNotifier {
     } finally {
       _switchingSource = false;
     }
-    _audioHandler?.setQueue(_playlist);
+    _syncAudioHandlerQueue();
     _notify('_prepareInitialPlaylist');
   }
 
@@ -3022,7 +3003,7 @@ class PlayerProvider extends ChangeNotifier {
         _prefs?.setInt('last_track_id', tracks[startIndex].id); // D1
         // Только окно вокруг старта: маршалинг ~81 трека вместо тысяч.
         await _buildNativeSlice(startIndex, force: true);
-        _audioHandler?.setQueue(_playlist);
+        _syncAudioHandlerQueue();
       }
 
       // Оптимистичный индекс: UI сразу показывает выбранный трек,
@@ -3070,6 +3051,7 @@ class PlayerProvider extends ChangeNotifier {
     } catch (_) {}
     await _audioPlayer.play();
     if (req != _playReqSeq) return;
+    _lastPlaybackError = null;
     _audioHandler?.setFavoriteState(isFavorite(_playlist[index].id));
     _notify('playAt');
     WidgetService.playerChanged(this);
@@ -3338,7 +3320,6 @@ class PlayerProvider extends ChangeNotifier {
     _prefs?.setBool('sleep_until_end', _sleepUntilTrackEnd);
     _sleepTimerMinutes = minutes;
     _sleepTimer?.cancel();
-    _sleepFadeTimer?.cancel();
     _sleepTimer = Timer(Duration(minutes: minutes), _fireSleepTimer);
     _notify('setSleepTimer');
   }
@@ -3376,24 +3357,26 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _fadeOutAndPause() async {
     const steps = 20;
     const stepMs = 400;
-    final start = _volume <= 0 ? 1.0 : _volume;
+    final baseStart = _volume <= 0 ? 1.0 : _volume;
+    final effectiveStart = calculateEffectiveVolume(
+      baseStart,
+      trackFixFor(_currentTrackId),
+    );
     for (var i = steps; i >= 0; i--) {
       try {
-        await _audioPlayer.setVolume(start * (i / steps));
+        await _audioPlayer.setVolume(effectiveStart * (i / steps));
       } catch (_) {}
       await Future<void>.delayed(const Duration(milliseconds: stepMs));
     }
     await _audioPlayer.pause();
     try {
-      await _audioPlayer.setVolume(start);
+      await _audioPlayer.setVolume(effectiveStart);
     } catch (_) {}
   }
 
   void cancelSleepTimer() {
     _sleepTimer?.cancel();
     _sleepTimer = null;
-    _sleepFadeTimer?.cancel();
-    _sleepFadeTimer = null;
     _sleepTimerMinutes = 0;
     _notify('cancelSleepTimer');
   }
@@ -3406,18 +3389,6 @@ class PlayerProvider extends ChangeNotifier {
   /// Поправка трека, ограниченная диапазоном [0.5 … 1.6].
   double trackFixFor(int trackId) =>
       ((_trackFix[trackId] ?? 1.0)).clamp(0.5, 1.6);
-
-  /// Поправка в дБ для LoudnessEnhancer (0 дБ = без изменений).
-  /// 20·log10(fix): ×1.6 ≈ +4.1 дБ, ×0.5 ≈ −6.0 дБ.
-  double _trackGainDb(int trackId) {
-    if (trackId < 0) return 0.0;
-    final fix = trackFixFor(trackId);
-    if ((fix - 1.0).abs() < 0.01) return 0.0;
-    return (20 * _log10(fix)).clamp(-6.0, 4.0);
-  }
-
-  // log10 через dart:math (уже импортирован как math для shuffle).
-  static double _log10(double x) => x <= 0 ? 0 : math.log(x) / math.ln10;
 
   /// Включение/выключение автобаланса (persist + применение к текущему).
   Future<void> setAutoBalance(bool on) async {
@@ -3496,7 +3467,9 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> previewVolume(double v) async {
     _volume = v.clamp(0.0, 1.0);
     try {
-      await _audioPlayer.setVolume(_volume);
+      // Preview follows the same per-track correction as the committed
+      // volume value. X-Boost remains a separate LoudnessEnhancer effect.
+      await _audioPlayer.setVolume(_effectiveVolumeFor(_currentTrackId));
     } catch (_) {}
   }
 
@@ -3536,8 +3509,12 @@ class PlayerProvider extends ChangeNotifier {
       // окно удлиняется. Без этого следующий не-force rebuild считал бы длину от
       // _playlist, видел расхождение и делал лишний setAudioSources (перезапуск).
       _nativeLength += tracks.length;
-      // Шторка/локскрин/виджет должны узнать о новом хвосте очереди.
-      _audioHandler?.setQueue(_playlist);
+      // Массовая вставка может временно сделать native queue длиннее
+      // bounded window. Оставляем текущий трек и ближайшие элементы, а
+      // дальние native sources удаляем — полный queue остаётся в provider.
+      await _trimNativeWindowToBound();
+      // Шторка/локскрин/виджет должны узнать о новом bounded окне очереди.
+      _syncAudioHandlerQueue();
     } catch (_) {
       // Фолбэк: очередь провайдера уже консистентна — пересобираем целиком.
       await _rebuildPlaylist();
@@ -3629,7 +3606,7 @@ class PlayerProvider extends ChangeNotifier {
         // позиция играющего трека сохраняется через seek в _rebuildPlaylist.
         await _rebuildPlaylist();
       }
-      _audioHandler?.setQueue(_playlist);
+      _syncAudioHandlerQueue();
     } catch (_) {
       await _rebuildPlaylist();
     } finally {
@@ -3653,7 +3630,9 @@ class PlayerProvider extends ChangeNotifier {
     _playlists[idx] = _playlists[idx].copyWith(
       trackIds: _playlist.map((t) => t.id).toList(),
     );
+    _playlistTracksCache.remove(id);
     await _savePlaylists();
+    _notifyMediaBrowseChanged();
     _notify('saveQueueAsPlaylist');
     return id;
   }
@@ -3704,7 +3683,7 @@ class PlayerProvider extends ChangeNotifier {
       // трека, поэтому provider-индекс уменьшаем ровно на 1 (сделано выше).
       _nativeLength -= 1;
       _lastEventIndex = _currentIndex;
-      _audioHandler?.setQueue(_playlist);
+      _syncAudioHandlerQueue();
     } catch (_) {
       await _rebuildPlaylist();
     } finally {
@@ -3728,13 +3707,14 @@ class PlayerProvider extends ChangeNotifier {
         _nativeOffset = 0;
         _nativeLength = 0;
         await _audioPlayer.stop();
+        _syncAudioHandlerQueue();
         return;
       }
-      _audioHandler?.setQueue(_playlist);
       await _buildNativeSlice(
         _currentIndex >= 0 ? _currentIndex : 0,
         force: true,
       );
+      _syncAudioHandlerQueue();
       if (_currentIndex >= 0) {
         await _audioPlayer.seek(
           _position,
@@ -3842,27 +3822,23 @@ class PlayerProvider extends ChangeNotifier {
     _notify('toggleXBoost');
   }
 
-  /// E3-часть 2: единый пересчёт усиления. X-Boost даёт +6 дБ и считается
-  /// частью «производной» громкости, поэтому итог:
-  ///   effectiveVolume = userVolume × trackFix × (xBoost ? boost : 1)
-  /// где boost подобран так, чтобы +6 дБ не упирались в клиппинг
-  /// (6 дБ ≈ ×2.0 амплитуды; ограничиваем ×1.6 и итоговым потолком 1.0).
+  /// Единственный путь для усиления через AndroidLoudnessEnhancer:
+  /// X-Boost. Поправка отдельного трека применяется отдельно через
+  /// setVolume(), чтобы не получить двойное усиление.
   void _applyLoudness() {
     try {
       _loudness.setEnabled(true);
-      _loudness.setTargetGain(
-        _xBoost ? 6.0 : (_autoBalance ? _trackGainDb(_currentTrackId) : 0.0),
-      );
+      _loudness.setTargetGain(_xBoost ? 6.0 : 0.0);
     } catch (_) {}
   }
 
-  /// Итоговая громкость с учётом пользовательской, поправки трека
-  /// и X-Boost. Вызывается при старте трека и при смене настроек.
-  double _effectiveVolumeFor(int trackId) {
-    var v = _volume * trackFixFor(trackId);
-    if (_xBoost) v *= 1.6;
-    return v.clamp(0.0, 1.0);
-  }
+  /// Итоговая пользовательская громкость с учётом выученной поправки трека.
+  /// Поправка применяется только при включённом автобалансе. X-Boost сюда
+  /// НЕ входит: он применяется отдельно через LoudnessEnhancer.
+  double _effectiveVolumeFor(int trackId) => calculateEffectiveVolume(
+    _volume,
+    _autoBalance ? trackFixFor(trackId) : 1.0,
+  );
 
   void tapRepeatAB() {
     if (_repeatA == null) {
@@ -3890,7 +3866,6 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _sleepTimer?.cancel();
-    _sleepFadeTimer?.cancel();
     _noisySub?.cancel();
     _sessionEventSub?.cancel();
     _deviceSub?.cancel();

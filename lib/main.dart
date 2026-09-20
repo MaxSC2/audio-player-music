@@ -51,6 +51,8 @@ Future<void> main() async {
   final uiStyle = UiStyleController();
   final palette = PaletteController();
 
+  await playerProvider.ready;
+
   await palette.init();
   await uiStyle.init();
 
@@ -67,7 +69,20 @@ Future<void> main() async {
       onPlayAt: (i) => playerProvider.playAt(i),
       onApplyShuffle: playerProvider.applyShuffle,
       onApplyRepeat: playerProvider.applyRepeatIndex,
-      translateIndex: playerProvider.toProviderIndex,
+      ensureLibraryLoaded: playerProvider.loadTracksIfAuthorized,
+      getLibraryTracks: () => playerProvider.visibleTracks,
+      getFavoriteTracks: () => playerProvider.favoriteTracks,
+      getRecentTracks: () => playerProvider.smartRecentlyPlayed,
+      getPlaylists: () => playerProvider.playlists,
+      getPlaylistTracks: playerProvider.tracksOfPlaylist,
+      onPlayTrackById: (id) async {
+        for (final track in playerProvider.allTracks) {
+          if (track.id == id) {
+            await playerProvider.playTrack(track);
+            return;
+          }
+        }
+      },
     ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.example.audio_player.channel.audio',
