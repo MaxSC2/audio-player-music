@@ -3512,16 +3512,20 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _fadeOutAndPause() async {
     const steps = 20;
     const stepMs = 400;
-    final start = _volume <= 0 ? 1.0 : _volume;
+    final baseStart = _volume <= 0 ? 1.0 : _volume;
+    final effectiveStart = calculateEffectiveVolume(
+      baseStart,
+      trackFixFor(_currentTrackId),
+    );
     for (var i = steps; i >= 0; i--) {
       try {
-        await _audioPlayer.setVolume(start * (i / steps));
+        await _audioPlayer.setVolume(effectiveStart * (i / steps));
       } catch (_) {}
       await Future<void>.delayed(const Duration(milliseconds: stepMs));
     }
     await _audioPlayer.pause();
     try {
-      await _audioPlayer.setVolume(start);
+      await _audioPlayer.setVolume(effectiveStart);
     } catch (_) {}
   }
 
@@ -3542,18 +3546,6 @@ class PlayerProvider extends ChangeNotifier {
   /// Поправка трека, ограниченная диапазоном [0.5 … 1.6].
   double trackFixFor(int trackId) =>
       ((_trackFix[trackId] ?? 1.0)).clamp(0.5, 1.6);
-
-  /// Поправка в дБ для LoudnessEnhancer (0 дБ = без изменений).
-  /// 20·log10(fix): ×1.6 ≈ +4.1 дБ, ×0.5 ≈ −6.0 дБ.
-  double _trackGainDb(int trackId) {
-    if (trackId < 0) return 0.0;
-    final fix = trackFixFor(trackId);
-    if ((fix - 1.0).abs() < 0.01) return 0.0;
-    return (20 * _log10(fix)).clamp(-6.0, 4.0);
-  }
-
-  // log10 через dart:math (уже импортирован как math для shuffle).
-  static double _log10(double x) => x <= 0 ? 0 : math.log(x) / math.ln10;
 
   /// Включение/выключение автобаланса (persist + применение к текущему).
   Future<void> setAutoBalance(bool on) async {
@@ -3632,7 +3624,9 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> previewVolume(double v) async {
     _volume = v.clamp(0.0, 1.0);
     try {
-      await _audioPlayer.setVolume(_volume);
+      // Preview follows the same per-track correction as the committed
+      // volume value. X-Boost remains a separate LoudnessEnhancer effect.
+      await _audioPlayer.setVolume(_effectiveVolumeFor(_currentTrackId));
     } catch (_) {}
   }
 
