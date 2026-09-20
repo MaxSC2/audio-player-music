@@ -67,7 +67,7 @@ Future<void> main() async {
       onPlayAt: (i) => playerProvider.playAt(i),
       onApplyShuffle: playerProvider.applyShuffle,
       onApplyRepeat: playerProvider.applyRepeatIndex,
-      getLibraryTracks: () => playerProvider.allTracks,
+      getLibraryTracks: () => playerProvider.visibleTracks,
       getFavoriteTracks: () => playerProvider.favoriteTracks,
       getRecentTracks: () => playerProvider.smartRecentlyPlayed,
       getPlaylists: () => playerProvider.playlists,
