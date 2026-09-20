@@ -30,26 +30,6 @@ double calculateEffectiveVolume(double userVolume, double trackFix) {
   return (userVolume.clamp(0.0, 1.0) * fix).clamp(0.0, 1.0).toDouble();
 }
 
-/// Rec 4 (pure helpers): сортировка — чистая функция без состояния провайдера.
-/// Вынесена на верхнем уровне, чтобы можно было тестировать без binding
-/// и переиспользовать вне провайдера.
-/// History is stored newest-first (index 0 = most recently played).
-/// Returns the newest history index for an id from a single pass.
-int latestHistoryIndex(
-  List<Map<String, int>> history,
-  int trackId,
-) {
-  for (var i = 0; i < history.length; i++) {
-    if (history[i]['id'] == trackId) return i;
-  }
-  return -1;
-}
-
-/// Converts a newest-first history index to the number of played entries since
-/// that track. Index 0 means it was the most recent entry.
-int historyDistanceFromNewest(int historyIndex) =>
-    historyIndex < 0 ? -1 : historyIndex;
-
 /// Normalizes an M3U local path for safe case-insensitive matching.
 String normalizeM3uPath(String raw) {
   final trimmed = raw.trim();
