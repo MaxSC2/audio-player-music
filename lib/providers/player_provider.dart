@@ -3834,7 +3834,6 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _sleepTimer?.cancel();
-    _sleepFadeTimer?.cancel();
     _noisySub?.cancel();
     _sessionEventSub?.cancel();
     _deviceSub?.cancel();
