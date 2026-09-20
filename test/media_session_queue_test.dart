@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:audio_player/models/audio_track.dart';
 import 'package:audio_player/models/custom_playlist.dart';
 import 'package:audio_player/providers/player_provider.dart';
+import 'package:audio_player/services/recommendation_engine.dart';
 import 'package:audio_player/services/audio_handler.dart';
 
 void main() {
