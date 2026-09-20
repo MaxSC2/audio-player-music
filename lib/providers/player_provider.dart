@@ -14,9 +14,13 @@ import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../models/genre_taxonomy.dart';
 import '../models/queue_snapshot.dart';
+import '../models/recommendation_types.dart';
 import '../services/audio_handler.dart';
+import '../services/recommendation_engine.dart';
 import '../services/widget_service.dart';
 import 'package:http/http.dart' as http;
+
+export '../models/recommendation_types.dart';
 
 /// Applies the learned per-track correction to the user's base volume.
 /// X-Boost is intentionally excluded here because it is applied separately by
@@ -163,26 +167,6 @@ List<int> buildShuffleOrder(int n, int current, {math.Random? random}) {
 enum PlayerRepeatMode { off, all, one }
 
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
-
-enum ListeningContext { balanced, energy, calm, party, focus }
-
-enum DiscoveryLevel { familiar, balanced, discovery, experimental }
-
-extension DiscoveryLevelX on DiscoveryLevel {
-  double get factor => switch (this) {
-    DiscoveryLevel.familiar => 0.0,
-    DiscoveryLevel.balanced => 0.35,
-    DiscoveryLevel.discovery => 0.7,
-    DiscoveryLevel.experimental => 1.0,
-  };
-
-  String get label => switch (this) {
-    DiscoveryLevel.familiar => 'Привычное',
-    DiscoveryLevel.balanced => 'Баланс',
-    DiscoveryLevel.discovery => 'Открытия',
-    DiscoveryLevel.experimental => 'Эксперимент',
-  };
-}
 
 class PlayerProvider extends ChangeNotifier {
   late final AudioPlayer _audioPlayer;
@@ -2417,124 +2401,34 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // ─── Explain Recommendation ────────────────────────────────────────
-  Map<String, double> trackScoreBreakdown(AudioTrack t) {
-    final out = <String, double>{};
-
-    final hasEnergy = _activeContexts.any(
-      (c) => c == ListeningContext.energy || c == ListeningContext.party,
+  RecommendationEngine _recommendationEngine({
+    Set<ListeningContext>? contexts,
+    DiscoveryLevel? discovery,
+    bool? deepCuts,
+    Set<int>? exclude,
+  }) {
+    _expireNotNow();
+    final catalog = visibleTracks;
+    final pool = catalog.where((track) => !isNotNow(track.id)).toList();
+    return RecommendationEngine(
+      pool: pool,
+      catalog: catalog,
+      history: _historyRaw,
+      favoriteIds: _favoriteIds,
+      categoryWeights: _categoryWeights,
+      activeContexts: contexts ?? _activeContexts,
+      currentTrack: currentTrack,
+      skipCount: _skipCount,
+      deepCuts: deepCuts ?? _deepCuts,
+      discovery: discovery ?? _discoveryLevel,
+      exclude: exclude,
+      primaryGenre: primaryGenre,
+      categoriesForTrack: categoriesForTrack,
     );
-    final hasCalm = _activeContexts.any(
-      (c) => c == ListeningContext.calm || c == ListeningContext.focus,
-    );
-    double favWeight = 1.0;
-    for (final c in _activeContexts) {
-      final w = _categoryWeights[c] ?? 1.0;
-      if (w > favWeight) favWeight = w;
-    }
-
-    final n = _historyRaw.length;
-    final favSet = _favoriteIds.toSet();
-
-    if (favSet.contains(t.id)) {
-      out['Избранное'] = 45 * favWeight + 8;
-    }
-
-    if (t.artist == currentTrack?.artist) {
-      out['Похоже на текущего'] = 18;
-    }
-
-    var affinity = 0.0;
-    var genreAffinity = 0.0;
-    final lastSeen = latestHistoryIndex(_historyRaw, t.id);
-    final byId = _tracksById;
-    final targetGenre = primaryGenre(t);
-    for (var i = 0; i < n; i++) {
-      final id = _historyRaw[i]['id'];
-      if (id == null) continue;
-      final historyTrack = byId[id];
-      final artist = historyTrack?.artist;
-      if (artist == null) continue;
-      final weight = math.pow(0.88, i).toDouble();
-      if (artist == t.artist) {
-        affinity += weight;
-      }
-      if (primaryGenre(historyTrack!) == targetGenre) {
-        genreAffinity += weight;
-      }
-    }
-    if (affinity > 0) {
-      out['Любимый исполнитель'] = math.min(16.0, affinity) * 1.3;
-    }
-    if (genreAffinity > 0) {
-      out['Любимый жанр'] = math.min(12.0, genreAffinity) * 1.1;
-    }
-
-    if (lastSeen >= 0) {
-      final since = historyDistanceFromNewest(lastSeen);
-      if (since >= 0 && since < 10) {
-        out['Играл недавно'] = -45 * math.exp(-since / 2.2);
-      }
-    }
-
-    final skips = _skipCount[t.id] ?? 0;
-    if (skips > 0) {
-      out['Скипали'] = -math.min(30.0, (skips * 12).toDouble());
-    }
-
-    if (currentTrack != null &&
-        t.album == currentTrack!.album &&
-        t.id != currentTrack!.id) {
-      out['С альбома текущего'] = 10;
-    }
-
-    var categoryBoost = 0.0;
-    for (final c in categoriesForTrack(t)) {
-      if (activeCtx.contains(c)) {
-        final w = _categoryWeights[c] ?? 1.0;
-        if (w > categoryBoost) categoryBoost = w;
-      }
-    }
-    if (categoryBoost > 0) {
-      out['Под текущий контекст'] = 4 + categoryBoost * 5;
-    }
-
-    if (t.id == currentTrack?.id) {
-      out['Текущий трек'] = -50;
-    }
-
-    var playCount = 0;
-    for (final e in _historyRaw) {
-      if (e['id'] == t.id) playCount++;
-    }
-    if (_deepCuts) {
-      out['Deep Cuts'] = (1 - math.min(1.0, playCount / 8)) * 30;
-    }
-
-    var artistPlays = 0;
-    final byId2 = _tracksById;
-    for (final e in _historyRaw) {
-      final id = e['id'];
-      if (id == null) continue;
-      if (byId2[id]?.artist == t.artist) artistPlays++;
-    }
-    final known = math.min(1.0, artistPlays / 10);
-    final discoveryF = _discoveryLevel.factor;
-    if (discoveryF < 0.5) {
-      if (known > 0) out['Знакомый стиль'] = known * (1 - discoveryF) * 20;
-    } else {
-      if (known < 1) out['Новый для тебя'] = (1 - known) * discoveryF * 20;
-    }
-
-    if (hasEnergy && t.duration > 0 && t.duration < 3 * 60 * 1000) {
-      out['Короткий, под энергию'] = 12;
-    }
-    if (hasCalm && t.duration >= 3 * 60 * 1000) {
-      out['Длинный, для спокойствия'] = 12;
-    }
-
-    out.removeWhere((_, v) => v == 0);
-    return out;
   }
+
+  Map<String, double> trackScoreBreakdown(AudioTrack t) =>
+      _recommendationEngine().explain(t);
 
   // ─── Personal DJ / Smart Queue ─────────────────────────────────────
   List<AudioTrack> buildSmartQueue({
@@ -2543,159 +2437,13 @@ class PlayerProvider extends ChangeNotifier {
     DiscoveryLevel? discovery,
     bool? deepCuts,
     Set<int>? exclude,
-  }) {
-    _expireNotNow();
-    final activeCtx = contexts ?? _activeContexts;
-    final useDeepCuts = deepCuts ?? _deepCuts;
-    final pool = visibleTracks
-        .where((t) => !isNotNow(t.id))
-        .where((t) => exclude == null || !exclude.contains(t.id))
-        .toList();
-    if (pool.isEmpty) return const [];
-
-    final byId = <int, AudioTrack>{for (final t in _allTracks) t.id: t};
-    final playCount = <int, int>{};
-    final artistPlayCount = <String, int>{};
-    for (final e in _historyRaw) {
-      final id = e['id'];
-      if (id == null) continue;
-      playCount[id] = (playCount[id] ?? 0) + 1;
-      final ht = byId[id];
-      if (ht != null) {
-        artistPlayCount[ht.artist] = (artistPlayCount[ht.artist] ?? 0) + 1;
-      }
-    }
-
-    final n = _historyRaw.length;
-    final lastSeen = <int, int>{};
-    final artistAffinity = <String, double>{};
-    final genreAffinity = <String, double>{};
-    for (var i = 0; i < n; i++) {
-      final id = _historyRaw[i]['id'];
-      if (id == null) continue;
-      // History is newest-first; keep the FIRST occurrence as the latest play.
-      lastSeen.putIfAbsent(id, () => i);
-      final ht = byId[id];
-      if (ht == null) continue;
-      final age = i; // 0 = самый свежий
-      final w = math.pow(0.88, age).toDouble();
-      artistAffinity[ht.artist] = (artistAffinity[ht.artist] ?? 0) + w;
-      final hg = primaryGenre(ht);
-      genreAffinity[hg] = (genreAffinity[hg] ?? 0) + w;
-    }
-
-    final currentArtist = currentTrack?.artist;
-    final favSet = _favoriteIds.toSet();
-    final queue = <AudioTrack>[];
-    final used = <int>{};
-    final usedArtistCount = <String, int>{};
-    int seed = DateTime.now().millisecondsSinceEpoch;
-
-    final hasEnergy = activeCtx.any(
-      (c) => c == ListeningContext.energy || c == ListeningContext.party,
-    );
-    final hasCalm = activeCtx.any(
-      (c) => c == ListeningContext.calm || c == ListeningContext.focus,
-    );
-    double favWeight = 1.0;
-    for (final c in activeCtx) {
-      final w = _categoryWeights[c] ?? 1.0;
-      if (w > favWeight) favWeight = w;
-    }
-
-    final discoveryF = (discovery ?? _discoveryLevel).factor;
-
-    int nextRand() {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      return seed;
-    }
-
-    while (queue.length < count && used.length < pool.length) {
-      AudioTrack? best;
-      double bestScore = -1e9;
-
-      for (final t in pool) {
-        if (used.contains(t.id)) continue;
-
-        double score = 0;
-        if (favSet.contains(t.id)) score += 45 * favWeight;
-        if (t.artist == currentArtist) score += 18;
-
-        final affinity = artistAffinity[t.artist] ?? 0;
-        score += math.min(16.0, affinity) * 1.3;
-
-        // Аффинность жанра: что слушал — то и подмешиваем
-        final tg = primaryGenre(t);
-        score += math.min(12.0, genreAffinity[tg] ?? 0) * 1.1;
-
-        // Буст категорий с учётом весов пользователя
-        double catBoost = 0;
-        for (final c in categoriesForTrack(t)) {
-          if (activeCtx.contains(c)) {
-            final w = _categoryWeights[c] ?? 1.0;
-            if (w > catBoost) catBoost = w;
-          }
-        }
-        if (catBoost > 0) score += 4 + catBoost * 5;
-
-        final lastI = lastSeen[t.id];
-        if (lastI != null) {
-          final since = historyDistanceFromNewest(lastI);
-          if (since >= 0 && since < 10) {
-            score -= 45 * math.exp(-since / 2.2);
-          }
-        }
-
-        score -= math.min(30.0, (_skipCount[t.id] ?? 0) * 12);
-
-        final artistCount = usedArtistCount[t.artist] ?? 0;
-        score -= artistCount * 34;
-
-        final sameAlbum =
-            currentTrack != null &&
-            t.album == currentTrack!.album &&
-            t.id != currentTrack!.id;
-        if (sameAlbum) score += 10;
-
-        if (favSet.contains(t.id)) score += 8;
-        if (t.id == currentTrack?.id) score -= 50;
-
-        final pc = playCount[t.id] ?? 0;
-        if (useDeepCuts) {
-          score += (1 - math.min(1.0, pc / 8)) * 30;
-        }
-
-        final apc = artistPlayCount[t.artist] ?? 0;
-        final known = math.min(1.0, apc / 10);
-        if (discoveryF < 0.5) {
-          score += known * (1 - discoveryF) * 20;
-        } else {
-          score += (1 - known) * discoveryF * 20;
-        }
-
-        if (hasEnergy && t.duration > 0 && t.duration < 3 * 60 * 1000) {
-          score += 12;
-        }
-        if (hasCalm && t.duration >= 3 * 60 * 1000) {
-          score += 12;
-        }
-
-        score += (nextRand() % 400) / 100.0;
-
-        if (score > bestScore) {
-          bestScore = score;
-          best = t;
-        }
-      }
-
-      if (best == null) break;
-      used.add(best.id);
-      queue.add(best);
-      usedArtistCount[best.artist] = (usedArtistCount[best.artist] ?? 0) + 1;
-    }
-
-    return queue;
-  }
+  }) =>
+      _recommendationEngine(
+        contexts: contexts,
+        discovery: discovery,
+        deepCuts: deepCuts,
+        exclude: exclude,
+      ).buildQueue(count: count);
 
   Future<void> launchPersonalDJ({int count = 60}) async {
     final queue = buildSmartQueue(count: count);
