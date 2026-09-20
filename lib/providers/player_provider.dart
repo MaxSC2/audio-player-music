@@ -17,6 +17,7 @@ import '../models/queue_snapshot.dart';
 import '../models/recommendation_types.dart';
 import '../services/audio_handler.dart';
 import '../services/recommendation_engine.dart';
+import '../services/m3u_matcher.dart';
 import '../services/widget_service.dart';
 import 'package:http/http.dart' as http;
 
@@ -28,38 +29,6 @@ export '../models/recommendation_types.dart';
 double calculateEffectiveVolume(double userVolume, double trackFix) {
   final fix = trackFix.clamp(0.5, 1.6).toDouble();
   return (userVolume.clamp(0.0, 1.0) * fix).clamp(0.0, 1.0).toDouble();
-}
-
-/// Normalizes an M3U local path for safe case-insensitive matching.
-String normalizeM3uPath(String raw) {
-  final trimmed = raw.trim();
-  if (trimmed.isEmpty) return '';
-  final uri = Uri.tryParse(trimmed);
-  final path = uri != null && uri.scheme.toLowerCase() == 'file'
-      ? uri.path
-      : trimmed.split('?').first;
-  return path.replaceAll('\\', '/').replaceAll(RegExp(r'/+'), '/').toLowerCase();
-}
-
-String m3uBasename(String raw) {
-  final normalized = normalizeM3uPath(raw);
-  final slash = normalized.lastIndexOf('/');
-  return slash >= 0 ? normalized.substring(slash + 1) : normalized;
-}
-
-/// Matches an M3U line against exact normalized paths first. A basename
-/// fallback is allowed only when that basename identifies exactly one track;
-/// ambiguous basenames are intentionally skipped instead of selecting an
-/// arbitrary file.
-AudioTrack? matchM3uLine(
-  String line,
-  Map<String, AudioTrack> byPath,
-  Map<String, List<AudioTrack>> byBasename,
-) {
-  final exact = byPath[normalizeM3uPath(line)];
-  if (exact != null) return exact;
-  final candidates = byBasename[m3uBasename(line)];
-  return candidates != null && candidates.length == 1 ? candidates.single : null;
 }
 
 List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
