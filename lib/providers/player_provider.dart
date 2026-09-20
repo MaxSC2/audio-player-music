@@ -2934,6 +2934,7 @@ class PlayerProvider extends ChangeNotifier {
     _favoriteCache = null;
     _historyEntriesCache = null;
     _notNowCache = null;
+    _notNowIdsCache = null;
     _topTracksCache.clear();
     _topArtistsCache.clear();
     _uniqueTracksCache = null;
