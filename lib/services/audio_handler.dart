@@ -261,11 +261,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         }
       }
       final nativeIdx = player.currentIndex;
-      final idx = nativeIdx == null ? null : translateIndex(nativeIdx);
-      if (idx != null &&
-          idx >= 0 &&
-          idx < _queueTracks.length &&
-          _queueTracks[idx].id == track.id) {
+      if (nativeIdx != null &&
+          nativeIdx >= 0 &&
+          nativeIdx < _queueTracks.length &&
+          _queueTracks[nativeIdx].id == track.id) {
         mediaItem.add(_toMediaItem(track));
       }
     } catch (_) {}
