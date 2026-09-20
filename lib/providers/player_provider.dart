@@ -2648,7 +2648,7 @@ class PlayerProvider extends ChangeNotifier {
             t.id != currentTrack!.id;
         if (sameAlbum) score += 10;
 
-        if (t.isFavorite) score += 8;
+        if (favSet.contains(t.id)) score += 8;
         if (t.id == currentTrack?.id) score -= 50;
 
         final pc = playCount[t.id] ?? 0;
