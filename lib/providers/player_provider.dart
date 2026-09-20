@@ -21,6 +21,14 @@ import 'package:http/http.dart' as http;
 /// Rec 4 (pure helpers): сортировка — чистая функция без состояния провайдера.
 /// Вынесена на верхний уровень, чтобы можно было тестировать без binding
 /// и переиспользовать вне провайдера.
+/// Applies the learned per-track correction to the user's base volume.
+/// X-Boost is intentionally excluded here because it is applied separately by
+/// AndroidLoudnessEnhancer; combining both paths would double-apply gain.
+double calculateEffectiveVolume(double userVolume, double trackFix) {
+  final fix = trackFix.clamp(0.5, 1.6).toDouble();
+  return (userVolume.clamp(0.0, 1.0) * fix).clamp(0.0, 1.0).toDouble();
+}
+
 List<AudioTrack> sortTracksPure(List<AudioTrack> tracks, SortOrder order) {
   final list = List<AudioTrack>.from(tracks);
   switch (order) {
@@ -3868,27 +3876,20 @@ class PlayerProvider extends ChangeNotifier {
     _notify('toggleXBoost');
   }
 
-  /// E3-часть 2: единый пересчёт усиления. X-Boost даёт +6 дБ и считается
-  /// частью «производной» громкости, поэтому итог:
-  ///   effectiveVolume = userVolume × trackFix × (xBoost ? boost : 1)
-  /// где boost подобран так, чтобы +6 дБ не упирались в клиппинг
-  /// (6 дБ ≈ ×2.0 амплитуды; ограничиваем ×1.6 и итоговым потолком 1.0).
+  /// Единственный путь для усиления через AndroidLoudnessEnhancer:
+  /// X-Boost. Поправка отдельного трека применяется отдельно через
+  /// setVolume(), чтобы не получить двойное усиление.
   void _applyLoudness() {
     try {
       _loudness.setEnabled(true);
-      _loudness.setTargetGain(
-        _xBoost ? 6.0 : (_autoBalance ? _trackGainDb(_currentTrackId) : 0.0),
-      );
+      _loudness.setTargetGain(_xBoost ? 6.0 : 0.0);
     } catch (_) {}
   }
 
-  /// Итоговая громкость с учётом пользовательской, поправки трека
-  /// и X-Boost. Вызывается при старте трека и при смене настроек.
-  double _effectiveVolumeFor(int trackId) {
-    var v = _volume * trackFixFor(trackId);
-    if (_xBoost) v *= 1.6;
-    return v.clamp(0.0, 1.0);
-  }
+  /// Итоговая пользовательская громкость с учётом выученной поправки трека.
+  /// X-Boost сюда НЕ входит: он применяется отдельно через LoudnessEnhancer.
+  double _effectiveVolumeFor(int trackId) =>
+      calculateEffectiveVolume(_volume, trackFixFor(trackId));
 
   void tapRepeatAB() {
     if (_repeatA == null) {
