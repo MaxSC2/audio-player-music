@@ -76,6 +76,41 @@ List<int> buildShuffleOrder(int n, int current, {math.Random? random}) {
   return order;
 }
 
+/// Calculates how many native-window items can be removed from the
+/// beginning/end while preserving the current local item.
+({int removeStart, int removeEnd}) calculateNativeWindowTrim({
+  required int currentLocalIndex,
+  required int nativeLength,
+  required int maxLength,
+}) {
+  if (maxLength < 1 ||
+      nativeLength <= maxLength ||
+      currentLocalIndex < 0 ||
+      currentLocalIndex >= nativeLength) {
+    return (removeStart: 0, removeEnd: 0);
+  }
+
+  var remaining = nativeLength - maxLength;
+  final before = currentLocalIndex;
+  final after = nativeLength - currentLocalIndex - 1;
+  var removeStart = 0;
+  var removeEnd = 0;
+
+  // Remove from the side farther from the current item first. If that side
+  // does not contain enough entries, consume the remainder from the other.
+  if (before >= after) {
+    removeStart = math.min(remaining, before);
+    remaining -= removeStart;
+    removeEnd = math.min(remaining, after);
+  } else {
+    removeEnd = math.min(remaining, after);
+    remaining -= removeEnd;
+    removeStart = math.min(remaining, before);
+  }
+
+  return (removeStart: removeStart, removeEnd: removeEnd);
+}
+
 enum PlayerRepeatMode { off, all, one }
 
 enum SortOrder { title, artist, dateAddedNew, dateAddedOld, duration }
@@ -162,6 +197,7 @@ class PlayerProvider extends ChangeNotifier {
   // тысячи: маршалинг полного списка и ExoPlayer вешают UI-поток
   // (см. just_audio #294). Полный список живёт в _playlist для UI/логики.
   static const int _windowRadius = 40;
+  static const int _nativeWindowMax = _windowRadius * 2 + 1;
   int _nativeOffset = 0; // provider-индекс трека, лежащего в native[0]
   int _nativeLength = 0;
 
@@ -240,6 +276,34 @@ class PlayerProvider extends ChangeNotifier {
     if (seq != _sliceBuildSeq) return; // устаревшее завершение — игнорируем
     _nativeOffset = start;
     _nativeLength = end - start;
+  }
+
+  /// Keeps the native queue bounded after point mutations such as
+  /// addManyToQueueNext(). This never changes the provider queue.
+  Future<void> _trimNativeWindowToBound() async {
+    final plan = calculateNativeWindowTrim(
+      currentLocalIndex: _currentIndex - _nativeOffset,
+      nativeLength: _nativeLength,
+      maxLength: _nativeWindowMax,
+    );
+    if (plan.removeStart == 0 && plan.removeEnd == 0) return;
+
+    if (plan.removeStart > 0) {
+      await _audioPlayer.removeAudioSourceRange(
+        0,
+        plan.removeStart,
+      );
+      _nativeOffset += plan.removeStart;
+      _nativeLength -= plan.removeStart;
+    }
+
+    if (plan.removeEnd > 0) {
+      await _audioPlayer.removeAudioSourceRange(
+        _nativeLength - plan.removeEnd,
+        _nativeLength,
+      );
+      _nativeLength -= plan.removeEnd;
+    }
   }
 
   bool _isPlaying = false;
@@ -3569,7 +3633,11 @@ class PlayerProvider extends ChangeNotifier {
       // окно удлиняется. Без этого следующий не-force rebuild считал бы длину от
       // _playlist, видел расхождение и делал лишний setAudioSources (перезапуск).
       _nativeLength += tracks.length;
-      // Шторка/локскрин/виджет должны узнать о новом хвосте очереди.
+      // Массовая вставка может временно сделать native queue длиннее
+      // bounded window. Оставляем текущий трек и ближайшие элементы, а
+      // дальние native sources удаляем — полный queue остаётся в provider.
+      await _trimNativeWindowToBound();
+      // Шторка/локскрин/виджет должны узнать о новом bounded окне очереди.
       _syncAudioHandlerQueue();
     } catch (_) {
       // Фолбэк: очередь провайдера уже консистентна — пересобираем целиком.
