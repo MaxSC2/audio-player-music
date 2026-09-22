@@ -66,6 +66,41 @@ class MainActivity : AudioServiceActivity() {
         }
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, WAVE_CHANNEL)
             .setStreamHandler(AudioVisualizerBridge())
+
+        val bridge = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BRIDGE_CHANNEL)
+        bridgeChannel = bridge
+        bridge.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getPendingAutoplay" -> {
+                    val pending = pendingAutoplay
+                    pendingAutoplay = null
+                    result.success(pending)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        // Холодный старт с командой: Dart заберёт через getPendingAutoplay.
+        extractAutoplay(intent)?.let { pendingAutoplay = it }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        extractAutoplay(intent)?.let { args ->
+            pendingAutoplay = args
+            try {
+                bridgeChannel?.invokeMethod("autoplay", args)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun extractAutoplay(intent: Intent?): Map<String, Any?>? {
+        if (intent?.action != ACTION_AUTOPLAY) return null
+        return mapOf(
+            "playlist" to intent.getStringExtra("playlist"),
+            "source" to (intent.getStringExtra("source") ?: ""),
+        )
     }
 
     /** Android 11+ (API 30+): системный диалог; ответ придёт в onActivityResult. */
@@ -158,6 +193,13 @@ class MainActivity : AudioServiceActivity() {
         private const val DELETE_CHANNEL = "neonwave/deletion"
         private const val WIDGET_CHANNEL = "neonwave/widgets"
         private const val WAVE_CHANNEL = "neonwave/wave"
+        private const val BRIDGE_CHANNEL = "neonwave/bridge"
         private const val DELETE_REQUEST_CODE = 4831
+
+        /** Внешняя команда автовоспроизведения (Mini-UNA): explicit intent, extra "playlist"? */
+        const val ACTION_AUTOPLAY = "com.example.audio_player.AUTOPLAY"
     }
+
+    private var bridgeChannel: MethodChannel? = null
+    private var pendingAutoplay: Map<String, Any?>? = null
 }
