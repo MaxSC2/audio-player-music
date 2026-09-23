@@ -60,14 +60,18 @@ class BridgeService {
       if (!started) {
         if (player.smartRecentlyPlayed.isNotEmpty) {
           await player.playTrack(player.smartRecentlyPlayed.first);
+          started = true;
         } else if (player.visibleTracks.isNotEmpty) {
           await player.playTrack(player.visibleTracks.first);
+          started = true;
         } else {
           return; // Нечего играть — молча остаёмся.
         }
       }
 
-      // Даём звуку стартовать и возвращаемся в Mini-UNA.
+      // Возвращаемся в Mini-UNA, только если звук реально пошёл.
+      // Иначе остаёмся: пустая библиотека видна сразу.
+      if (!started) return;
       await Future.delayed(const Duration(milliseconds: 900));
       await SystemNavigator.pop();
     } catch (_) {}
