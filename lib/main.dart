@@ -11,6 +11,7 @@ import 'core/ui_style.dart';
 import 'features/home/home_screen.dart';
 import 'providers/player_provider.dart';
 import 'services/audio_handler.dart';
+import 'services/bridge_service.dart';
 import 'services/widget_service.dart';
 import 'state/palette_controller.dart';
 import 'ui/theme.dart';
@@ -107,6 +108,9 @@ Future<void> main() async {
       ),
     ),
   );
+
+  // Мост внешних команд (Mini-UNA): автовоспроизведение + возврат.
+  unawaited(BridgeService.init(playerProvider));
 }
 
 class NeonWaveApp extends StatelessWidget {

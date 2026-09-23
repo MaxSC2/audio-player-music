@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/audio_track.dart';
+import '../models/display_names.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'cached_artwork.dart';
@@ -160,7 +162,9 @@ class AlbumCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            album,
+                            // Коллекция C1: грязные теги `[muzmo…`, `(www.…`,
+                            // `#…` чистим в «читаемое», <unknown> → подпись.
+                            DisplayNames.album(album),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -171,9 +175,8 @@ class AlbumCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            artist.isEmpty
-                                ? '${tracks.length} треков'
-                                : '$artist • ${tracks.length}',
+                            // «DMX • 2» → «DMX • 2 трека» (склонение по числу).
+                            '${DisplayNames.artist(artist)} • ${DisplayNames.tracks(tracks.length)}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
