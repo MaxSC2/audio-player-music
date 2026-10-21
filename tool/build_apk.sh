@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Собирает release APK и кладёт в корень проекта ровно один файл NeonWave.apk.
 # На ПК: tool/build_apk.sh
-# VERSION_CODE=137 tool/build_apk.sh  — переопределить versionCode.
+# VERSION_CODE=138 tool/build_apk.sh  — переопределить versionCode.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +11,13 @@ if [[ ! -f android/app/build.gradle.kts || ! -f android/settings.gradle.kts ]]; 
   tool/setup_local_android.sh
 fi
 
-export VERSION_CODE="${VERSION_CODE:-137}"
+export VERSION_CODE="${VERSION_CODE:-138}"
+
+if [[ ! -f android/app/key.properties ]]; then
+  echo "ВНИМАНИЕ: key.properties не найден — APK будет подписан debug-ключом." >&2
+  echo "Такую сборку нельзя установить поверх CI-релиза без удаления приложения" >&2
+  echo "(удаление стирает настройки). Для обновления используйте APK из CI." >&2
+fi
 
 echo "Сборка release APK (VERSION_CODE=$VERSION_CODE)..."
 flutter build apk --release

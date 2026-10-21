@@ -1,12 +1,26 @@
 # NeonWave — Единый реестр находок и работ
 
-Дата: 2026-10-21 · Ветки: `stack-upgrade` = `master` · Последняя версия кода: **v137**
+Дата: 2026-10-21 · Ветки: `stack-upgrade` = `master` · Последняя версия кода: **v138**
 
 Это **единственный** список багов/задач. Всё, что уже проверено и найдено — здесь,
 чтобы не искать заново по коду. Рядом — `FUNCTIONAL_AUDIT.md` (инвентарь функций и стратегия).
 
 Обозначения: `✅` сделано · `⬜` открыто · `⏳` требует проверки на устройстве.
 Приоритеты: **C** критично · **H** высоко · **M** средне · **L** низко.
+
+---
+
+## 0. v138 — независимая JSON-страховка настроек и стилевой splash
+
+| ID | Что сделано | Файлы |
+|---|---|---|
+| **R-rescue** ⏳ | Критичные настройки (`ui_style`, `cinematic_theme`, `palette_mode`, `palette_custom`, `theme_mode`, `sort_order`, `favorite_ids`, `repeat_mode`, `shuffle_mode`, `x_boost`) дублируются в `neonwave_rescue.json` в `Android/media/com.example.audio_player`. При старте выбирается более свежая копия: файл новее prefs или prefs пусты. Это обходит потерю/зависание SharedPreferences; требует проверки на устройстве | `rescue_store.dart`, `MainActivity.kt` |
+| **R-native** | Нативный канал `neonwave/rescue`: `load` читает JSON, legacy `FlutterSharedPreferences`, `rescue_saved_at` и пишет диагностическую строку; `save` атомарно (temp+rename) обновляет JSON. Диагностика: `neonwave_diagnostics.log`, читается из Termux без root | `MainActivity.kt` |
+| **R-wire** | `main.dart` создаёт `RescueStore`, передаёт его провайдеру и контроллерам; `_bootstrap` ждёт rescue; на `paused/detached` вызывается `flush()`. Провайдер при недоступных prefs грузит избранное/сортировку/repeat/shuffle/X-Boost из rescue | `main.dart`, `player_provider.dart` |
+| **R-ui** | Стиль, cinematic-тема, палитра и light/dark читаются из rescue до ожидания prefs; prefs-ожидание ограничено 2 с. Смена стиля/палитры пишется в оба хранилища | `ui_style.dart`, `palette_controller.dart` |
+| **U-splash** | Экран загрузки теперь отдельный для каждого стиля: Simple (градиент/кольца), Cover Flow 3D (стопка обложек), Cinematic (letterbox/луч/кинолента), Neon (сетка/волны/scanlines). Стиль берётся из `UiStyleController` до открытия HomeScreen | `features/boot/boot_gate.dart` |
+| **R-install** | Важно: локальная сборка без `key.properties` подписана debug-ключом, а CI — release. Установка локального APK поверх CI требует удаления приложения и стирает data. Для проверки использовать только APK из CI, не удаляя приложение | `tool/build_apk.sh`, README |
+| **тесты** | Добавлены 4 теста `RescueStore`: приоритет файла/prefs, пустые prefs, запись снимка в native-канал. `flutter analyze` чист | `test/rescue_store_test.dart` |
 
 ---
 

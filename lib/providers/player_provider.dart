@@ -10,6 +10,7 @@ import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/debug_log.dart';
+import '../core/rescue_store.dart';
 import '../models/audio_track.dart';
 import '../models/custom_playlist.dart';
 import '../models/genre_taxonomy.dart';
@@ -638,11 +639,15 @@ class PlayerProvider extends ChangeNotifier {
 
   late final Future<void> _initFuture;
   final Future<SharedPreferences>? _prefsFuture;
+  final RescueStore? _rescue;
   Future<bool>? _authorizedLoadFuture;
 
-  PlayerProvider({Future<SharedPreferences>? prefsFuture})
-    : _prefsFuture = prefsFuture,
-      _audioQuery = OnAudioQuery() {
+  PlayerProvider({
+    Future<SharedPreferences>? prefsFuture,
+    RescueStore? rescue,
+  }) : _prefsFuture = prefsFuture,
+       _rescue = rescue,
+       _audioQuery = OnAudioQuery() {
     _equalizer = AndroidEqualizer();
     _loudness = AndroidLoudnessEnhancer();
     _audioPlayer = AudioPlayer(
@@ -671,6 +676,8 @@ class PlayerProvider extends ChangeNotifier {
   bool _playbackStartedByUser = false;
 
   Future<void> _init() async {
+    final rescue = _rescue;
+    if (rescue != null) await rescue.ready;
     final prefsFuture = _prefsFuture ?? SharedPreferences.getInstance();
     final sw = Stopwatch()..start();
     var failed = false;
@@ -691,6 +698,7 @@ class PlayerProvider extends ChangeNotifier {
     unawaited(_configureAudioSessionWithTimeout());
 
     if (_prefs == null) {
+      _loadRescueOnly();
       if (failed) {
         unawaited(_retryPrefsInit());
       } else {
@@ -735,6 +743,68 @@ class PlayerProvider extends ChangeNotifier {
     } catch (e, st) {
       DebugLog.log('SharedPreferences late init failed', e, st);
     }
+  }
+
+  /// Аварийная загрузка критичного состояния, когда SharedPreferences
+  /// недоступны. RescueStore уже прочитал JSON-копию с диска.
+  void _loadRescueOnly() {
+    final rescue = _rescue;
+    if (rescue == null) return;
+    if (rescue.use('favorite_ids')) {
+      final saved = rescue.get('favorite_ids');
+      if (saved is List) {
+        _favoriteIds.clear();
+        for (final value in saved) {
+          final id = value is int ? value : int.tryParse(value.toString());
+          if (id != null) _favoriteIds.add(id);
+        }
+      }
+    }
+    for (final op in _pendingFavoriteOps) {
+      if (op.favorite) {
+        _favoriteIds.add(op.id);
+      } else {
+        _favoriteIds.remove(op.id);
+      }
+    }
+    final hadPending = _pendingFavoriteOps.isNotEmpty;
+    _pendingFavoriteOps.clear();
+    _favoritesLoaded = true;
+    _favoritesDirty = hadPending;
+
+    if (!_sortTouched && rescue.use('sort_order')) {
+      final saved = rescue.get('sort_order');
+      if (saved is String) {
+        _sortOrder = SortOrder.values.firstWhere(
+          (s) => s.name == saved,
+          orElse: () => SortOrder.title,
+        );
+      }
+    }
+    if (!_repeatTouched && rescue.use('repeat_mode')) {
+      final saved = rescue.get('repeat_mode');
+      if (saved is String) {
+        _repeatMode = PlayerRepeatMode.values.firstWhere(
+          (m) => m.name == saved,
+          orElse: () => PlayerRepeatMode.off,
+        );
+      }
+    }
+    if (!_shuffleTouched && rescue.use('shuffle_mode')) {
+      final saved = rescue.get('shuffle_mode');
+      if (saved is bool) _shuffleMode = saved;
+    }
+    if (!_xBoostTouched && rescue.use('x_boost')) {
+      final saved = rescue.get('x_boost');
+      if (saved is bool) _xBoost = saved;
+    }
+
+    _stateLoaded = true;
+    _refreshTrackFavoriteFlags();
+    _notifyMediaBrowseChanged();
+    _audioHandler?.setShuffleState(_shuffleMode);
+    _audioHandler?.setRepeatState(_repeatMode.index);
+    _notify('rescue-only');
   }
 
   Future<void> _loadPersistedState() async {
@@ -782,6 +852,15 @@ class PlayerProvider extends ChangeNotifier {
     }
     if (_xBoostTouched) {
       await prefs.setBool('x_boost', _xBoost);
+    }
+    final rescue = _rescue;
+    if (rescue != null) {
+      rescue.setAll({
+        if (_sortTouched) 'sort_order': _sortOrder.name,
+        if (_repeatTouched) 'repeat_mode': _repeatMode.name,
+        if (_shuffleTouched) 'shuffle_mode': _shuffleMode,
+        if (_xBoostTouched) 'x_boost': _xBoost,
+      });
     }
   }
 
@@ -1212,7 +1291,11 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
 
-    final savedSortValue = prefs.get('sort_order');
+    final rescue = _rescue;
+    final rescueSort = rescue?.use('sort_order') ?? false;
+    final savedSortValue = rescueSort
+        ? rescue!.get('sort_order')
+        : prefs.get('sort_order');
     if (!_sortTouched && savedSortValue is String) {
       final migrated = savedSortValue == 'dateAdded'
           ? 'dateAddedNew'
@@ -1222,22 +1305,38 @@ class PlayerProvider extends ChangeNotifier {
         orElse: () => SortOrder.title,
       );
     }
-    if (_sortTouched) {
+    if (_sortTouched || rescueSort) {
       unawaited(prefs.setString('sort_order', _sortOrder.name));
     }
 
-    final savedRepeatValue = prefs.get('repeat_mode');
+    final rescueRepeat = rescue?.use('repeat_mode') ?? false;
+    final savedRepeatValue = rescueRepeat
+        ? rescue!.get('repeat_mode')
+        : prefs.get('repeat_mode');
     if (!_repeatTouched && savedRepeatValue is String) {
       _repeatMode = PlayerRepeatMode.values.firstWhere(
         (m) => m.name == savedRepeatValue,
         orElse: () => PlayerRepeatMode.off,
       );
     }
+    if (rescueRepeat) {
+      unawaited(prefs.setString('repeat_mode', _repeatMode.name));
+    }
     if (!_shuffleTouched) {
-      _shuffleMode = _readBool(prefs, 'shuffle_mode', false);
+      final useRescue = rescue?.use('shuffle_mode') ?? false;
+      final saved = useRescue ? rescue!.get('shuffle_mode') : null;
+      _shuffleMode = useRescue
+          ? saved is bool && saved
+          : _readBool(prefs, 'shuffle_mode', false);
+      if (useRescue) unawaited(prefs.setBool('shuffle_mode', _shuffleMode));
     }
     if (!_xBoostTouched) {
-      _xBoost = _readBool(prefs, 'x_boost', false);
+      final useRescue = rescue?.use('x_boost') ?? false;
+      final saved = useRescue ? rescue!.get('x_boost') : null;
+      _xBoost = useRescue
+          ? saved is bool && saved
+          : _readBool(prefs, 'x_boost', false);
+      if (useRescue) unawaited(prefs.setBool('x_boost', _xBoost));
     }
 
     final savedEqValue = _readString(prefs, 'eq_preset');
@@ -1589,7 +1688,12 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _loadFavorites() async {
     final prefs = _prefs;
     if (prefs == null) return;
-    final raw = prefs.get('favorite_ids');
+    final rescue = _rescue;
+    final useRescue = rescue?.use('favorite_ids') ?? false;
+    final raw = useRescue
+        ? rescue!.get('favorite_ids')
+        : prefs.get('favorite_ids');
+    if (useRescue && !_favoritesLoaded) _favoriteIds.clear();
     if (raw is List) {
       // Битые записи раньше превращались в id=0 и «призрачно» попадали
       // в избранное — теперь непарсящиеся значения просто пропускаются.
@@ -1609,7 +1713,7 @@ class PlayerProvider extends ChangeNotifier {
     final hadPending = _pendingFavoriteOps.isNotEmpty;
     _pendingFavoriteOps.clear();
     _favoritesLoaded = true;
-    _favoritesDirty = _favoritesDirty || hadPending;
+    _favoritesDirty = _favoritesDirty || hadPending || useRescue;
     _invalidateDerivedCaches();
     _refreshTrackFavoriteFlags();
     _notifyMediaBrowseChanged();
@@ -1618,14 +1722,22 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _saveFavorites() async {
-    _favoritesDirty = true;
+    if (!_favoritesLoaded) {
+      _favoritesDirty = true;
+      return;
+    }
+    final ids = _favoriteIds.map((id) => id.toString()).toList();
+    var persisted = false;
     final prefs = _prefs;
-    if (prefs == null || !_favoritesLoaded) return;
-    await prefs.setStringList(
-      'favorite_ids',
-      _favoriteIds.map((id) => id.toString()).toList(),
-    );
-    _favoritesDirty = false;
+    if (prefs != null) {
+      try {
+        persisted = await prefs.setStringList('favorite_ids', ids);
+      } catch (e, st) {
+        DebugLog.log('favorites save failed', e, st);
+      }
+    }
+    _rescue?.set('favorite_ids', ids);
+    _favoritesDirty = !persisted;
   }
 
   void toggleFavorite(AudioTrack track) {
@@ -2935,6 +3047,7 @@ class PlayerProvider extends ChangeNotifier {
     if (_prefs != null) {
       unawaited(_prefs!.setString('sort_order', value.name));
     }
+    _rescue?.set('sort_order', value.name);
     _notify('sortOrder');
   }
 
@@ -3624,6 +3737,7 @@ class PlayerProvider extends ChangeNotifier {
         break;
     }
     _prefs?.setString('repeat_mode', _repeatMode.name);
+    _rescue?.set('repeat_mode', _repeatMode.name);
     _applyNativeLoopMode();
     _audioHandler?.setRepeatState(_repeatMode.index);
     _notify('toggleRepeat');
@@ -3642,6 +3756,7 @@ class PlayerProvider extends ChangeNotifier {
       _shufflePos = -1;
     }
     _prefs?.setBool('shuffle_mode', on);
+    _rescue?.set('shuffle_mode', on);
     _audioHandler?.setShuffleState(on);
     _notify('applyShuffle');
     WidgetService.playerChanged(this);
@@ -3653,6 +3768,7 @@ class PlayerProvider extends ChangeNotifier {
     _repeatTouched = true;
     _repeatMode = PlayerRepeatMode.values[mode];
     _prefs?.setString('repeat_mode', _repeatMode.name);
+    _rescue?.set('repeat_mode', _repeatMode.name);
     await _applyNativeLoopMode();
     _audioHandler?.setRepeatState(mode);
     _notify('applyRepeatIndex');
@@ -3669,6 +3785,7 @@ class PlayerProvider extends ChangeNotifier {
       _shufflePos = -1;
     }
     _prefs?.setBool('shuffle_mode', _shuffleMode);
+    _rescue?.set('shuffle_mode', _shuffleMode);
     _audioHandler?.setShuffleState(_shuffleMode);
     _notify('toggleShuffle');
     WidgetService.playerChanged(this);
@@ -4214,6 +4331,7 @@ class PlayerProvider extends ChangeNotifier {
     _xBoost = !_xBoost;
     _xBoostTouched = true;
     _prefs?.setBool('x_boost', _xBoost);
+    _rescue?.set('x_boost', _xBoost);
     if (debugNoAudioEffects) {
       _notify('toggleXBoost');
       return;

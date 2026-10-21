@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'core/debug_log.dart';
 import 'core/nav_observer.dart';
+import 'core/rescue_store.dart';
 import 'core/ui_style.dart';
 import 'features/boot/boot_gate.dart';
 import 'features/home/home_screen.dart';
@@ -25,6 +26,9 @@ Future<void> main() async {
   // поток, из-за чего getAll() для SharedPreferences не успевал выполниться
   // и все настройки (стиль, избранное, сортировка) терялись.
   final prefsFuture = SharedPreferences.getInstance();
+  final rescue = RescueStore();
+  unawaited(rescue.load(prefsFuture));
+  WidgetsBinding.instance.addObserver(_RescueLifecycleObserver(rescue));
   // Мега-логер: ловим ВСЕ ошибки (Flutter, async, platform).
   final prevFlutterError = FlutterError.onError;
   FlutterError.onError = (details) {
@@ -55,13 +59,22 @@ Future<void> main() async {
       systemNavigationBarContrastEnforced: false,
     ),
   );
-  final playerProvider = PlayerProvider(prefsFuture: prefsFuture);
-  final uiStyle = UiStyleController(prefsFuture: prefsFuture);
-  final palette = PaletteController(prefsFuture: prefsFuture);
+  final playerProvider = PlayerProvider(
+    prefsFuture: prefsFuture,
+    rescue: rescue,
+  );
+  final uiStyle = UiStyleController(
+    prefsFuture: prefsFuture,
+    rescue: rescue,
+  );
+  final palette = PaletteController(
+    prefsFuture: prefsFuture,
+    rescue: rescue,
+  );
 
   WidgetService.bind(playerProvider);
 
-  final bootFuture = _bootstrap(playerProvider, palette, uiStyle);
+  final bootFuture = _bootstrap(playerProvider, palette, uiStyle, rescue);
 
   runApp(
     MultiProvider(
@@ -84,8 +97,17 @@ Future<void> _bootstrap(
   PlayerProvider playerProvider,
   PaletteController palette,
   UiStyleController uiStyle,
+  RescueStore rescue,
 ) async {
   final started = DateTime.now();
+
+  // Критичный снимок читаем до открытия HomeScreen: иначе первый кадр
+  // показывал бы дефолтный стиль, даже если сохранён неон.
+  try {
+    await rescue.ready.timeout(const Duration(seconds: 2));
+  } on TimeoutException {
+    DebugLog.log('rescue: таймаут готовности');
+  }
 
   await Future.wait([
     _withUiTimeout(palette.init(), 'palette init'),
@@ -172,6 +194,20 @@ Future<void> _initAudioService(PlayerProvider playerProvider) async {
     playerProvider.setMediaServiceError('Таймаут инициализации (10 сек)');
   } catch (e) {
     playerProvider.setMediaServiceError('Ошибка: $e');
+  }
+}
+
+class _RescueLifecycleObserver extends WidgetsBindingObserver {
+  _RescueLifecycleObserver(this._rescue);
+
+  final RescueStore _rescue;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_rescue.flush());
+    }
   }
 }
 

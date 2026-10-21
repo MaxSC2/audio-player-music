@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v137**
+Current app version: **v138**
 
 ## Scope
 
@@ -35,6 +35,17 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v138 — rescue copy, diagnostic log and style-specific splash
+
+Implemented:
+- critical settings are mirrored to `Android/media/com.example.audio_player/neonwave_rescue.json` via the `neonwave/rescue` native channel;
+- the newest copy wins on startup (file newer than prefs, or prefs have no critical keys);
+- native diagnostics log at `neonwave_diagnostics.log` includes legacy prefs, file timestamp, `rescue_saved_at` and launch count;
+- `BootGate` now renders a distinct animated splash for Simple, Cover Flow 3D, Cinematic and Neon, using the selected style before HomeScreen opens;
+- rescue flush is triggered on app pause/detach.
+
+Validation: `flutter analyze` clean; 4 rescue tests added; full suite and device reinstall pending.
 
 ## v137 — preferences before audio initialization
 

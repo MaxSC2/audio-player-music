@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/rescue_store.dart';
 import '../ui/theme.dart';
 
 class PaletteColors {
@@ -80,10 +81,14 @@ class PaletteColors {
 }
 
 class PaletteController extends ChangeNotifier {
-  PaletteController({Future<SharedPreferences>? prefsFuture})
-    : _prefsFuture = prefsFuture;
+  PaletteController({
+    Future<SharedPreferences>? prefsFuture,
+    RescueStore? rescue,
+  }) : _prefsFuture = prefsFuture,
+       _rescue = rescue;
 
   final Future<SharedPreferences>? _prefsFuture;
+  final RescueStore? _rescue;
 
   static const _modeKey = 'palette_mode';
   static const _customKey = 'palette_custom';
@@ -208,17 +213,53 @@ class PaletteController extends ChangeNotifier {
       isCustom ? (_custom ?? presets.first) : presets[_index];
 
   Future<void> init() async {
-    _prefs = await (_prefsFuture ?? SharedPreferences.getInstance());
-    if (!_modeTouched) {
+    final rescue = _rescue;
+    if (rescue != null) await rescue.ready;
+
+    final rescueMode = rescue != null && rescue.use(_modeKey)
+        ? rescue.get(_modeKey)
+        : null;
+    final rescueLight = rescue != null && rescue.use(_themeKey)
+        ? rescue.get(_themeKey)
+        : null;
+    final rescueCustomUsed = rescue?.use(_customKey) ?? false;
+    final rescueCustom = rescueCustomUsed ? rescue!.get(_customKey) : null;
+
+    if (!_modeTouched && rescueMode is int) {
+      _index = rescueMode;
+      if (_index < 0 || _index >= presets.length) _index = 0;
+    }
+    if (!_lightTouched && rescueLight is bool) {
+      _light = rescueLight;
+    }
+    if (rescueCustomUsed && _custom == null) {
+      if (rescueCustom is String && rescueCustom.isNotEmpty) {
+        try {
+          _custom = PaletteColors.decode(rescueCustom);
+        } catch (_) {
+          _custom = null;
+        }
+      }
+    }
+
+    try {
+      _prefs = await (_prefsFuture ?? SharedPreferences.getInstance()).timeout(
+        const Duration(seconds: 2),
+      );
+    } catch (_) {
+      _prefs = null;
+    }
+
+    if (!_modeTouched && rescueMode == null) {
       final saved = _prefs?.get(_modeKey);
       _index = saved is int ? saved : 0;
       if (_index < 0 || _index >= presets.length) _index = 0;
     }
-    if (!_lightTouched) {
+    if (!_lightTouched && rescueLight == null) {
       final saved = _prefs?.get(_themeKey);
       _light = saved is bool ? saved : false;
     }
-    if (_custom == null) {
+    if (!rescueCustomUsed && _custom == null) {
       final rawValue = _prefs?.get(_customKey);
       final raw = rawValue is String ? rawValue : null;
       if (raw != null && raw.isNotEmpty) {
@@ -228,7 +269,10 @@ class PaletteController extends ChangeNotifier {
           // Corrupted preference must never prevent the application from
           // starting. Drop only the invalid custom palette and keep presets.
           _custom = null;
-          await _prefs?.remove(_customKey);
+          try {
+            await _prefs?.remove(_customKey);
+          } catch (_) {}
+          rescue?.set(_customKey, null);
         }
       }
     }
@@ -239,7 +283,10 @@ class PaletteController extends ChangeNotifier {
   void setMode(bool light) {
     _light = light;
     _lightTouched = true;
-    _prefs?.setBool(_themeKey, light);
+    try {
+      _prefs?.setBool(_themeKey, light);
+    } catch (_) {}
+    _rescue?.set(_themeKey, light);
     _apply();
   }
 
@@ -284,12 +331,19 @@ class PaletteController extends ChangeNotifier {
   }
 
   void _persist() {
-    _prefs?.setInt(_modeKey, _index);
-    if (_custom != null) {
-      _prefs?.setString(_customKey, _custom!.encode());
-    } else {
-      _prefs?.remove(_customKey);
-    }
+    try {
+      _prefs?.setInt(_modeKey, _index);
+      if (_custom != null) {
+        _prefs?.setString(_customKey, _custom!.encode());
+      } else {
+        _prefs?.remove(_customKey);
+      }
+    } catch (_) {}
+    _rescue?.setAll({
+      _modeKey: _index,
+      _customKey: _custom?.encode(),
+      _themeKey: _light,
+    });
   }
 
   void _apply() {

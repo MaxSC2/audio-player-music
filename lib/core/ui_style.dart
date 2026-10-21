@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'debug_log.dart';
+import 'rescue_store.dart';
 
 enum PlayerUIStyle { simple, coverFlow3D, cinematic, neon }
 
@@ -25,10 +30,14 @@ const Map<CinematicThemeMode, String> cinematicThemeNames = {
 };
 
 class UiStyleController extends ChangeNotifier {
-  UiStyleController({Future<SharedPreferences>? prefsFuture})
-    : _prefsFuture = prefsFuture;
+  UiStyleController({
+    Future<SharedPreferences>? prefsFuture,
+    RescueStore? rescue,
+  }) : _prefsFuture = prefsFuture,
+       _rescue = rescue;
 
   final Future<SharedPreferences>? _prefsFuture;
+  final RescueStore? _rescue;
 
   static const _prefsKey = 'ui_style';
   static const _cinematicPrefsKey = 'cinematic_theme';
@@ -49,32 +58,74 @@ class UiStyleController extends ChangeNotifier {
   }
 
   Future<void> init() async {
+    final rescue = _rescue;
+    if (rescue != null) await rescue.ready;
+
+    final rescueStyle = rescue != null && rescue.use(_prefsKey)
+        ? rescue.get(_prefsKey)
+        : null;
+    final rescueTheme = rescue != null && rescue.use(_cinematicPrefsKey)
+        ? rescue.get(_cinematicPrefsKey)
+        : null;
+    if (!_styleTouched && rescueStyle is String) {
+      try {
+        _style = PlayerUIStyle.values.byName(rescueStyle);
+      } catch (_) {
+        _style = PlayerUIStyle.simple;
+      }
+    }
+    if (!_themeTouched && rescueTheme is String) {
+      try {
+        _cinematicTheme = CinematicThemeMode.values.byName(rescueTheme);
+      } catch (_) {
+        _cinematicTheme = CinematicThemeMode.auto;
+      }
+    }
+
     try {
-      _prefs = await (_prefsFuture ?? SharedPreferences.getInstance());
+      _prefs = await (_prefsFuture ?? SharedPreferences.getInstance()).timeout(
+        const Duration(seconds: 2),
+      );
+    } on TimeoutException {
+      _prefs = null;
+      DebugLog.log('uiStyle: prefs таймаут');
+    } catch (_) {
+      _prefs = null;
+    }
+
+    if (!_styleTouched && rescueStyle == null) {
       final saved = _prefs?.get(_prefsKey);
-      if (!_styleTouched && saved is String) {
+      if (saved is String) {
         try {
           _style = PlayerUIStyle.values.byName(saved);
         } catch (_) {
           _style = PlayerUIStyle.simple;
         }
       }
-      final savedTheme = _prefs?.get(_cinematicPrefsKey);
-      if (!_themeTouched && savedTheme is String) {
+    }
+    if (!_themeTouched && rescueTheme == null) {
+      final saved = _prefs?.get(_cinematicPrefsKey);
+      if (saved is String) {
         try {
-          _cinematicTheme = CinematicThemeMode.values.byName(savedTheme);
+          _cinematicTheme = CinematicThemeMode.values.byName(saved);
         } catch (_) {
           _cinematicTheme = CinematicThemeMode.auto;
         }
       }
-      if (_styleTouched) await _prefs?.setString(_prefsKey, _style.name);
-      if (_themeTouched) {
-        await _prefs?.setString(_cinematicPrefsKey, _cinematicTheme.name);
-      }
-      notifyListeners();
-    } catch (_) {
-      if (!_styleTouched) _style = PlayerUIStyle.simple;
     }
+    if (_styleTouched) {
+      try {
+        await _prefs?.setString(_prefsKey, _style.name);
+      } catch (_) {}
+      rescue?.set(_prefsKey, _style.name);
+    }
+    if (_themeTouched) {
+      try {
+        await _prefs?.setString(_cinematicPrefsKey, _cinematicTheme.name);
+      } catch (_) {}
+      rescue?.set(_cinematicPrefsKey, _cinematicTheme.name);
+    }
+    notifyListeners();
   }
 
   Future<void> setStyle(PlayerUIStyle value) async {
@@ -82,7 +133,10 @@ class UiStyleController extends ChangeNotifier {
     _style = value;
     _styleTouched = true;
     notifyListeners();
-    await _prefs?.setString(_prefsKey, value.name);
+    try {
+      await _prefs?.setString(_prefsKey, value.name);
+    } catch (_) {}
+    _rescue?.set(_prefsKey, value.name);
   }
 
   Future<void> setCinematicTheme(CinematicThemeMode value) async {
@@ -90,7 +144,10 @@ class UiStyleController extends ChangeNotifier {
     _cinematicTheme = value;
     _themeTouched = true;
     notifyListeners();
-    await _prefs?.setString(_cinematicPrefsKey, value.name);
+    try {
+      await _prefs?.setString(_cinematicPrefsKey, value.name);
+    } catch (_) {}
+    _rescue?.set(_cinematicPrefsKey, value.name);
   }
 
   void toggle() {

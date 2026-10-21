@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentSender
 import android.os.Build
 import android.provider.MediaStore
+import java.io.File
 import com.ryanheise.audioservice.AudioServiceActivity
 import com.example.audio_player.widget.WidgetState
 import com.example.audio_player.widget.WidgetBridge
@@ -64,6 +65,27 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, RESCUE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "load" -> result.success(loadRescueState())
+                    "save" -> {
+                        val state = call.argument<String>("state")
+                        val savedAt = (call.argument<Number>("savedAt") ?: 0).toLong()
+                        result.success(
+                            state != null && state.isNotEmpty() &&
+                                writeRescueState(state, savedAt)
+                        )
+                    }
+                    "log" -> {
+                        val file = diagnosticFile()
+                        result.success(
+                            if (file.exists()) file.readText() else ""
+                        )
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, WAVE_CHANNEL)
             .setStreamHandler(AudioVisualizerBridge())
 
@@ -189,11 +211,116 @@ class MainActivity : AudioServiceActivity() {
         }
     }
 
+    private fun stateDir(): File {
+        val dir = getExternalMediaDirs()?.firstOrNull()
+            ?: getExternalFilesDir(null)
+            ?: filesDir
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    private fun stateFile(): File = File(stateDir(), "neonwave_rescue.json")
+
+    private fun diagnosticFile(): File =
+        File(stateDir(), "neonwave_diagnostics.log")
+
+    private fun loadRescueState(): Map<String, Any?> {
+        val diagnostics = getSharedPreferences("neonwave_diagnostics", MODE_PRIVATE)
+        val launch = diagnostics.getInt("launch_count", 0) + 1
+        diagnostics.edit().putInt("launch_count", launch).commit()
+
+        val legacyPrefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        val legacy = mutableMapOf<String, Any?>()
+        legacyPrefs.all.forEach { (rawKey, rawValue) ->
+            val key = if (rawKey.startsWith("flutter.")) {
+                rawKey.removePrefix("flutter.")
+            } else {
+                rawKey
+            }
+            legacy[key] = codecValue(rawValue)
+        }
+
+        val file = stateFile()
+        val raw = try {
+            if (file.exists()) file.readText() else null
+        } catch (_: Exception) {
+            null
+        }
+        val critical = mapOf(
+            "ui_style" to legacy["ui_style"],
+            "palette_mode" to legacy["palette_mode"],
+            "sort_order" to legacy["sort_order"],
+            "favorite_ids" to legacy["favorite_ids"],
+        )
+        val criticalKeys = listOf(
+            "ui_style",
+            "cinematic_theme",
+            "palette_mode",
+            "palette_custom",
+            "theme_mode",
+            "sort_order",
+            "favorite_ids",
+            "repeat_mode",
+            "shuffle_mode",
+            "x_boost",
+        )
+        val prefsSavedAt =
+            (legacy["rescue_saved_at"] as? Number)?.toLong() ?: 0L
+        val prefsHasAny = criticalKeys.any { legacy.containsKey(it) }
+        appendDiagnostic(
+            "load launch=$launch file=${file.exists()} " +
+                "bytes=${if (file.exists()) file.length() else 0} " +
+                "mtime=${file.lastModified()} prefsAt=$prefsSavedAt " +
+                "prefsHasAny=$prefsHasAny prefs=$critical"
+        )
+        return mapOf(
+            "state" to raw,
+            "savedAt" to file.lastModified(),
+            "prefsSavedAt" to prefsSavedAt,
+            "prefsHasAny" to prefsHasAny,
+            "path" to file.absolutePath,
+            "launchCount" to launch,
+            "legacy" to legacy,
+        )
+    }
+
+    private fun writeRescueState(state: String, savedAt: Long): Boolean {
+        return try {
+            val file = stateFile()
+            val temp = File(file.parentFile, "${file.name}.tmp")
+            temp.writeText(state)
+            if (!temp.renameTo(file)) {
+                file.writeText(state)
+                temp.delete()
+            }
+            file.setLastModified(savedAt)
+            appendDiagnostic("save bytes=${state.length} at=$savedAt path=${file.absolutePath}")
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun appendDiagnostic(line: String) {
+        try {
+            val file = diagnosticFile()
+            if (file.exists() && file.length() > 64_000) file.writeText("")
+            file.appendText("${System.currentTimeMillis()} $line\n")
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun codecValue(value: Any?): Any? = when (value) {
+        is Set<*> -> value.map { it.toString() }
+        else -> value
+    }
+
     companion object {
         private const val DELETE_CHANNEL = "neonwave/deletion"
         private const val WIDGET_CHANNEL = "neonwave/widgets"
         private const val WAVE_CHANNEL = "neonwave/wave"
         private const val BRIDGE_CHANNEL = "neonwave/bridge"
+        private const val RESCUE_CHANNEL = "neonwave/rescue"
         private const val DELETE_REQUEST_CODE = 4831
 
         /** Внешняя команда автовоспроизведения (Mini-UNA): explicit intent, extra "playlist"? */
