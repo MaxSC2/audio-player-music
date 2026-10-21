@@ -45,9 +45,7 @@ class _PromptPlaylistSheetState extends State<PromptPlaylistSheet> {
     final name = '«$_prompt»';
     final id = await player.createPlaylist(name);
     if (id == null) return;
-    for (final t in result) {
-      await player.addToPlaylist(id, t);
-    }
+    await player.addTracksToPlaylist(id, result);
     if (!mounted) return;
     setState(() => _saved = true);
     ScaffoldMessenger.of(context).showSnackBar(

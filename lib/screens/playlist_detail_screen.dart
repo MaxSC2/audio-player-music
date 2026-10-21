@@ -5,6 +5,7 @@ import '../models/custom_playlist.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import '../widgets/cached_artwork.dart';
+import '../widgets/playlist_picker_sheet.dart';
 import '../widgets/track_tile.dart';
 
 class PlaylistDetailScreen extends StatelessWidget {
@@ -81,6 +82,14 @@ class PlaylistDetailScreen extends StatelessWidget {
         actions: isSmart
             ? null
             : [
+                IconButton(
+                  icon: Icon(
+                    Icons.playlist_add_rounded,
+                    color: AppTheme.accentGreen,
+                  ),
+                  tooltip: 'Добавить треки',
+                  onPressed: () => _addTracks(context, player, playlist!),
+                ),
                 PopupMenuButton<String>(
                   icon: Icon(
                     Icons.more_vert_rounded,
@@ -96,7 +105,9 @@ class PlaylistDetailScreen extends StatelessWidget {
                     // в асинхронном колбэке (плейлист мог удалиться).
                     final pl = playlist;
                     if (pl == null) return;
-                    if (value == 'rename') {
+                    if (value == 'add') {
+                      await _addTracks(context, player, pl);
+                    } else if (value == 'rename') {
                       await _renamePlaylist(context, player, pl);
                     } else if (value == 'delete') {
                       final ok = await _confirmDelete(context);
@@ -107,6 +118,20 @@ class PlaylistDetailScreen extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'add',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.playlist_add_rounded,
+                            color: AppTheme.accentGreen,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Добавить треки'),
+                        ],
+                      ),
+                    ),
                     PopupMenuItem(
                       value: 'rename',
                       child: Row(
@@ -212,6 +237,30 @@ class PlaylistDetailScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (!isSmart) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _addTracks(context, player, playlist!),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.accentCyan,
+                        side: BorderSide(
+                          color: AppTheme.accentCyan.withValues(alpha: 0.5),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.playlist_add_rounded),
+                      label: Text(
+                        tracks.isEmpty ? 'Добавить треки' : 'Добавить ещё',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -221,7 +270,7 @@ class PlaylistDetailScreen extends StatelessWidget {
             child: tracks.isEmpty
                 ? Center(
                     child: Text(
-                      'В плейлисте пока нет треков.\nДобавьте их через меню трека',
+                      'В плейлисте пока нет треков.\nДобавьте их кнопкой выше',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
                     ),
@@ -247,6 +296,40 @@ class PlaylistDetailScreen extends StatelessWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _addTracks(
+    BuildContext context,
+    PlayerProvider player,
+    CustomPlaylist playlist,
+  ) async {
+    final picked = await TrackPickSheet.show(
+      context,
+      disabledIds: playlist.trackIds.toSet(),
+      title: 'Добавить в «${playlist.name}»',
+    );
+    if (picked == null || picked.isEmpty || !context.mounted) return;
+
+    final byId = <int, AudioTrack>{
+      for (final track in player.visibleTracks) track.id: track,
+    };
+    final selected = <AudioTrack>[
+      for (final id in picked)
+        if (byId[id] != null) byId[id]!,
+    ];
+    final added = await player.addTracksToPlaylist(playlist.id, selected);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added == 0
+              ? 'Эти треки уже есть в плейлисте'
+              : 'Добавлено в «${playlist.name}»: $added',
+        ),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

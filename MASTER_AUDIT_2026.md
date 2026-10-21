@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v131**
+Current app version: **v132**
 
 ## Scope
 
@@ -183,3 +183,12 @@ These are intentionally deferred until correctness and current-device validation
   минуты и треки взаимоисключающие; иконка в плеере реагирует на любой режим.
 - Локальная сборка на ПК: `tool/setup_local_android.sh` + `tool/build_apk.sh`.
 - README переписан под текущее состояние; CI docs синхронизированы.
+
+## v132 follow-up
+
+- Плейлист: добавление треков прямо из экрана плейлиста, уже добавленные
+  треки disabled и подписаны; пакетная запись в prefs одним notify.
+- Мультивыбор: long-press + drag выделяет диапазон в «Треках» и «Избранном»;
+  добавлена видимая кнопка входа в режим выбора; действия применяются к набору.
+- Авторелиз: push в `master` публикует `NeonWave.apk` в GitHub Releases
+  (`--latest`), CI-артефакт остаётся.

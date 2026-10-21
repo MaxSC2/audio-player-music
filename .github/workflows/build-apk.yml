@@ -32,6 +32,8 @@ jobs:
   build:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -124,3 +126,21 @@ jobs:
         with:
           name: app-release
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="1.1.${GITHUB_RUN_NUMBER}"
+          TAG="v${VERSION}"
+          cp build/app/outputs/flutter-apk/app-release.apk NeonWave.apk
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" NeonWave.apk --clobber
+          else
+            gh release create "$TAG" NeonWave.apk \
+              --title "NeonWave $VERSION" \
+              --notes "Автосборка master: ${GITHUB_SHA::7}. APK: NeonWave.apk." \
+              --latest
+          fi

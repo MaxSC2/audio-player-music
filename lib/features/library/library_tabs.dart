@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/audio_track.dart';
 import '../../providers/player_provider.dart';
@@ -17,6 +18,7 @@ import '../../widgets/track_tile.dart';
 import 'category_tab.dart';
 import 'music_dna_tab.dart';
 import '../../core/debug_log.dart';
+import '../../core/selection_range.dart';
 import '../../core/ui_style.dart';
 import '../../widgets/artwork_palette.dart';
 import 'smart_playlists_sheet.dart';
@@ -66,6 +68,15 @@ class _LibraryTabsState extends State<LibraryTabs>
   final Set<int> _selectedIds = <int>{};
   bool _albumGridView = false;
 
+  // Диапазонное выделение: long-press задаёт якорь, движение пальца по
+  // строкам расширяет выбор. GlobalKey нужен, чтобы по глобальной
+  // координате понять, над каким треком сейчас палец.
+  final Map<String, GlobalKey> _tileKeys = <String, GlobalKey>{};
+  List<AudioTrack> _dragOrder = const <AudioTrack>[];
+  GlobalKey Function(AudioTrack track)? _dragKeyOf;
+  int? _dragAnchorIndex;
+  Set<int> _dragBase = <int>{};
+
   double get _listBottomPad => 16 + widget.bottomInset;
 
   @override
@@ -78,7 +89,13 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   void _onTabChanged() {
-    if (!_tabController.indexIsChanging && mounted) setState(() {});
+    if (!_tabController.indexIsChanging && mounted) {
+      if (_selectionMode) {
+        _exitSelection();
+      } else {
+        setState(() {});
+      }
+    }
   }
 
   @override
@@ -306,6 +323,18 @@ class _LibraryTabsState extends State<LibraryTabs>
               onPressed: () => SmartPlaylistsSheet.show(context),
               tooltip: 'Умные плейлисты',
             ),
+            if (_tabController.index == 0 || _tabController.index == 5)
+              IconButton(
+                icon: Icon(
+                  Icons.checklist_rounded,
+                  color: neon ? Colors.white54 : AppTheme.textSecondary,
+                ),
+                onPressed: () => setState(() {
+                  _selectionMode = true;
+                  _selectedIds.clear();
+                }),
+                tooltip: 'Выбрать несколько',
+              ),
             if (_tabController.index == 2)
               IconButton(
                 icon: Icon(
@@ -510,13 +539,14 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildTrackList(PlayerProvider player, PlayerUIStyle style, Color? accent) {
-    final query = _searchQuery;
-    final tracks = player.searchTracks(query);
+    final tracks = player.searchTracks(_searchQuery);
     final playlist = tracks;
 
     if (tracks.isEmpty) {
       return _buildEmptyState('Ничего не найдено', Icons.search_off_rounded);
     }
+
+    GlobalKey keyOf(AudioTrack track) => _tileKey('tracks', track.id);
 
     return ListView.builder(
       padding: EdgeInsets.only(top: 6, bottom: _listBottomPad),
@@ -525,36 +555,35 @@ class _LibraryTabsState extends State<LibraryTabs>
         final track = tracks[index];
         final isCurrent = player.currentTrack?.id == track.id;
 
-        return SwipeReveal(
-          actions: _selectionMode ? const [] : _quickActions(player, track),
-          style: style,
-          accent: accent,
-          child: TrackTile(
-            track: track,
-            isPlaying: isCurrent && player.isPlaying,
-            isCurrent: isCurrent,
-            selected: _selectedIds.contains(track.id),
-            threeD: widget.threeD,
-            neon: widget.neon,
-            onTap: () {
-              if (_selectionMode) {
-                _toggleSelection(track);
-              } else if (playlist.length > 1) {
-                player.playFromPlaylist(playlist, index);
-              } else {
-                player.playTrack(track);
-              }
-            },
-            onLongPress: () {
-              if (_selectionMode) {
-                _toggleSelection(track);
-              } else {
-                setState(() {
-                  _selectionMode = true;
-                  _selectedIds.add(track.id);
-                });
-              }
-            },
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onLongPressStart: (details) =>
+              _startDragSelection(track, index, tracks, keyOf, details),
+          onLongPressMoveUpdate: _updateDragSelection,
+          onLongPressEnd: (_) => _endDragSelection(),
+          child: SwipeReveal(
+            key: ValueKey('track-${track.id}'),
+            actions: _selectionMode ? const [] : _quickActions(player, track),
+            style: style,
+            accent: accent,
+            child: TrackTile(
+              key: keyOf(track),
+              track: track,
+              isPlaying: isCurrent && player.isPlaying,
+              isCurrent: isCurrent,
+              selected: _selectedIds.contains(track.id),
+              threeD: widget.threeD,
+              neon: widget.neon,
+              onTap: () {
+                if (_selectionMode) {
+                  _toggleSelection(track);
+                } else if (playlist.length > 1) {
+                  player.playFromPlaylist(playlist, index);
+                } else {
+                  player.playTrack(track);
+                }
+              },
+            ),
           ),
         );
       },
@@ -1358,28 +1387,116 @@ class _LibraryTabsState extends State<LibraryTabs>
         final track = favs[index];
         final isCurrent = player.currentTrack?.id == track.id;
 
-        return SwipeReveal(
-          actions: _quickActions(player, track),
-          style: style,
-          accent: accent,
-          child: TrackTile(
-            track: track,
-            isPlaying: isCurrent && player.isPlaying,
-            isCurrent: isCurrent,
-            threeD: widget.threeD,
-            neon: widget.neon,
-            onTap: () {
-              if (favs.length > 1) {
-                player.playFromPlaylist(favs, index);
-              } else {
-                player.playTrack(track);
-              }
-            },
-            onLongPress: () => TrackActionsSheet.show(context, track),
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onLongPressStart: (details) => _startDragSelection(
+            track,
+            index,
+            favs,
+            (t) => _tileKey('favorites', t.id),
+            details,
+          ),
+          onLongPressMoveUpdate: _updateDragSelection,
+          onLongPressEnd: (_) => _endDragSelection(),
+          child: SwipeReveal(
+            key: ValueKey('fav-${track.id}'),
+            actions: _selectionMode ? const [] : _quickActions(player, track),
+            style: style,
+            accent: accent,
+            child: TrackTile(
+              key: _tileKey('favorites', track.id),
+              track: track,
+              isPlaying: isCurrent && player.isPlaying,
+              isCurrent: isCurrent,
+              selected: _selectedIds.contains(track.id),
+              threeD: widget.threeD,
+              neon: widget.neon,
+              onTap: () {
+                if (_selectionMode) {
+                  _toggleSelection(track);
+                } else if (favs.length > 1) {
+                  player.playFromPlaylist(favs, index);
+                } else {
+                  player.playTrack(track);
+                }
+              },
+            ),
           ),
         );
       },
     );
+  }
+
+  GlobalKey _tileKey(String scope, int trackId) {
+    return _tileKeys.putIfAbsent(
+      '$scope:$trackId',
+      () => GlobalKey(debugLabel: '$scope:$trackId'),
+    );
+  }
+
+  void _startDragSelection(
+    AudioTrack track,
+    int index,
+    List<AudioTrack> order,
+    GlobalKey Function(AudioTrack track) keyOf,
+    LongPressStartDetails details,
+  ) {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _selectionMode = true;
+      _dragOrder = List<AudioTrack>.of(order);
+      _dragKeyOf = keyOf;
+      _dragAnchorIndex = index;
+      _dragBase = Set<int>.of(_selectedIds)..add(track.id);
+      _selectedIds
+        ..clear()
+        ..addAll(_dragBase);
+    });
+  }
+
+  void _updateDragSelection(LongPressMoveUpdateDetails details) {
+    final order = _dragOrder;
+    final keyOf = _dragKeyOf;
+    final anchor = _dragAnchorIndex;
+    if (anchor == null || keyOf == null || order.isEmpty) return;
+
+    int? target;
+    for (var i = 0; i < order.length; i++) {
+      final context = keyOf(order[i]).currentContext;
+      final box = context?.findRenderObject();
+      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
+      final topLeft = box.localToGlobal(Offset.zero);
+      final top = topLeft.dy;
+      final bottom = top + box.size.height;
+      if (details.globalPosition.dy >= top - 4 &&
+          details.globalPosition.dy <= bottom + 4) {
+        target = i;
+        break;
+      }
+    }
+    if (target == null) return;
+
+    final next = selectionRangeIds(
+      order: order.map((t) => t.id).toList(),
+      anchor: anchor,
+      target: target,
+      base: _dragBase,
+    );
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(next);
+    });
+  }
+
+  void _endDragSelection() {
+    if (_dragAnchorIndex == null) return;
+    setState(() {
+      _dragOrder = const <AudioTrack>[];
+      _dragKeyOf = null;
+      _dragAnchorIndex = null;
+      _dragBase = <int>{};
+    });
   }
 
   void _toggleSelection(AudioTrack track) {
@@ -1796,6 +1913,10 @@ class _LibraryTabsState extends State<LibraryTabs>
     setState(() {
       _selectionMode = false;
       _selectedIds.clear();
+      _dragOrder = const <AudioTrack>[];
+      _dragKeyOf = null;
+      _dragAnchorIndex = null;
+      _dragBase = <int>{};
     });
   }
 
@@ -1970,15 +2091,15 @@ class _LibraryTabsState extends State<LibraryTabs>
     );
 
     if (playlistId == null) return;
-    for (final t in selected) {
-      await player.addToPlaylist(playlistId, t);
-    }
+    final added = await player.addTracksToPlaylist(playlistId, selected);
     _exitSelection();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${selected.length} ${_pluralTracks(selected.length)} добавлено в плейлист',
+            added == 0
+                ? 'Эти треки уже есть в плейлисте'
+                : '$added ${_pluralTracks(added)} добавлено в плейлист',
           ),
           duration: const Duration(seconds: 1),
           behavior: SnackBarBehavior.floating,

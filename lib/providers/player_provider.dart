@@ -1148,17 +1148,34 @@ class PlayerProvider extends ChangeNotifier {
     return id;
   }
 
-  Future<void> addToPlaylist(String playlistId, AudioTrack track) async {
+  /// Пакетное добавление: одна запись в prefs и один notify на весь набор.
+  /// Возвращает количество реально добавленных треков (дубли игнорируются).
+  Future<int> addTracksToPlaylist(
+    String playlistId,
+    Iterable<AudioTrack> tracks,
+  ) async {
     final index = _playlists.indexWhere((p) => p.id == playlistId);
-    if (index < 0) return;
-    if (_playlists[index].trackIds.contains(track.id)) return;
-    _playlists[index] = _playlists[index].copyWith(
-      trackIds: [..._playlists[index].trackIds, track.id],
-    );
+    if (index < 0) return 0;
+    final seen = _playlists[index].trackIds.toSet();
+    final merged = List<int>.of(_playlists[index].trackIds);
+    var added = 0;
+    for (final track in tracks) {
+      if (seen.add(track.id)) {
+        merged.add(track.id);
+        added++;
+      }
+    }
+    if (added == 0) return 0;
+    _playlists[index] = _playlists[index].copyWith(trackIds: merged);
     _playlistTracksCache.remove(playlistId);
     await _savePlaylists();
     _notifyMediaBrowseChanged();
-    _notify('addToPlaylist');
+    _notify('addTracksToPlaylist');
+    return added;
+  }
+
+  Future<void> addToPlaylist(String playlistId, AudioTrack track) async {
+    await addTracksToPlaylist(playlistId, [track]);
   }
 
   Future<void> removeFromPlaylist(String playlistId, int trackId) async {
@@ -2259,10 +2276,7 @@ class PlayerProvider extends ChangeNotifier {
         : name.trim();
     final id = await createPlaylist(plName);
     if (id == null) return 0;
-    for (final t in found) {
-      await addToPlaylist(id, t);
-    }
-    return found.length;
+    return addTracksToPlaylist(id, found);
   }
 
   /// F1: экспорт в M3U (симметрично [importM3U]) — очередь или плейлист.

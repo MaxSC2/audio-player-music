@@ -2,14 +2,26 @@ part of 'playlist_picker_sheet.dart';
 
 /// Выбор треков для нового плейлиста (вариант A): поиск, «выбрать
 /// показанные/очистить», счётчик. Начальный трек уже отмечен.
+///
+/// В режиме добавления в существующий плейлист [disabledIds] показывает
+/// уже добавленные треки неактивными, чтобы не искать их вручную.
 class TrackPickSheet extends StatefulWidget {
   final List<AudioTrack> initial;
+  final Set<int> disabledIds;
+  final String title;
 
-  const TrackPickSheet({super.key, this.initial = const []});
+  const TrackPickSheet({
+    super.key,
+    this.initial = const [],
+    this.disabledIds = const {},
+    this.title = 'Треки для плейлиста',
+  });
 
   static Future<List<int>?> show(
     BuildContext context, {
     List<AudioTrack> initial = const [],
+    Set<int> disabledIds = const {},
+    String title = 'Треки для плейлиста',
   }) {
     return showModalBottomSheet<List<int>>(
       context: context,
@@ -20,7 +32,11 @@ class TrackPickSheet extends StatefulWidget {
       ),
       builder: (_) => SizedBox(
         height: MediaQuery.of(context).size.height * 0.85,
-        child: TrackPickSheet(initial: initial),
+        child: TrackPickSheet(
+          initial: initial,
+          disabledIds: disabledIds,
+          title: title,
+        ),
       ),
     );
   }
@@ -37,7 +53,10 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
   @override
   void initState() {
     super.initState();
-    _picked = widget.initial.map((t) => t.id).toSet();
+    _picked = widget.initial
+        .where((t) => !widget.disabledIds.contains(t.id))
+        .map((t) => t.id)
+        .toSet();
     _search.addListener(() => setState(() => _query = _search.text.trim()));
   }
 
@@ -59,11 +78,17 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
           )
           .toList();
     }
-    // Выбранные — вверх, затем по названию: видно, что уже отмечено.
+    // Выбранные — вверх, уже добавленные — вниз, остальные по названию.
+    int rank(AudioTrack t) {
+      if (_picked.contains(t.id)) return 0;
+      if (widget.disabledIds.contains(t.id)) return 2;
+      return 1;
+    }
+
     list.sort((a, b) {
-      final pa = _picked.contains(a.id) ? 0 : 1;
-      final pb = _picked.contains(b.id) ? 0 : 1;
-      if (pa != pb) return pa.compareTo(pb);
+      final ra = rank(a);
+      final rb = rank(b);
+      if (ra != rb) return ra.compareTo(rb);
       return a.title.toLowerCase().compareTo(b.title.toLowerCase());
     });
     return list;
@@ -127,7 +152,7 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Треки для плейлиста',
+            widget.title,
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 16,
@@ -178,15 +203,23 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
   }
 
   Widget _bulkRow(List<AudioTrack> tracks) {
+    final available =
+        tracks.where((t) => !widget.disabledIds.contains(t.id)).toList();
     return Row(
       children: [
         TextButton(
-          onPressed: () => setState(
-            () => _picked = tracks.map((t) => t.id).toSet(),
-          ),
+          onPressed: available.isEmpty
+              ? null
+              : () => setState(
+                    () => _picked = available.map((t) => t.id).toSet(),
+                  ),
           child: Text(
             'Выбрать показанные',
-            style: TextStyle(color: AppTheme.accentLight),
+            style: TextStyle(
+              color: available.isEmpty
+                  ? AppTheme.textMuted
+                  : AppTheme.accentLight,
+            ),
           ),
         ),
         TextButton(
@@ -214,6 +247,7 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
       itemBuilder: (context, index) {
         final t = tracks[index];
         final on = _picked.contains(t.id);
+        final disabled = widget.disabledIds.contains(t.id);
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 3),
           decoration: BoxDecoration(
@@ -221,7 +255,9 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
                 ? AppTheme.accent.withValues(
                     alpha: AppTheme.accent.a * 0.16,
                   )
-                : AppTheme.surfaceLight,
+                : AppTheme.surfaceLight.withValues(
+                    alpha: disabled ? 0.5 : 1,
+                  ),
             borderRadius: BorderRadius.circular(12),
             border: on
                 ? Border.all(
@@ -233,19 +269,21 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
           ),
           child: CheckboxListTile(
             value: on,
-            onChanged: (_) => setState(() {
-              if (on) {
-                _picked.remove(t.id);
-              } else {
-                _picked.add(t.id);
-              }
-            }),
+            onChanged: disabled
+                ? null
+                : (_) => setState(() {
+                      if (on) {
+                        _picked.remove(t.id);
+                      } else {
+                        _picked.add(t.id);
+                      }
+                    }),
             controlAffinity: ListTileControlAffinity.leading,
             activeColor: AppTheme.accent,
             title: Text(
               t.title,
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: disabled ? AppTheme.textMuted : AppTheme.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -253,9 +291,11 @@ class _TrackPickSheetState extends State<TrackPickSheet> {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              t.artist,
+              disabled ? '${t.artist} · уже в плейлисте' : t.artist,
               style: TextStyle(
-                color: AppTheme.textMuted,
+                color: disabled
+                    ? AppTheme.accentGreen.withValues(alpha: 0.7)
+                    : AppTheme.textMuted,
                 fontSize: 12,
               ),
               maxLines: 1,

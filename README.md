@@ -47,7 +47,8 @@ test/            — unit + widget тесты
 
 Push в `master` запускает `.github/workflows/build-apk.yml`:
 `quality` (analyze + tests) и release-сборку с подписью из secrets.
-APK публикуется артефактом `app-release`.
+APK публикуется артефактом `app-release` и автоматически в GitHub Releases
+(последний релиз — `--latest`, файл `NeonWave.apk`).
 
 Workflow сам создаёт отсутствующие Gradle-файлы через `flutter create`,
 поэтому в репозитории лежит только `android/app/build.gradle.kts.tmpl`.
