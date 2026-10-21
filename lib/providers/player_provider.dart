@@ -301,6 +301,8 @@ class PlayerProvider extends ChangeNotifier {
 
   Timer? _sleepTimer;
   int _sleepTimerMinutes = 0;
+  /// F4-часть 2: остановка «через N треков» (считаются дослушанные до конца).
+  int _sleepTracksRemaining = 0;
   // F4: «плавное затухание» и «дослушать текущий трек» — выбираются в диалоге
   // таймера сна. Громкость держим здесь, чтобы fade-out восстанавливал её
   // после остановки (и это же поле использует регулятор громкости — F3).
@@ -462,6 +464,9 @@ class PlayerProvider extends ChangeNotifier {
   bool get shuffleMode => _shuffleMode;
   double get speed => _speed;
   int get sleepTimerMinutes => _sleepTimerMinutes;
+  int get sleepTracksRemaining => _sleepTracksRemaining;
+  bool get sleepTimerActive =>
+      _sleepTimerMinutes > 0 || _sleepTracksRemaining > 0;
   bool get xBoost => _xBoost;
   Duration? get repeatA => _repeatA;
   Duration? get repeatB => _repeatB;
@@ -3246,6 +3251,15 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _onTrackComplete() async {
+    // F4-часть 2: трек реально доигран — уменьшаем счётчик «через N треков».
+    if (_sleepTracksRemaining > 0) {
+      _sleepTracksRemaining -= 1;
+      if (_sleepTracksRemaining == 0) {
+        await _stopForSleep();
+        return;
+      }
+      _notify('sleepTrackCountdown');
+    }
     if (_repeatMode == PlayerRepeatMode.one) {
       // B2: при нативном LoopMode.one повтор делает ExoPlayer; этот путь —
       // фолбэк для сборок, где режим не применился.
@@ -3340,9 +3354,23 @@ class PlayerProvider extends ChangeNotifier {
     _prefs?.setBool('sleep_fade', _sleepFadeOut);
     _prefs?.setBool('sleep_until_end', _sleepUntilTrackEnd);
     _sleepTimerMinutes = minutes;
+    _sleepTracksRemaining = 0;
     _sleepTimer?.cancel();
     _sleepTimer = Timer(Duration(minutes: minutes), _fireSleepTimer);
     _notify('setSleepTimer');
+  }
+
+  /// F4: остановка после [tracks] дослушанных до конца треков. В отличие от
+  /// минутного таймера не зависит от длины треков; ручной next() счётчик
+  /// не уменьшает (это «дослушать N треков», а не «переключить N раз»).
+  void setSleepTimerTracks(int tracks, {bool? fadeOut}) {
+    if (fadeOut != null) _sleepFadeOut = fadeOut;
+    _prefs?.setBool('sleep_fade', _sleepFadeOut);
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepTimerMinutes = 0;
+    _sleepTracksRemaining = tracks.clamp(0, 99);
+    _notify('setSleepTimerTracks');
   }
 
   /// F4: срабатывание таймера. Раньше здесь была резкая пауза — теперь
@@ -3370,6 +3398,7 @@ class PlayerProvider extends ChangeNotifier {
       await _audioPlayer.pause();
     }
     _sleepTimerMinutes = 0;
+    _sleepTracksRemaining = 0;
     _notify('setSleepTimer');
   }
 
@@ -3399,6 +3428,7 @@ class PlayerProvider extends ChangeNotifier {
     _sleepTimer?.cancel();
     _sleepTimer = null;
     _sleepTimerMinutes = 0;
+    _sleepTracksRemaining = 0;
     _notify('cancelSleepTimer');
   }
 

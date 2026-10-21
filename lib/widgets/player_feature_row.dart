@@ -104,10 +104,10 @@ class PlayerFeatureRow extends StatelessWidget {
 
           // Sleep Timer
           _FeatureButton(
-            icon: player.sleepTimerMinutes > 0
+            icon: player.sleepTimerActive
                 ? Icons.nightlight_round
                 : Icons.nightlight_outlined,
-            color: player.sleepTimerMinutes > 0
+            color: player.sleepTimerActive
                 ? AppTheme.accentAmber
                 : AppTheme.textSecondary,
             onTap: () {

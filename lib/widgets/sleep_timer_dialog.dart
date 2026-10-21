@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/display_names.dart';
 import '../providers/player_provider.dart';
 import '../ui/theme.dart';
 import 'circular_timer_dial.dart';
@@ -30,6 +31,7 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
     final activeMinutes = player.sleepTimerMinutes;
+    final activeTracks = player.sleepTracksRemaining;
 
     return AlertDialog(
       backgroundColor: AppTheme.surface,
@@ -66,6 +68,15 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
               if (activeMinutes > 0)
                 Text(
                   'Активен: $activeMinutes мин',
+                  style: TextStyle(
+                    color: AppTheme.accentLight,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              else if (activeTracks > 0)
+                Text(
+                  'Активен: ${DisplayNames.tracks(activeTracks)}',
                   style: TextStyle(
                     color: AppTheme.accentLight,
                     fontSize: 11,
@@ -122,6 +133,48 @@ class _SleepTimerDialogState extends State<SleepTimerDialog> {
                   'Остановка на границе трека, а не на полуслове',
                   style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
                 ),
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Или после N дослушанных треков',
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final n in const [1, 3, 5, 10])
+                    ActionChip(
+                      label: Text(DisplayNames.tracks(n)),
+                      labelStyle: TextStyle(
+                        color: activeTracks == n
+                            ? Colors.black
+                            : AppTheme.textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      backgroundColor: activeTracks == n
+                          ? AppTheme.accent
+                          : AppTheme.surfaceLight,
+                      side: BorderSide(
+                        color: activeTracks == n
+                            ? AppTheme.accent
+                            : AppTheme.cardBorder,
+                      ),
+                      onPressed: () {
+                        player.setSleepTimerTracks(n, fadeOut: _fadeOut);
+                        Navigator.pop(context);
+                      },
+                    ),
+                ],
               ),
               const SizedBox(height: 18),
               Row(

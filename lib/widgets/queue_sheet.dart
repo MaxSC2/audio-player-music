@@ -8,8 +8,33 @@ import 'animated_waveform.dart';
 import 'numpad_sheet.dart';
 import '../core/debug_log.dart';
 
-class QueueSheet extends StatelessWidget {
+class QueueSheet extends StatefulWidget {
   const QueueSheet({super.key});
+
+  @override
+  State<QueueSheet> createState() => _QueueSheetState();
+}
+
+class _QueueSheetState extends State<QueueSheet> {
+  /// Открываем очередь не с начала, а рядом с играющим треком: на 6k
+  /// треках ручной скролл до текущего был бы бессмысленной работой.
+  /// Высота строки ~64 px (ListTile + margin); точная не нужна — после
+  /// первого layout позиция клампится по реальному maxScrollExtent.
+  late final ScrollController _scroll;
+
+  @override
+  void initState() {
+    super.initState();
+    final index = context.read<PlayerProvider>().currentIndex;
+    final offset = index > 2 ? (index - 2) * 64.0 : 0.0;
+    _scroll = ScrollController(initialScrollOffset: offset);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -378,6 +403,7 @@ class QueueSheet extends StatelessWidget {
           else
             Expanded(
               child: ReorderableListView.builder(
+                scrollController: _scroll,
                 buildDefaultDragHandles: false,
                 itemCount: queue.length,
                 // onReorderItem (актуальный API): newIndex уже скорректирован

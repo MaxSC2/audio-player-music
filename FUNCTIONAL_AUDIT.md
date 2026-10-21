@@ -1,8 +1,25 @@
 # NeonWave — Функциональный аудит и план развития
 
-Дата: 2026-09-14 · Статус: **в работе** (v117: исправлен ANR перемотки + P1 умные плейлисты/M3U-импорт)
+Дата: 2026-10-21 · Статус: **v131** (merged-пакет аудита + Android Auto + UX-полировка)
+
+> Таблицы ниже — исторический срез v117–v130. Актуальный статус — в блоке «Обновление v131» и в `BUG_REGISTER.md`.
 
 Целевая платформа: **Android 13+ (API 33+)**
+
+---
+
+## Обновление v131
+
+- **MediaSession**: system queue ограничена нативным окном; больше не отправляются тысячи `MediaItem`; исправлен `skipToQueueItem` и artwork lookup.
+- **Android Auto**: browse-дерево (все треки/избранное/недавние/плейлисты) + automotive descriptor. Требуется device-test AA.
+- **Аудио**: устранён двойной gain Auto Balance + X-Boost; Auto Balance off реально отключает поправки; ошибки playback видны в диагностике.
+- **Рекомендации**: вынесен `RecommendationEngine`, исправлена recency newest-first, объяснения совпадают со scoring, кэш not-now.
+- **Надёжность**: защита битой custom-палитры, lazy-load библиотеки для cold start, M3U path-aware matching.
+- **UX/дизайн**: crossfade обложек, очередь открывается у текущего трека, sleep timer «после N треков».
+- **CI**: quality-job (`flutter analyze` + `flutter test`) на PR; release build не запускается на PR.
+- **Тесты**: 53/53, analyze чист.
+
+Исторические TODO ниже (L1/L2/L3/L6, E1–E3, D3, F2, F5 и т.д.) считать закрытыми/устаревшими, если не отмечено иное в `BUG_REGISTER.md`.
 
 ---
 

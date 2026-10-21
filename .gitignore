@@ -12,3 +12,13 @@ mainactivity_backup/
 
 # Local CI scratch
 *.log
+
+# Локально сгенерированная Android/Gradle-обвязка (CI создаёт её сам)
+android/settings.gradle.kts
+android/build.gradle.kts
+android/app/build.gradle.kts
+android/gradlew
+android/gradlew.bat
+android/gradle/
+android/local.properties
+android/.gradle/

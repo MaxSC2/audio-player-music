@@ -1,8 +1,9 @@
 # NeonWave — Master Audit 2026
 
-Date: 2026-09-20
-Branch: `refactor/media-session-window-audit`
-Base: `master`
+Date: 2026-09-20 · Updated: 2026-10-21
+Branch: `stack-upgrade` (merged) → `master`
+Base at audit time: `master` (v94)
+Current app version: **v131**
 
 ## Scope
 
@@ -34,6 +35,13 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## Merge status
+
+The audit branch was merged into `stack-upgrade` (commit `fcc1716`) on 2026-10-21
+together with the v113–v130 work that had landed while the audit was in progress.
+`flutter analyze` is clean and all 53 tests pass. Android Auto still requires a
+real device/emulator validation.
 
 ## Changes implemented in this branch
 
@@ -163,3 +171,15 @@ The GitHub repository currently exposes no workflow run for this draft branch, s
 - Optional widget seek.
 
 These are intentionally deferred until correctness and current-device validation are complete.
+
+
+## v131 follow-up UX package
+
+- `CachedArtwork`: crossfade между обложками (260 мс) с сохранением
+  stale-while-revalidate поведения и LRU-кеша.
+- `QueueSheet`: открывается у текущего трека (оценка offset 64 px, клампится
+  по реальному maxScrollExtent); drag&drop сохранён.
+- Sleep timer: новый режим «после N дослушанных треков» (1/3/5/10) с fade-out;
+  минуты и треки взаимоисключающие; иконка в плеере реагирует на любой режим.
+- Локальная сборка на ПК: `tool/setup_local_android.sh` + `tool/build_apk.sh`.
+- README переписан под текущее состояние; CI docs синхронизированы.

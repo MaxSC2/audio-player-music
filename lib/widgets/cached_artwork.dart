@@ -108,12 +108,18 @@ class CachedArtwork extends StatefulWidget {
 class _CachedArtworkState extends State<CachedArtwork> {
   Uint8List? _bytes;
 
+  /// ID, к которому относятся [_bytes]. Нужен для crossfade: при смене
+  /// трека старый арт остаётся видимым, пока не загрузится новый, а затем
+  /// AnimatedSwitcher плавно растворяет его вместо резкой подмены.
+  int _loadedTrackId = -1;
+
   @override
   void initState() {
     super.initState();
     // Мгновенный хит из кеша — карточка никогда не стартует с плейсхолдера,
     // если арт уже грузили (ключевое для карусели при быстром скролле).
     _bytes = ArtworkCache.getSync(widget.trackId);
+    if (_bytes != null) _loadedTrackId = widget.trackId;
     if (_bytes == null && !ArtworkCache.has(widget.trackId)) {
       _load();
     }
@@ -127,6 +133,7 @@ class _CachedArtworkState extends State<CachedArtwork> {
         // Хит — мгновенная подмена без вспышки (setState не нужен,
         // build и так идёт следом за didUpdateWidget).
         _bytes = ArtworkCache.getSync(widget.trackId);
+        _loadedTrackId = widget.trackId;
       } else {
         // Stale-while-revalidate: старый арт висит до загрузки нового,
         // чтобы при прокрутке не мигал встроенный плейсхолдер.
@@ -136,30 +143,50 @@ class _CachedArtworkState extends State<CachedArtwork> {
   }
 
   Future<void> _load() async {
-    final bytes = await ArtworkCache.load(widget.trackId);
-    if (!mounted) return;
+    final id = widget.trackId;
+    final bytes = await ArtworkCache.load(id);
+    if (!mounted || id != widget.trackId) return;
     setState(() {
       _bytes = bytes;
+      _loadedTrackId = id;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final art = _bytes != null
+        ? Image.memory(
+            _bytes!,
+            key: ValueKey('art_$_loadedTrackId'),
+            width: widget.width,
+            height: widget.height,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          )
+        : KeyedSubtree(
+            key: ValueKey('fallback_$_loadedTrackId'),
+            child: widget.fallback ?? _buildFallback(),
+          );
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: RepaintBoundary(
         child: SizedBox(
           width: widget.width,
           height: widget.height,
-          child: _bytes != null
-              ? Image.memory(
-                  _bytes!,
-                  width: widget.width,
-                  height: widget.height,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                )
-              : (widget.fallback ?? _buildFallback()),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder: (current, previous) => Stack(
+              fit: StackFit.expand,
+              children: [
+                ...previous,
+                if (current != null) current,
+              ],
+            ),
+            child: art,
+          ),
         ),
       ),
     );
