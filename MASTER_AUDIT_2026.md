@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v132**
+Current app version: **v133**
 
 ## Scope
 
@@ -183,6 +183,15 @@ These are intentionally deferred until correctness and current-device validation
   минуты и треки взаимоисключающие; иконка в плеере реагирует на любой режим.
 - Локальная сборка на ПК: `tool/setup_local_android.sh` + `tool/build_apk.sh`.
 - README переписан под текущее состояние; CI docs синхронизированы.
+
+## v133 startup hotfix
+
+- `lib/main.dart`: тема/стиль инициализируются с таймаутом 2 с, затем сразу
+  вызывается `runApp`; `PlayerProvider.ready` ограничен 4 с, `AudioService.init`
+  стартует после первого кадра. Зависший platform channel больше не оставляет
+  приложение на чёрном экране.
+- Таймауты пишутся в `DebugLog`; ошибка провайдера отображается в диагностике.
+- Требует проверки на устройстве, где версия 242 открывалась чёрным экраном.
 
 ## v132 follow-up
 

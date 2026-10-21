@@ -52,12 +52,44 @@ Future<void> main() async {
   final uiStyle = UiStyleController();
   final palette = PaletteController();
 
-  await playerProvider.ready;
-
-  await palette.init();
-  await uiStyle.init();
-
   WidgetService.bind(playerProvider);
+
+  // Тему и стиль грузим до первого кадра, но с жёстким лимитом: зависший
+  // SharedPreferences не должен оставлять приложение на чёрном экране.
+  try {
+    await Future.wait([
+      palette.init(),
+      uiStyle.init(),
+    ]).timeout(const Duration(seconds: 2));
+  } on TimeoutException {
+    DebugLog.log('UI settings init: таймаут');
+  } catch (e, st) {
+    DebugLog.log('UI settings init failed', e, st);
+  }
+
+  // Сначала показываем UI: если audio_session/провайдер/AudioService зависнут
+  // на конкретном устройстве, чёрный экран больше не блокирует старт.
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => playerProvider),
+        ChangeNotifierProvider(create: (_) => uiStyle),
+        ChangeNotifierProvider(create: (_) => palette),
+      ],
+      child: ListenableBuilder(
+        listenable: palette,
+        builder: (_, __) => const NeonWaveApp(),
+      ),
+    ),
+  );
+
+  try {
+    await playerProvider.ready.timeout(const Duration(seconds: 4));
+  } on TimeoutException {
+    playerProvider.setMediaServiceError('Инициализация провайдера: таймаут');
+  } catch (e, st) {
+    DebugLog.log('PlayerProvider init failed', e, st);
+  }
 
   final handlerFuture = AudioService.init(
     builder: () => PlayerAudioHandler(
@@ -109,20 +141,6 @@ Future<void> main() async {
   } catch (e) {
     playerProvider.setMediaServiceError('Ошибка: $e');
   }
-
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => playerProvider),
-        ChangeNotifierProvider(create: (_) => uiStyle),
-        ChangeNotifierProvider(create: (_) => palette),
-      ],
-      child: ListenableBuilder(
-        listenable: palette,
-        builder: (_, __) => const NeonWaveApp(),
-      ),
-    ),
-  );
 
   // Мост внешних команд (Mini-UNA): автовоспроизведение + возврат.
   unawaited(BridgeService.init(playerProvider));
