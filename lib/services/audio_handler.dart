@@ -1,11 +1,61 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/audio_track.dart';
+import '../models/custom_playlist.dart';
+
+/// Maps a local MediaSession queue index to the provider's full playlist.
+/// Returns null when the local index is outside the published window.
+int? providerIndexFromMediaQueueIndex(
+  int mediaQueueIndex,
+  int providerOffset,
+  int queueLength,
+) {
+  if (mediaQueueIndex < 0 || mediaQueueIndex >= queueLength) return null;
+  return providerOffset + mediaQueueIndex;
+}
+
+const String _allTracksBrowseId = 'neonwave:all_tracks';
+const String _favoritesBrowseId = 'neonwave:favorites';
+const String _recentBrowseId = 'neonwave:recent';
+const String _playlistsBrowseId = 'neonwave:playlists';
+const int _defaultBrowsePageSize = 100;
+const int _maxBrowsePageSize = 200;
+
+int _browseInt(
+  Map<String, dynamic>? options,
+  String key,
+  int fallback,
+) {
+  final value = options?[key];
+  if (value is int) return value;
+  return int.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+List<T> _browsePage<T>(List<T> items, Map<String, dynamic>? options) {
+  final rawPage = _browseInt(
+    options,
+    'android.media.browse.extra.PAGE',
+    0,
+  );
+  final rawSize = _browseInt(
+    options,
+    'android.media.browse.extra.PAGE_SIZE',
+    _defaultBrowsePageSize,
+  );
+  final page = rawPage < 0 ? 0 : rawPage;
+  final size = rawSize.clamp(1, _maxBrowsePageSize).toInt();
+  final start = page * size;
+  if (start >= items.length) return const [];
+  final end = math.min(start + size, items.length);
+  return items.sublist(start, end);
+}
 
 class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final AudioPlayer player;
@@ -17,13 +67,21 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   final Future<void> Function(int index) onPlayAt;
   final Future<void> Function(bool on) onApplyShuffle;
   final Future<void> Function(int mode) onApplyRepeat;
-  final int Function(int nativeIndex) translateIndex;
+  final Future<void> Function() ensureLibraryLoaded;
+  final List<AudioTrack> Function() getLibraryTracks;
+  final List<AudioTrack> Function() getFavoriteTracks;
+  final List<AudioTrack> Function() getRecentTracks;
+  final List<CustomPlaylist> Function() getPlaylists;
+  final List<AudioTrack> Function(CustomPlaylist playlist) getPlaylistTracks;
+  final Future<void> Function(int trackId) onPlayTrackById;
   List<AudioTrack> _queueTracks = [];
   bool _shuffleOn = false;
   bool _favoriteOn = false;
   int _repeat = 0;
+  int _queueProviderOffset = 0;
   final OnAudioQuery _audioQuery = OnAudioQuery();
   final Map<int, String> _artPaths = {};
+  final Map<String, BehaviorSubject<Map<String, dynamic>>> _browseSubjects = {};
 
   PlayerAudioHandler(
     this.player, {
@@ -35,7 +93,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     required this.onPlayAt,
     required this.onApplyShuffle,
     required this.onApplyRepeat,
-    required this.translateIndex,
+    required this.ensureLibraryLoaded,
+    required this.getLibraryTracks,
+    required this.getFavoriteTracks,
+    required this.getRecentTracks,
+    required this.getPlaylists,
+    required this.getPlaylistTracks,
+    required this.onPlayTrackById,
   }) {
     _listen();
   }
@@ -249,11 +313,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         }
       }
       final nativeIdx = player.currentIndex;
-      final idx = nativeIdx == null ? null : translateIndex(nativeIdx);
-      if (idx != null &&
-          idx >= 0 &&
-          idx < _queueTracks.length &&
-          _queueTracks[idx].id == track.id) {
+      if (nativeIdx != null &&
+          nativeIdx >= 0 &&
+          nativeIdx < _queueTracks.length &&
+          _queueTracks[nativeIdx].id == track.id) {
         mediaItem.add(_toMediaItem(track));
       }
     } catch (_) {}
@@ -275,7 +338,148 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> skipToPrevious() => onPrevious();
 
   @override
-  Future<void> skipToQueueItem(int index) => onPlayAt(index);
+  Future<void> skipToQueueItem(int index) {
+    final providerIndex = providerIndexFromMediaQueueIndex(
+      index,
+      _queueProviderOffset,
+      _queueTracks.length,
+    );
+    if (providerIndex == null) return Future.value();
+    return onPlayAt(providerIndex);
+  }
+
+  @override
+  Future<List<MediaItem>> getChildren(
+    String parentMediaId, [
+    Map<String, dynamic>? options,
+  ]) async {
+    List<AudioTrack> tracksFor(String id) {
+      switch (id) {
+        case _allTracksBrowseId:
+          return getLibraryTracks();
+        case _favoritesBrowseId:
+          return getFavoriteTracks();
+        case _recentBrowseId:
+          return getRecentTracks();
+        default:
+          if (id.startsWith('neonwave:playlist:')) {
+            final playlistId =
+                id.substring('neonwave:playlist:'.length);
+            for (final playlist in getPlaylists()) {
+              if (playlist.id == playlistId) {
+                return getPlaylistTracks(playlist);
+              }
+            }
+          }
+          return const [];
+      }
+    }
+
+    if (parentMediaId == AudioService.browsableRootId) {
+      return const [
+        MediaItem(
+          id: _allTracksBrowseId,
+          title: 'Все треки',
+          playable: false,
+        ),
+        MediaItem(
+          id: _favoritesBrowseId,
+          title: 'Избранное',
+          playable: false,
+        ),
+        MediaItem(
+          id: _recentBrowseId,
+          title: 'Недавние',
+          playable: false,
+        ),
+        MediaItem(
+          id: _playlistsBrowseId,
+          title: 'Плейлисты',
+          playable: false,
+        ),
+      ];
+    }
+
+    if (parentMediaId == _playlistsBrowseId) {
+      final items = getPlaylists()
+          .map(
+            (playlist) => MediaItem(
+              id: 'neonwave:playlist:${playlist.id}',
+              title: playlist.name,
+              playable: false,
+            ),
+          )
+          .toList(growable: false);
+      return _browsePage(items, options);
+    }
+
+    final tracks = tracksFor(parentMediaId);
+    final items = _browsePage(tracks, options)
+        .map(
+          (track) => MediaItem(
+            id: 'neonwave:track:${track.id}',
+            album: track.album,
+            title: track.title,
+            artist: track.artist,
+            duration: Duration(milliseconds: track.duration),
+            playable: true,
+          ),
+        )
+        .toList(growable: false);
+    return items;
+  }
+
+  @override
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) =>
+      (_browseSubjects[parentMediaId] ??=
+              BehaviorSubject<Map<String, dynamic>>.seeded(const {}))
+          .stream;
+
+  /// Notifies Android Auto/browser clients that the library tree has changed.
+  /// Clients subscribed to a parent should call getChildren again.
+  void notifyBrowseChanged() {
+    for (final subject in _browseSubjects.values) {
+      if (!subject.isClosed) subject.add(const {});
+    }
+  }
+
+  @override
+  Future<MediaItem?> getMediaItem(String mediaId) async {
+    await ensureLibraryLoaded();
+    if (!mediaId.startsWith('neonwave:track:')) return null;
+    final rawId = mediaId.substring('neonwave:track:'.length);
+    final id = int.tryParse(rawId);
+    if (id == null) return null;
+    for (final track in getLibraryTracks()) {
+      if (track.id == id) {
+        return MediaItem(
+          id: mediaId,
+          album: track.album,
+          title: track.title,
+          artist: track.artist,
+          duration: Duration(milliseconds: track.duration),
+          playable: true,
+        );
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> playFromMediaId(
+    String mediaId, [
+    Map<String, dynamic>? extras,
+  ]) async {
+    await ensureLibraryLoaded();
+    if (!mediaId.startsWith('neonwave:track:')) return;
+    final rawId = mediaId.substring('neonwave:track:'.length);
+    final id = int.tryParse(rawId);
+    if (id != null) await onPlayTrackById(id);
+  }
+
+  @override
+  Future<void> playMediaItem(MediaItem mediaItem) =>
+      playFromMediaId(mediaItem.id);
 
   @override
   Future<void> stop() async {
@@ -283,16 +487,25 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     await super.stop();
   }
 
-  void setQueue(List<AudioTrack> tracks) {
+  /// Publishes only the materialized just_audio window to the system
+  /// MediaSession. [providerOffset] maps local MediaSession queue indices to
+  /// the provider's full playlist indices.
+  void setQueueWindow(List<AudioTrack> tracks, int providerOffset) {
     _queueTracks = List.of(tracks);
-    queue.add(_queueTracks.map(_toMediaItem).toList());
+    _queueProviderOffset = providerOffset;
+    queue.add(_queueTracks.map(_toMediaItem).toList(growable: false));
     final nativeIdx = player.currentIndex;
-    playbackState.add(
-      _state.copyWith(
-        queueIndex:
-            nativeIdx == null ? null : translateIndex(nativeIdx),
-      ),
-    );
+    final mediaQueueIndex = nativeIdx == null
+        ? null
+        : (nativeIdx >= 0 && nativeIdx < _queueTracks.length ? nativeIdx : null);
+    playbackState.add(_state.copyWith(queueIndex: mediaQueueIndex));
+  }
+
+  /// Backward-compatible full-queue API. New provider code should use
+  /// [setQueueWindow] so the system MediaSession never receives the full
+  /// thousands-item provider playlist.
+  void setQueue(List<AudioTrack> tracks) {
+    setQueueWindow(tracks, 0);
   }
 
   DateTime _lastPositionPublish = DateTime.fromMillisecondsSinceEpoch(0);
@@ -330,7 +543,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
             : AudioServiceShuffleMode.none,
         queueIndex: player.currentIndex == null
             ? null
-            : translateIndex(player.currentIndex!),
+            : (player.currentIndex! >= 0 &&
+                    player.currentIndex! < _queueTracks.length
+                ? player.currentIndex
+                : null),
       );
       _log(
         'PUBLISH playing=$playing processing=${state.processingState} '
@@ -343,16 +559,21 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     });
 
     player.currentIndexStream.listen((nativeIndex) {
-      // Нативный индекс относится к окну treadmill — переводим в провайдерный
-      // (очередь _queueTracks полная).
-      final index =
-          nativeIndex == null ? null : translateIndex(nativeIndex);
-      if (index != null && index >= 0 && index < _queueTracks.length) {
-        final track = _queueTracks[index];
+      // Native index is local to the bounded MediaSession queue.
+      // MediaItem lookup therefore uses the local window index directly.
+      if (nativeIndex != null &&
+          nativeIndex >= 0 &&
+          nativeIndex < _queueTracks.length) {
+        final track = _queueTracks[nativeIndex];
         mediaItem.add(_toMediaItem(track));
         unawaited(_attachArt(track));
       }
-      playbackState.add(_state.copyWith(queueIndex: index));
+      final mediaQueueIndex = nativeIndex == null
+          ? null
+          : (nativeIndex >= 0 && nativeIndex < _queueTracks.length
+              ? nativeIndex
+              : null);
+      playbackState.add(_state.copyWith(queueIndex: mediaQueueIndex));
     });
   }
 

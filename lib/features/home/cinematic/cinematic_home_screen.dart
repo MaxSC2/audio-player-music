@@ -94,14 +94,19 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
   @override
   Widget build(BuildContext context) {
     DebugLog.rebuild('CinematicHome');
-    final player = context.watch<PlayerProvider>();
+    final playerView = context.select<PlayerProvider, ({bool hasQueue, int? trackId})>(
+      (player) => (
+        hasQueue: player.playlist.isNotEmpty,
+        trackId: player.currentTrack?.id,
+      ),
+    );
 
     return Scaffold(
       backgroundColor: CinematicTheme.bg,
       body: SafeArea(
         child: Column(
           children: [
-            _TopBar(hasQueue: player.playlist.isNotEmpty),
+            _TopBar(hasQueue: playerView.hasQueue),
             Expanded(
               child: Stack(
                 children: [
@@ -110,7 +115,7 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
                       controller: _tabs,
                       showTabBar: false,
                       neon: true,
-                      bottomInset: player.currentTrack != null
+                      bottomInset: playerView.trackId != null
                           ? _overlayInset
                           : _overlayInsetNoMini,
                     ),
@@ -121,7 +126,7 @@ class _CinematicHomeScreenState extends State<CinematicHomeScreen>
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: _buildBottomOverlay(player.currentTrack?.id),
+                    child: _buildBottomOverlay(playerView.trackId),
                   ),
                 ],
               ),

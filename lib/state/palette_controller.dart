@@ -56,7 +56,17 @@ class PaletteColors {
 
   static PaletteColors decode(String raw) {
     final parts = raw.split(',');
-    Color c(int i) => Color(int.tryParse(parts[i]) ?? 0);
+    if (parts.length != 7) {
+      throw const FormatException('palette must contain 7 ARGB32 colors');
+    }
+    Color c(int i) {
+      final value = int.tryParse(parts[i]);
+      if (value == null || value < 0 || value > 0xFFFFFFFF) {
+        throw const FormatException('palette contains an invalid color');
+      }
+      return Color(value);
+    }
+
     return PaletteColors(
       background: c(0),
       accent: c(1),
@@ -197,7 +207,14 @@ class PaletteController extends ChangeNotifier {
     _light = _prefs?.getBool(_themeKey) ?? false;
     final raw = _prefs?.getString(_customKey);
     if (raw != null && raw.isNotEmpty) {
-      _custom = PaletteColors.decode(raw);
+      try {
+        _custom = PaletteColors.decode(raw);
+      } catch (_) {
+        // Corrupted preference must never prevent the application from
+        // starting. Drop only the invalid custom palette and keep presets.
+        _custom = null;
+        await _prefs?.remove(_customKey);
+      }
     }
     _apply();
   }

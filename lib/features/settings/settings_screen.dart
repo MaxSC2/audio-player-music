@@ -604,6 +604,25 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    player.lastPlaybackError == null
+                        ? 'Ошибки воспроизведения: нет'
+                        : 'Последняя ошибка воспроизведения: '
+                            '${player.lastPlaybackError}\n'
+                            'Событий: ${player.playbackErrorCount}',
+                    style: TextStyle(
+                      color: player.lastPlaybackError == null
+                          ? AppTheme.textSecondary
+                          : AppTheme.accentPink,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      height: 1.5,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
