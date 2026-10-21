@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v133**
+Current app version: **v134**
 
 ## Scope
 
@@ -183,6 +183,18 @@ These are intentionally deferred until correctness and current-device validation
   минуты и треки взаимоисключающие; иконка в плеере реагирует на любой режим.
 - Локальная сборка на ПК: `tool/setup_local_android.sh` + `tool/build_apk.sh`.
 - README переписан под текущее состояние; CI docs синхронизированы.
+
+## v134 boot splash
+
+- `BootGate` показывает NeonWave-splash с анимированным логотипом и
+  эквалайзером, пока грузятся палитра, стиль и `PlayerProvider`.
+- HomeScreen открывается после прогрева (не более 4 с ожидания провайдера и
+  3 с на библиотеку при выданном доступе), `AudioService.init` продолжается
+  в фоне и не блокирует первый экран.
+- Нативный launch background: тёмный `#0B0C16` + иконка приложения вместо
+  чёрного прямоугольника.
+- Открытый вопрос: история/ДНК после обновления опустели. Данные в prefs не
+  удаляются кодом обновления; нужна информация о способе установки APK.
 
 ## v133 startup hotfix
 
