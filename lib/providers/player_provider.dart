@@ -653,12 +653,59 @@ class PlayerProvider extends ChangeNotifier {
   bool _seekingToRepeatA = false;
 
   Future<void> _init() async {
-    _prefs = await SharedPreferences.getInstance();
+    _attachPlayerStreams();
+    unawaited(_configureAudioSessionWithTimeout());
+
+    final prefsFuture = SharedPreferences.getInstance();
+    try {
+      _prefs = await prefsFuture.timeout(const Duration(seconds: 3));
+    } on TimeoutException {
+      DebugLog.log('SharedPreferences init: таймаут');
+      unawaited(_adoptLatePrefs(prefsFuture));
+      return;
+    } catch (e, st) {
+      DebugLog.log('SharedPreferences init failed', e, st);
+      return;
+    }
+
+    await _loadPersistedState();
+  }
+
+  /// Если SharedPreferences не успел за таймаут, но всё-таки завершился —
+  /// догружаем историю/плейлисты/настройки без перезапуска приложения.
+  Future<void> _adoptLatePrefs(Future<SharedPreferences> prefsFuture) async {
+    try {
+      final prefs = await prefsFuture;
+      if (_prefs != null) return;
+      _prefs = prefs;
+      await _loadPersistedState();
+      _notify('prefs-late');
+    } catch (e, st) {
+      DebugLog.log('SharedPreferences late init failed', e, st);
+    }
+  }
+
+  Future<void> _loadPersistedState() async {
     await _loadFavorites();
     await _loadPlaylists();
     await _loadSettings();
-    await _configureAudioSession();
+    unawaited(_applyNativeLoopMode());
+  }
 
+  Future<void> _configureAudioSessionWithTimeout() async {
+    try {
+      await _configureAudioSession().timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      DebugLog.log('audio_session: таймаут инициализации');
+    } catch (e, st) {
+      DebugLog.log('audio_session: ошибка инициализации', e, st);
+    }
+  }
+
+  /// Подписки на just_audio не зависят от prefs/audio_session. Ставим их
+  /// первыми, чтобы позиция, длительность и очередь обновлялись даже если
+  /// platform channel инициализации завис.
+  void _attachPlayerStreams() {
     _subs.add(
       _audioPlayer.positionStream.listen((pos) {
         _position = pos;
@@ -744,10 +791,12 @@ class PlayerProvider extends ChangeNotifier {
         _handleIndexEvent(idx);
       }),
     );
-
-    _audioPlayer.setSpeed(_speed);
-    // B2: восстановленный режим повтора применяем и нативно.
-    _applyNativeLoopMode();
+    unawaited(
+      _audioPlayer
+          .setSpeed(_speed)
+          .timeout(const Duration(seconds: 2))
+          .catchError((_) {}),
+    );
   }
 
   /// Настройка аудио-сессии: категория музыки (корректный аудиофокус, поведение
@@ -873,14 +922,27 @@ class PlayerProvider extends ChangeNotifier {
 
     final savedHistory = prefs.getString('history');
     if (savedHistory != null) {
-      try {
-        _historyRaw = (jsonDecode(savedHistory) as List)
-            .whereType<Map>()
-            .map((e) => e.cast<String, int>())
-            .toList();
-      } catch (_) {
-        _historyRaw = [];
+      final parsed = _parseHistory(savedHistory);
+      if (_historyRaw.isEmpty) {
+        _historyRaw = parsed;
+      } else if (parsed.isNotEmpty) {
+        // Поздняя загрузка prefs не должна затирать историю, записанную
+        // за время ожидания: сливаем по id+ts и оставляем свежие 300.
+        final seen = <String>{
+          for (final e in _historyRaw) '${e['id']}:${e['ts']}',
+        };
+        for (final e in parsed) {
+          if (seen.add('${e['id']}:${e['ts']}')) _historyRaw.add(e);
+        }
+        _historyRaw.sort(
+          (a, b) => (b['ts'] ?? 0).compareTo(a['ts'] ?? 0),
+        );
+        if (_historyRaw.length > 300) {
+          _historyRaw = _historyRaw.sublist(0, 300);
+        }
       }
+      _playCountsCache = null;
+      _invalidateDerivedCaches();
     }
 
     final savedNotNow = prefs.getString('not_now');
@@ -1054,8 +1116,29 @@ class PlayerProvider extends ChangeNotifier {
       _equalizerPreset = savedEq;
     }
 
-    await _audioPlayer.setSpeed(_speed);
+    try {
+      await _audioPlayer.setSpeed(_speed).timeout(const Duration(seconds: 2));
+    } catch (_) {}
     _notify('_loadSettings');
+  }
+
+  List<Map<String, int>> _parseHistory(String raw) {
+    final result = <Map<String, int>>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return result;
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final id = item['id'];
+        final ts = item['ts'];
+        if (id is int && ts is int) {
+          result.add({'id': id, 'ts': ts});
+        }
+      }
+    } catch (e) {
+      DebugLog.log('history parse failed', e);
+    }
+    return result;
   }
 
   Future<void> _loadPlaylists() async {
@@ -1064,14 +1147,31 @@ class PlayerProvider extends ChangeNotifier {
     final raw = prefs.getString('playlists');
     if (raw == null) return;
     try {
-      final list = (jsonDecode(raw) as List)
-          .map((e) => CustomPlaylist.fromJson(e as Map<String, dynamic>))
-          .toList();
-      _playlists = list;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+      final list = <CustomPlaylist>[];
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        try {
+          list.add(CustomPlaylist.fromJson(Map<String, dynamic>.from(item)));
+        } catch (e) {
+          DebugLog.log('playlist item parse failed', e);
+        }
+      }
+      if (_playlists.isEmpty) {
+        _playlists = list;
+      } else {
+        // Поздняя загрузка prefs: не теряем плейлисты, созданные в ожидании.
+        final byId = {for (final p in _playlists) p.id: p};
+        for (final p in list) {
+          byId.putIfAbsent(p.id, () => p);
+        }
+        _playlists = byId.values.toList();
+      }
       _playlistTracksCache.clear();
       _notify('_loadPlaylists');
-    } catch (_) {
-      _playlists = [];
+    } catch (e) {
+      DebugLog.log('playlists parse failed', e);
     }
   }
 
@@ -1298,6 +1398,10 @@ class PlayerProvider extends ChangeNotifier {
       await _buildNativeSlice(index, force: true);
       _currentIndex = index;
       _lastEventIndex = index;
+      final knownMs = tracks[index].duration;
+      if (knownMs > 0) {
+        _duration = Duration(milliseconds: knownMs);
+      }
       await _audioPlayer.seek(
         Duration(milliseconds: positionMs),
         index: index - _nativeOffset,
@@ -1332,9 +1436,7 @@ class PlayerProvider extends ChangeNotifier {
     if (saved != null) {
       // Битые записи раньше превращались в id=0 и «призрачно» попадали
       // в избранное — теперь непарсящиеся значения просто пропускаются.
-      _favoriteIds
-        ..clear()
-        ..addAll(saved.map(int.tryParse).whereType<int>());
+      _favoriteIds.addAll(saved.map(int.tryParse).whereType<int>());
       _notifyMediaBrowseChanged();
       _notify('_loadFavorites');
     }
@@ -2967,6 +3069,10 @@ class PlayerProvider extends ChangeNotifier {
       await _buildNativeSlice(0, force: true);
       _currentIndex = 0;
       _lastEventIndex = 0;
+      final knownMs = initial[0].duration;
+      if (knownMs > 0) {
+        _duration = Duration(milliseconds: knownMs);
+      }
       await _audioPlayer.seek(Duration.zero, index: 0 - _nativeOffset);
     } finally {
       _switchingSource = false;
@@ -3080,6 +3186,12 @@ class PlayerProvider extends ChangeNotifier {
     _currentIndex = index;
     _lastEventIndex = index;
     _lastHistoryTrackId = _playlist[index].id;
+    _position = Duration.zero;
+    positionTick.value = Duration.zero;
+    final knownMs = _playlist[index].duration;
+    if (knownMs > 0) {
+      _duration = Duration(milliseconds: knownMs);
+    }
     await _audioPlayer.seek(Duration.zero, index: index - _nativeOffset);
     if (req != _playReqSeq) return;
     // E3-часть 2: стартуем с итоговой громкостью (баланс + X-Boost),

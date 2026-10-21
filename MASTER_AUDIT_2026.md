@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v134**
+Current app version: **v135**
 
 ## Scope
 
@@ -35,6 +35,18 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v135 — startup stream attachment, data loading, neon visualizer
+
+Implemented:
+- player stream subscriptions attach before any awaited preferences/audio-session setup;
+- SharedPreferences init bounded to 3 s with late adoption and merge of history/playlists/favorites;
+- audio-session setup runs in background with a 5 s timeout;
+- per-item playlist parsing and tolerant history parsing;
+- duration fallback from track metadata on every track start (fixes `0:00/0:00` and disabled seek);
+- neon visualizer redrawn as a smooth mirrored wave with gradient, glow, spectrum backdrop and full-spectrum resampling.
+
+Validation: `flutter analyze` clean, 58 tests pass. Device check still needed for the reported history loss and visualizer feel.
 
 ## Merge status
 

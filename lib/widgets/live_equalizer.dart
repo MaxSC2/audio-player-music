@@ -18,7 +18,7 @@ class LiveEqualizer extends StatefulWidget {
     required this.isPlaying,
     required this.accent,
     this.height = 72,
-    this.bands = AudioVisualizer.bands,
+    this.bands = 40,
   });
 
   @override
@@ -77,8 +77,9 @@ class _LiveEqualizerState extends State<LiveEqualizer>
     final live = AudioVisualizer.available.value && widget.isPlaying;
     for (var i = 0; i < _n; i++) {
       double target;
-      if (live && i < real.length) {
-        target = real[i];
+      if (live && real.isNotEmpty) {
+        final pos = (i * real.length / _n).floor();
+        target = real[pos.clamp(0, real.length - 1)];
       } else if (widget.isPlaying) {
         target = _synth(i, _t);
       } else {
@@ -86,8 +87,8 @@ class _LiveEqualizerState extends State<LiveEqualizer>
       }
       final prev = _vals[i];
       _vals[i] = target > prev
-          ? prev + (target - prev) * 0.5
-          : prev + (target - prev) * 0.12;
+          ? prev + (target - prev) * 0.62
+          : prev + (target - prev) * 0.10;
       // Пик держится, затем мягко опадает.
       _peaks[i] = _peaks[i] > _vals[i]
           ? math.max(_vals[i], _peaks[i] - 0.012)
@@ -135,16 +136,17 @@ class _EqPainter extends CustomPainter {
     final n = vals.length;
     if (n == 0) return;
     final gap = size.width / n;
-    final barW = gap * 0.6;
+    final barW = math.min(gap * 0.5, 8.0);
     final radius = Radius.circular(barW / 2);
     final midY = size.height / 2;
 
-    // Неоновое «свечение пола» под полосами — пульсирует от громкости.
     var avg = 0.0;
     for (final v in vals) {
       avg += v;
     }
     avg /= n;
+
+    // Неоновое «свечение пола» — пульсирует от громкости.
     canvas.drawRect(
       Offset.zero & size,
       Paint()
@@ -152,54 +154,117 @@ class _EqPainter extends CustomPainter {
           center: const Alignment(0, 1.15),
           radius: 0.95,
           colors: [
-            accent.withValues(alpha: (0.26 + 0.34 * avg).clamp(0.0, 0.7)),
+            accent.withValues(alpha: (0.22 + 0.3 * avg).clamp(0.0, 0.62)),
             accent.withValues(alpha: 0.0),
           ],
         ).createShader(Offset.zero & size),
     );
 
-    final path = Path();
-
+    // Тихий спектральный «частокол» на фоне — глубина сцены.
+    final barPaint = Paint()
+      ..color = accent.withValues(alpha: 0.16 + 0.1 * avg);
     for (var i = 0; i < n; i++) {
       final v = vals[i].clamp(0.0, 1.0);
-      final h = (0.06 + 0.94 * v) * (size.height * 0.94);
+      final h = (0.08 + 0.55 * v) * size.height;
       final cx = gap * i + gap / 2;
-      path.addRRect(
+      canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromCenter(center: Offset(cx, midY), width: barW, height: h),
           radius,
         ),
+        barPaint,
       );
     }
 
-    // Свечение — один раз на всю фигуру (дёшево для GPU).
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = accent.withValues(alpha: 0.5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
-    );
-
-    // Тело: акцент сверху → белый к центру.
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [accent, Colors.white, accent],
-          stops: const [0.0, 0.5, 1.0],
-        ).createShader(Offset.zero & size),
-    );
-
-    // Затухающие пики.
-    final peakPaint = Paint()..color = Colors.white.withValues(alpha: 0.75);
+    // Зеркальная волна: верхняя и нижняя огибающие.
+    final top = <Offset>[];
+    final bottom = <Offset>[];
     for (var i = 0; i < n; i++) {
-      final p = peaks[i].clamp(0.0, 1.0);
-      final hv = (0.06 + 0.94 * p) * (size.height * 0.94);
+      final v = vals[i].clamp(0.0, 1.0);
+      final next = vals[(i + 3) % n].clamp(0.0, 1.0);
       final cx = gap * i + gap / 2;
-      canvas.drawCircle(Offset(cx, midY - hv / 2), barW * 0.34, peakPaint);
+      final amp = (0.045 + 0.45 * v) * size.height;
+      top.add(Offset(cx, midY - amp));
+      bottom.add(Offset(cx, midY + amp * (0.68 + 0.32 * next)));
     }
+
+    final topPath = Path();
+    _addSmooth(topPath, top);
+    final bottomPath = Path();
+    _addSmooth(bottomPath, bottom.reversed.toList());
+
+    final fill = Path();
+    _addSmooth(fill, top);
+    fill.lineTo(bottom.last.dx, bottom.last.dy);
+    _addSmooth(fill, bottom.reversed.toList(), startNew: false);
+    fill.close();
+
+    final bodyShader = LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        accent.withValues(alpha: 0.06),
+        accent.withValues(alpha: 0.34),
+        Color.lerp(accent, Colors.white, 0.62)!.withValues(alpha: 0.5),
+        accent.withValues(alpha: 0.34),
+        accent.withValues(alpha: 0.06),
+      ],
+      stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+    ).createShader(Offset.zero & size);
+
+    canvas.drawPath(fill, Paint()..shader = bodyShader);
+
+    final glow = Paint()
+      ..color = accent.withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.5
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+    canvas.drawPath(topPath, glow);
+    canvas.drawPath(bottomPath, glow..color = accent.withValues(alpha: 0.35));
+
+    final strokeShader = LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        accent.withValues(alpha: 0.2),
+        Colors.white.withValues(alpha: 0.92),
+        accent.withValues(alpha: 0.2),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    ).createShader(Offset.zero & size);
+    final line = Paint()
+      ..shader = strokeShader
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(topPath, line);
+    canvas.drawPath(bottomPath, line);
+
+    // Центральная ось — тонкая неоновая линия.
+    canvas.drawLine(
+      Offset(0, midY),
+      Offset(size.width, midY),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.12)
+        ..strokeWidth = 1,
+    );
+  }
+
+  void _addSmooth(Path path, List<Offset> points, {bool startNew = true}) {
+    if (points.isEmpty) return;
+    if (startNew) {
+      path.moveTo(points.first.dx, points.first.dy);
+    } else {
+      path.lineTo(points.first.dx, points.first.dy);
+    }
+    for (var i = 1; i < points.length; i++) {
+      final prev = points[i - 1];
+      final cur = points[i];
+      final mid = Offset((prev.dx + cur.dx) / 2, (prev.dy + cur.dy) / 2);
+      path.quadraticBezierTo(prev.dx, prev.dy, mid.dx, mid.dy);
+    }
+    path.lineTo(points.last.dx, points.last.dy);
   }
 
   @override
