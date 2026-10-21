@@ -25,6 +25,11 @@ const Map<CinematicThemeMode, String> cinematicThemeNames = {
 };
 
 class UiStyleController extends ChangeNotifier {
+  UiStyleController({Future<SharedPreferences>? prefsFuture})
+    : _prefsFuture = prefsFuture;
+
+  final Future<SharedPreferences>? _prefsFuture;
+
   static const _prefsKey = 'ui_style';
   static const _cinematicPrefsKey = 'cinematic_theme';
 
@@ -45,7 +50,7 @@ class UiStyleController extends ChangeNotifier {
 
   Future<void> init() async {
     try {
-      _prefs = await SharedPreferences.getInstance();
+      _prefs = await (_prefsFuture ?? SharedPreferences.getInstance());
       final saved = _prefs?.get(_prefsKey);
       if (!_styleTouched && saved is String) {
         try {

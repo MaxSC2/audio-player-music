@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v136**
+Current app version: **v137**
 
 ## Scope
 
@@ -35,6 +35,18 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v137 — preferences before audio initialization
+
+Root cause of the v242+ reset regression: v135 moved `_attachPlayerStreams()` and an early `setSpeed()` ahead of `SharedPreferences.getInstance()`. On affected devices audio/ExoPlayer initialization blocked the platform channel long enough for prefs to time out, so every style/favorite/sort write was dropped.
+
+Changes:
+- `SharedPreferences.getInstance()` starts in `main()` before `PlayerProvider`, equalizer and AudioPlayer are constructed;
+- the same future is shared by provider, UiStyleController and PaletteController;
+- audio streams and audio_session start only after the prefs request;
+- early `setSpeed()` removed from stream attachment; speed is applied in `_loadSettings()`.
+
+Validation: `flutter analyze` clean; prefs race tests added; full suite required before release.
 
 ## v136 — persistent state and startup races
 

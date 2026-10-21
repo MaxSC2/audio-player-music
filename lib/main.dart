@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'core/debug_log.dart';
 import 'core/nav_observer.dart';
@@ -19,6 +20,11 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Запрашиваем prefs ДО создания плеера и любых плагинов: на некоторых
+  // устройствах инициализация ExoPlayer/аудиоэффектов блокирует главный
+  // поток, из-за чего getAll() для SharedPreferences не успевал выполниться
+  // и все настройки (стиль, избранное, сортировка) терялись.
+  final prefsFuture = SharedPreferences.getInstance();
   // Мега-логер: ловим ВСЕ ошибки (Flutter, async, platform).
   final prevFlutterError = FlutterError.onError;
   FlutterError.onError = (details) {
@@ -49,9 +55,9 @@ Future<void> main() async {
       systemNavigationBarContrastEnforced: false,
     ),
   );
-  final playerProvider = PlayerProvider();
-  final uiStyle = UiStyleController();
-  final palette = PaletteController();
+  final playerProvider = PlayerProvider(prefsFuture: prefsFuture);
+  final uiStyle = UiStyleController(prefsFuture: prefsFuture);
+  final palette = PaletteController(prefsFuture: prefsFuture);
 
   WidgetService.bind(playerProvider);
 

@@ -80,6 +80,11 @@ class PaletteColors {
 }
 
 class PaletteController extends ChangeNotifier {
+  PaletteController({Future<SharedPreferences>? prefsFuture})
+    : _prefsFuture = prefsFuture;
+
+  final Future<SharedPreferences>? _prefsFuture;
+
   static const _modeKey = 'palette_mode';
   static const _customKey = 'palette_custom';
   static const _themeKey = 'theme_mode';
@@ -203,7 +208,7 @@ class PaletteController extends ChangeNotifier {
       isCustom ? (_custom ?? presets.first) : presets[_index];
 
   Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
+    _prefs = await (_prefsFuture ?? SharedPreferences.getInstance());
     if (!_modeTouched) {
       final saved = _prefs?.get(_modeKey);
       _index = saved is int ? saved : 0;

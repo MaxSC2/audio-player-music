@@ -637,9 +637,12 @@ class PlayerProvider extends ChangeNotifier {
   bool isFavorite(int id) => _favoriteIds.contains(id);
 
   late final Future<void> _initFuture;
+  final Future<SharedPreferences>? _prefsFuture;
   Future<bool>? _authorizedLoadFuture;
 
-  PlayerProvider() : _audioQuery = OnAudioQuery() {
+  PlayerProvider({Future<SharedPreferences>? prefsFuture})
+    : _prefsFuture = prefsFuture,
+      _audioQuery = OnAudioQuery() {
     _equalizer = AndroidEqualizer();
     _loudness = AndroidLoudnessEnhancer();
     _audioPlayer = AudioPlayer(
@@ -668,21 +671,31 @@ class PlayerProvider extends ChangeNotifier {
   bool _playbackStartedByUser = false;
 
   Future<void> _init() async {
-    _attachPlayerStreams();
-    unawaited(_configureAudioSessionWithTimeout());
-
-    final prefsFuture = SharedPreferences.getInstance();
+    final prefsFuture = _prefsFuture ?? SharedPreferences.getInstance();
     final sw = Stopwatch()..start();
+    var failed = false;
     try {
       _prefs = await prefsFuture.timeout(const Duration(seconds: 3));
       DebugLog.log('prefs: загружены за ${sw.elapsedMilliseconds} мс');
     } on TimeoutException {
       DebugLog.log('SharedPreferences init: таймаут 3 с');
-      unawaited(_adoptLatePrefs(prefsFuture));
-      return;
     } catch (e, st) {
+      failed = true;
       DebugLog.log('SharedPreferences init failed', e, st);
-      unawaited(_retryPrefsInit());
+    }
+
+    // Аудио запускаем только после запроса prefs. Раньше setSpeed/audio_session
+    // уходили в platform channel первыми и на части устройств блокировали
+    // getInstance() — UI открывался, но любое сохранение молча пропадало.
+    _attachPlayerStreams();
+    unawaited(_configureAudioSessionWithTimeout());
+
+    if (_prefs == null) {
+      if (failed) {
+        unawaited(_retryPrefsInit());
+      } else {
+        unawaited(_adoptLatePrefs(prefsFuture));
+      }
       return;
     }
 
@@ -870,12 +883,6 @@ class PlayerProvider extends ChangeNotifier {
         if (_switchingSource) return;
         _handleIndexEvent(idx);
       }),
-    );
-    unawaited(
-      _audioPlayer
-          .setSpeed(_speed)
-          .timeout(const Duration(seconds: 2))
-          .catchError((_) {}),
     );
   }
 
