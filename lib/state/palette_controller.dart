@@ -193,6 +193,8 @@ class PaletteController extends ChangeNotifier {
   int _index = 0; // -1 = своя палитра
   bool _light = false;
   PaletteColors? _custom;
+  bool _modeTouched = false;
+  bool _lightTouched = false;
 
   int get index => _index;
   bool get isCustom => _index < 0;
@@ -202,31 +204,43 @@ class PaletteController extends ChangeNotifier {
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-    _index = _prefs?.getInt(_modeKey) ?? 0;
-    if (_index < 0 || _index >= presets.length) _index = 0;
-    _light = _prefs?.getBool(_themeKey) ?? false;
-    final raw = _prefs?.getString(_customKey);
-    if (raw != null && raw.isNotEmpty) {
-      try {
-        _custom = PaletteColors.decode(raw);
-      } catch (_) {
-        // Corrupted preference must never prevent the application from
-        // starting. Drop only the invalid custom palette and keep presets.
-        _custom = null;
-        await _prefs?.remove(_customKey);
+    if (!_modeTouched) {
+      final saved = _prefs?.get(_modeKey);
+      _index = saved is int ? saved : 0;
+      if (_index < 0 || _index >= presets.length) _index = 0;
+    }
+    if (!_lightTouched) {
+      final saved = _prefs?.get(_themeKey);
+      _light = saved is bool ? saved : false;
+    }
+    if (_custom == null) {
+      final rawValue = _prefs?.get(_customKey);
+      final raw = rawValue is String ? rawValue : null;
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          _custom = PaletteColors.decode(raw);
+        } catch (_) {
+          // Corrupted preference must never prevent the application from
+          // starting. Drop only the invalid custom palette and keep presets.
+          _custom = null;
+          await _prefs?.remove(_customKey);
+        }
       }
     }
+    if (_modeTouched || _lightTouched) _persist();
     _apply();
   }
 
   void setMode(bool light) {
     _light = light;
+    _lightTouched = true;
     _prefs?.setBool(_themeKey, light);
     _apply();
   }
 
   void select(int i) {
     _index = i;
+    _modeTouched = true;
     _persist();
     _apply();
   }
@@ -251,6 +265,7 @@ class PaletteController extends ChangeNotifier {
       accentAmber: accentAmber,
     );
     _index = -1;
+    _modeTouched = true;
     _persist();
     _apply();
   }
@@ -258,6 +273,7 @@ class PaletteController extends ChangeNotifier {
   void resetCustom() {
     _custom = null;
     _index = 0;
+    _modeTouched = true;
     _persist();
     _apply();
   }

@@ -31,6 +31,8 @@ class UiStyleController extends ChangeNotifier {
   PlayerUIStyle _style = PlayerUIStyle.simple;
   CinematicThemeMode _cinematicTheme = CinematicThemeMode.auto;
   SharedPreferences? _prefs;
+  bool _styleTouched = false;
+  bool _themeTouched = false;
 
   PlayerUIStyle get style => _style;
   CinematicThemeMode get cinematicTheme => _cinematicTheme;
@@ -44,31 +46,36 @@ class UiStyleController extends ChangeNotifier {
   Future<void> init() async {
     try {
       _prefs = await SharedPreferences.getInstance();
-      final saved = _prefs?.getString(_prefsKey);
-      try {
-        _style = saved == null
-            ? PlayerUIStyle.simple
-            : PlayerUIStyle.values.byName(saved);
-      } catch (_) {
-        _style = PlayerUIStyle.simple;
+      final saved = _prefs?.get(_prefsKey);
+      if (!_styleTouched && saved is String) {
+        try {
+          _style = PlayerUIStyle.values.byName(saved);
+        } catch (_) {
+          _style = PlayerUIStyle.simple;
+        }
       }
-      try {
-        final savedTheme = _prefs?.getString(_cinematicPrefsKey);
-        _cinematicTheme = savedTheme == null
-            ? CinematicThemeMode.auto
-            : CinematicThemeMode.values.byName(savedTheme);
-      } catch (_) {
-        _cinematicTheme = CinematicThemeMode.auto;
+      final savedTheme = _prefs?.get(_cinematicPrefsKey);
+      if (!_themeTouched && savedTheme is String) {
+        try {
+          _cinematicTheme = CinematicThemeMode.values.byName(savedTheme);
+        } catch (_) {
+          _cinematicTheme = CinematicThemeMode.auto;
+        }
+      }
+      if (_styleTouched) await _prefs?.setString(_prefsKey, _style.name);
+      if (_themeTouched) {
+        await _prefs?.setString(_cinematicPrefsKey, _cinematicTheme.name);
       }
       notifyListeners();
     } catch (_) {
-      _style = PlayerUIStyle.simple;
+      if (!_styleTouched) _style = PlayerUIStyle.simple;
     }
   }
 
   Future<void> setStyle(PlayerUIStyle value) async {
     if (_style == value) return;
     _style = value;
+    _styleTouched = true;
     notifyListeners();
     await _prefs?.setString(_prefsKey, value.name);
   }
@@ -76,6 +83,7 @@ class UiStyleController extends ChangeNotifier {
   Future<void> setCinematicTheme(CinematicThemeMode value) async {
     if (_cinematicTheme == value) return;
     _cinematicTheme = value;
+    _themeTouched = true;
     notifyListeners();
     await _prefs?.setString(_cinematicPrefsKey, value.name);
   }

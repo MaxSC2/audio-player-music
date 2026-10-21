@@ -129,8 +129,17 @@ class PlayerProvider extends ChangeNotifier {
   /// списке (_refreshTrackFavoriteFlags/visibleTracks), линейный поиск давал
   /// O(треки × избранное) на каждый тап «сердечка».
   final Set<int> _favoriteIds = <int>{};
+  bool _favoritesLoaded = false;
+  bool _favoritesDirty = false;
+  final List<({int id, bool favorite})> _pendingFavoriteOps = [];
   List<CustomPlaylist> _playlists = [];
+  bool _playlistsDirty = false;
+  bool _playlistsLoaded = false;
   List<Map<String, int>> _historyRaw = [];
+  bool _historyDirty = false;
+  bool _historyCleared = false;
+  bool _historyLoaded = false;
+  bool _stateLoaded = false;
   List<Map<String, int>> _notNowRaw = [];
   Set<ListeningContext> _activeContexts = {ListeningContext.balanced};
   final Map<ListeningContext, double> _categoryWeights = {
@@ -580,7 +589,12 @@ class PlayerProvider extends ChangeNotifier {
         }
       }
 
-        _notifyMediaBrowseChanged();
+      if (!_favoritesLoaded) {
+        _pendingFavoriteOps.add((id: deletedId, favorite: false));
+      }
+      await _saveFavorites();
+      await _savePlaylists();
+      _notifyMediaBrowseChanged();
       _notify('deleteTrack');
       return true;
     } catch (_) {
@@ -651,24 +665,45 @@ class PlayerProvider extends ChangeNotifier {
 
   /// Гард от серии seek'ов при активном A/B-повторе.
   bool _seekingToRepeatA = false;
+  bool _playbackStartedByUser = false;
 
   Future<void> _init() async {
     _attachPlayerStreams();
     unawaited(_configureAudioSessionWithTimeout());
 
     final prefsFuture = SharedPreferences.getInstance();
+    final sw = Stopwatch()..start();
     try {
       _prefs = await prefsFuture.timeout(const Duration(seconds: 3));
+      DebugLog.log('prefs: загружены за ${sw.elapsedMilliseconds} мс');
     } on TimeoutException {
-      DebugLog.log('SharedPreferences init: таймаут');
+      DebugLog.log('SharedPreferences init: таймаут 3 с');
       unawaited(_adoptLatePrefs(prefsFuture));
       return;
     } catch (e, st) {
       DebugLog.log('SharedPreferences init failed', e, st);
+      unawaited(_retryPrefsInit());
       return;
     }
 
     await _loadPersistedState();
+  }
+
+  /// Один сбой platform channel не должен навсегда отключать сохранение.
+  Future<void> _retryPrefsInit() async {
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      await Future.delayed(Duration(seconds: attempt));
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (_prefs != null) return;
+        _prefs = prefs;
+        await _loadPersistedState();
+        _notify('prefs-retry');
+        return;
+      } catch (e, st) {
+        DebugLog.log('SharedPreferences retry $attempt failed', e, st);
+      }
+    }
   }
 
   /// Если SharedPreferences не успел за таймаут, но всё-таки завершился —
@@ -678,7 +713,11 @@ class PlayerProvider extends ChangeNotifier {
       final prefs = await prefsFuture;
       if (_prefs != null) return;
       _prefs = prefs;
+      DebugLog.log('prefs: поздняя загрузка завершена');
       await _loadPersistedState();
+      if (_resumePlayback && !_playbackStartedByUser) {
+        await _maybeResume(allowReplace: true);
+      }
       _notify('prefs-late');
     } catch (e, st) {
       DebugLog.log('SharedPreferences late init failed', e, st);
@@ -686,10 +725,51 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _loadPersistedState() async {
-    await _loadFavorites();
-    await _loadPlaylists();
-    await _loadSettings();
+    try {
+      await _loadFavorites();
+    } catch (e, st) {
+      DebugLog.log('favorites load failed', e, st);
+    }
+    try {
+      await _loadPlaylists();
+    } catch (e, st) {
+      DebugLog.log('playlists load failed', e, st);
+    }
+    try {
+      await _loadSettings();
+    } catch (e, st) {
+      DebugLog.log('settings load failed', e, st);
+    }
+    _stateLoaded = true;
+    await _flushPendingWrites();
     unawaited(_applyNativeLoopMode());
+  }
+
+  /// Сохраняет то, что пользователь успел изменить до готовности prefs.
+  Future<void> _flushPendingWrites() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    if (_favoritesDirty) await _saveFavorites();
+    if (_playlistsDirty) await _savePlaylists();
+    if (_historyCleared) {
+      await prefs.remove('history');
+      _historyDirty = false;
+    } else if (_historyDirty) {
+      await prefs.setString('history', jsonEncode(_historyRaw));
+      _historyDirty = false;
+    }
+    if (_sortTouched) {
+      await prefs.setString('sort_order', _sortOrder.name);
+    }
+    if (_repeatTouched) {
+      await prefs.setString('repeat_mode', _repeatMode.name);
+    }
+    if (_shuffleTouched) {
+      await prefs.setBool('shuffle_mode', _shuffleMode);
+    }
+    if (_xBoostTouched) {
+      await prefs.setBool('x_boost', _xBoost);
+    }
   }
 
   Future<void> _configureAudioSessionWithTimeout() async {
@@ -893,12 +973,32 @@ class PlayerProvider extends ChangeNotifier {
   /// (как dateAdded -> dateAddedNew) накапливаются без контроля.
   static const int prefsSchemaVersion = 2;
 
+  bool _readBool(SharedPreferences p, String key, bool fallback) {
+    final v = p.get(key);
+    return v is bool ? v : fallback;
+  }
+
+  double _readDouble(SharedPreferences p, String key, double fallback) {
+    final v = p.get(key);
+    return v is num ? v.toDouble() : fallback;
+  }
+
+  int _readInt(SharedPreferences p, String key, int fallback) {
+    final v = p.get(key);
+    return v is int ? v : fallback;
+  }
+
+  String? _readString(SharedPreferences p, String key) {
+    final v = p.get(key);
+    return v is String ? v : null;
+  }
+
   void _migratePrefs(SharedPreferences prefs) {
-    final from = prefs.getInt('schema_version') ?? 1;
+    final from = _readInt(prefs, 'schema_version', 1);
     if (from >= prefsSchemaVersion) return;
     if (from < 2) {
       // v1 -> v2: SortOrder.dateAdded переименован в dateAddedNew.
-      if (prefs.getString('sort_order') == 'dateAdded') {
+      if (_readString(prefs, 'sort_order') == 'dateAdded') {
         prefs.setString('sort_order', 'dateAddedNew');
       }
     }
@@ -912,16 +1012,18 @@ class PlayerProvider extends ChangeNotifier {
 
     _migratePrefs(prefs);
 
-    _defaultSpeed = prefs.getDouble('default_speed') ?? 1.0;
-    perfOverlay.value = prefs.getBool('perf_overlay') ?? false;
-    _hideUnknownArtist = prefs.getBool('hide_unknown') ?? false;
-    _resumePlayback = prefs.getBool('resume_playback') ?? false;
-    _notifCustomActions = prefs.getBool('notif_custom_actions') ?? true;
+    _defaultSpeed = _readDouble(prefs, 'default_speed', 1.0);
+    perfOverlay.value = _readBool(prefs, 'perf_overlay', false);
+    _hideUnknownArtist = _readBool(prefs, 'hide_unknown', false);
+    _resumePlayback = _readBool(prefs, 'resume_playback', false);
+    _notifCustomActions = _readBool(prefs, 'notif_custom_actions', true);
     _audioHandler?.setUseCustomActions(_notifCustomActions);
     _speed = _defaultSpeed;
 
-    final savedHistory = prefs.getString('history');
-    if (savedHistory != null) {
+    final savedHistoryValue = prefs.get('history');
+    final savedHistory =
+        savedHistoryValue is String ? savedHistoryValue : null;
+    if (savedHistory != null && !_historyCleared) {
       final parsed = _parseHistory(savedHistory);
       if (_historyRaw.isEmpty) {
         _historyRaw = parsed;
@@ -944,8 +1046,9 @@ class PlayerProvider extends ChangeNotifier {
       _playCountsCache = null;
       _invalidateDerivedCaches();
     }
+    _historyLoaded = true;
 
-    final savedNotNow = prefs.getString('not_now');
+    final savedNotNow = _readString(prefs, 'not_now');
     if (savedNotNow != null) {
       try {
         _notNowRaw = (jsonDecode(savedNotNow) as List)
@@ -957,7 +1060,7 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
 
-    final savedContext = prefs.getString('listening_context');
+    final savedContext = _readString(prefs, 'listening_context');
     if (savedContext != null && savedContext.isNotEmpty) {
       final names = savedContext.split(',');
       final parsed = names
@@ -971,7 +1074,7 @@ class PlayerProvider extends ChangeNotifier {
       _activeContexts = parsed.isEmpty ? {ListeningContext.balanced} : parsed;
     }
 
-    final savedWeights = prefs.getString('category_weights');
+    final savedWeights = _readString(prefs, 'category_weights');
     if (savedWeights != null) {
       try {
         final raw = jsonDecode(savedWeights) as Map;
@@ -986,7 +1089,7 @@ class PlayerProvider extends ChangeNotifier {
       } catch (_) {}
     }
 
-    final savedManual = prefs.getString('manual_categories');
+    final savedManual = _readString(prefs, 'manual_categories');
     if (savedManual != null) {
       try {
         final raw = jsonDecode(savedManual) as Map;
@@ -1008,7 +1111,7 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
 
-    final savedGenre = prefs.getString('genre_cache');
+    final savedGenre = _readString(prefs, 'genre_cache');
     if (savedGenre != null) {
       try {
         final raw = jsonDecode(savedGenre) as Map;
@@ -1019,7 +1122,7 @@ class PlayerProvider extends ChangeNotifier {
       } catch (_) {}
     }
 
-    final savedManualGenre = prefs.getString('manual_genre');
+    final savedManualGenre = _readString(prefs, 'manual_genre');
     if (savedManualGenre != null) {
       try {
         final raw = jsonDecode(savedManualGenre) as Map;
@@ -1031,7 +1134,7 @@ class PlayerProvider extends ChangeNotifier {
       } catch (_) {}
     }
 
-    final savedSkips = prefs.getString('skip_counts');
+    final savedSkips = _readString(prefs, 'skip_counts');
     if (savedSkips != null) {
       try {
         final raw = jsonDecode(savedSkips) as Map;
@@ -1046,13 +1149,13 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
 
-    _deepCuts = prefs.getBool('dj_deep_cuts') ?? false;
+    _deepCuts = _readBool(prefs, 'dj_deep_cuts', false);
     // F4/F3: настройки таймера сна и громкость.
-    _sleepFadeOut = prefs.getBool('sleep_fade') ?? true;
-    _sleepUntilTrackEnd = prefs.getBool('sleep_until_end') ?? false;
-    _volume = (prefs.getDouble('volume') ?? 1.0).clamp(0.0, 1.0);
-    _autoBalance = prefs.getBool('auto_balance') ?? false;
-    final savedFix = prefs.getString('balance_fix');
+    _sleepFadeOut = _readBool(prefs, 'sleep_fade', true);
+    _sleepUntilTrackEnd = _readBool(prefs, 'sleep_until_end', false);
+    _volume = _readDouble(prefs, 'volume', 1.0).clamp(0.0, 1.0);
+    _autoBalance = _readBool(prefs, 'auto_balance', false);
+    final savedFix = _readString(prefs, 'balance_fix');
     if (savedFix != null) {
       try {
         final raw = jsonDecode(savedFix) as Map;
@@ -1067,7 +1170,7 @@ class PlayerProvider extends ChangeNotifier {
         _trackFix.clear();
       }
     }
-    final savedDiscovery = prefs.getString('dj_discovery');
+    final savedDiscovery = _readString(prefs, 'dj_discovery');
     if (savedDiscovery != null) {
       _discoveryLevel = DiscoveryLevel.values.firstWhere(
         (d) => d.name == savedDiscovery,
@@ -1075,7 +1178,7 @@ class PlayerProvider extends ChangeNotifier {
       );
     }
 
-    final savedBookmarks = prefs.getString('bookmarks');
+    final savedBookmarks = _readString(prefs, 'bookmarks');
     if (savedBookmarks != null) {
       try {
         final raw = jsonDecode(savedBookmarks) as Map;
@@ -1090,7 +1193,7 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
 
-    final savedSnapshots = prefs.getString('queue_snapshots');
+    final savedSnapshots = _readString(prefs, 'queue_snapshots');
     if (savedSnapshots != null) {
       try {
         _queueSnapshots = (jsonDecode(savedSnapshots) as List)
@@ -1102,19 +1205,50 @@ class PlayerProvider extends ChangeNotifier {
       }
     }
 
-    final savedSort = prefs.getString('sort_order');
-    if (savedSort != null) {
-      final migrated = savedSort == 'dateAdded' ? 'dateAddedNew' : savedSort;
+    final savedSortValue = prefs.get('sort_order');
+    if (!_sortTouched && savedSortValue is String) {
+      final migrated = savedSortValue == 'dateAdded'
+          ? 'dateAddedNew'
+          : savedSortValue;
       _sortOrder = SortOrder.values.firstWhere(
         (s) => s.name == migrated,
         orElse: () => SortOrder.title,
       );
     }
-
-    final savedEq = prefs.getString('eq_preset');
-    if (savedEq != null) {
-      _equalizerPreset = savedEq;
+    if (_sortTouched) {
+      unawaited(prefs.setString('sort_order', _sortOrder.name));
     }
+
+    final savedRepeatValue = prefs.get('repeat_mode');
+    if (!_repeatTouched && savedRepeatValue is String) {
+      _repeatMode = PlayerRepeatMode.values.firstWhere(
+        (m) => m.name == savedRepeatValue,
+        orElse: () => PlayerRepeatMode.off,
+      );
+    }
+    if (!_shuffleTouched) {
+      _shuffleMode = _readBool(prefs, 'shuffle_mode', false);
+    }
+    if (!_xBoostTouched) {
+      _xBoost = _readBool(prefs, 'x_boost', false);
+    }
+
+    final savedEqValue = _readString(prefs, 'eq_preset');
+    if (savedEqValue != null) {
+      _equalizerPreset = savedEqValue;
+    }
+
+    // Поздняя загрузка prefs: библиотека уже могла быть отсортирована
+    // дефолтным порядком — пересортировываем и сбрасываем все кеши.
+    if (_allTracks.isNotEmpty) {
+      _allTracks = sortTracks(_allTracks, _sortOrder);
+      _invalidateFolderCache();
+      _invalidateCategoryCache();
+    }
+
+    _audioHandler?.setShuffleState(_shuffleMode);
+    _audioHandler?.setRepeatState(_repeatMode.index);
+    if (_xBoost) _applyLoudness();
 
     try {
       await _audioPlayer.setSpeed(_speed).timeout(const Duration(seconds: 2));
@@ -1144,8 +1278,17 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _loadPlaylists() async {
     final prefs = _prefs;
     if (prefs == null) return;
-    final raw = prefs.getString('playlists');
-    if (raw == null) return;
+    final rawValue = prefs.get('playlists');
+    final raw = rawValue is String ? rawValue : null;
+    final hadLocal = _playlists.isNotEmpty;
+    if (raw == null) {
+      _playlistsLoaded = true;
+      if (hadLocal) {
+        _playlistsDirty = true;
+        await _savePlaylists();
+      }
+      return;
+    }
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return;
@@ -1169,6 +1312,11 @@ class PlayerProvider extends ChangeNotifier {
         _playlists = byId.values.toList();
       }
       _playlistTracksCache.clear();
+      _playlistsLoaded = true;
+      if (hadLocal || _playlistsDirty) {
+        _playlistsDirty = true;
+        await _savePlaylists();
+      }
       _notify('_loadPlaylists');
     } catch (e) {
       DebugLog.log('playlists parse failed', e);
@@ -1177,12 +1325,14 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> _savePlaylists() async {
     _invalidateDerivedCaches();
+    _playlistsDirty = true;
     final prefs = _prefs;
-    if (prefs == null) return;
+    if (prefs == null || !_playlistsLoaded) return;
     await prefs.setString(
       'playlists',
       jsonEncode(_playlists.map((p) => p.toJson()).toList()),
     );
+    _playlistsDirty = false;
   }
 
   Future<String?> createPlaylist(String name) async {
@@ -1361,9 +1511,9 @@ class PlayerProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> _maybeResume() async {
+  Future<void> _maybeResume({bool allowReplace = false}) async {
     if (!_resumePlayback) return;
-    if (_playlist.isNotEmpty) return;
+    if (_playlist.isNotEmpty && !allowReplace) return;
     final prefs = _prefs;
     if (prefs == null) return;
 
@@ -1432,32 +1582,58 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _loadFavorites() async {
     final prefs = _prefs;
     if (prefs == null) return;
-    final saved = prefs.getStringList('favorite_ids');
-    if (saved != null) {
+    final raw = prefs.get('favorite_ids');
+    if (raw is List) {
       // Битые записи раньше превращались в id=0 и «призрачно» попадали
       // в избранное — теперь непарсящиеся значения просто пропускаются.
-      _favoriteIds.addAll(saved.map(int.tryParse).whereType<int>());
-      _notifyMediaBrowseChanged();
-      _notify('_loadFavorites');
+      for (final value in raw) {
+        final id = value is int ? value : int.tryParse(value.toString());
+        if (id != null) _favoriteIds.add(id);
+      }
     }
+    // Действия, сделанные до загрузки prefs, применяем поверх сохранённых.
+    for (final op in _pendingFavoriteOps) {
+      if (op.favorite) {
+        _favoriteIds.add(op.id);
+      } else {
+        _favoriteIds.remove(op.id);
+      }
+    }
+    final hadPending = _pendingFavoriteOps.isNotEmpty;
+    _pendingFavoriteOps.clear();
+    _favoritesLoaded = true;
+    _favoritesDirty = _favoritesDirty || hadPending;
+    _invalidateDerivedCaches();
+    _refreshTrackFavoriteFlags();
+    _notifyMediaBrowseChanged();
+    _notify('_loadFavorites');
+    if (_favoritesDirty) await _saveFavorites();
   }
 
   Future<void> _saveFavorites() async {
+    _favoritesDirty = true;
     final prefs = _prefs;
-    if (prefs == null) return;
+    if (prefs == null || !_favoritesLoaded) return;
     await prefs.setStringList(
       'favorite_ids',
       _favoriteIds.map((id) => id.toString()).toList(),
     );
+    _favoritesDirty = false;
   }
 
   void toggleFavorite(AudioTrack track) {
-    if (isFavorite(track.id)) {
-      _favoriteIds.removeWhere((f) => f == track.id);
-    } else {
+    final favorite = !isFavorite(track.id);
+    if (favorite) {
       _favoriteIds.add(track.id);
+    } else {
+      _favoriteIds.removeWhere((f) => f == track.id);
     }
-    _saveFavorites();
+    if (_favoritesLoaded) {
+      unawaited(_saveFavorites());
+    } else {
+      _pendingFavoriteOps.add((id: track.id, favorite: favorite));
+      _favoritesDirty = true;
+    }
     _invalidateDerivedCaches();
     _refreshTrackFavoriteFlags();
     _audioHandler?.setFavoriteState(isFavorite(track.id));
@@ -1592,10 +1768,24 @@ class PlayerProvider extends ChangeNotifier {
     if (_historyRaw.length > 300) {
       _historyRaw.removeRange(300, _historyRaw.length);
     }
-    _prefs?.setString('history', jsonEncode(_historyRaw));
+    _persistHistory();
     _playCountsCache = null;
     _invalidateDerivedCaches();
     _invalidateSmartCaches();
+  }
+
+  void _persistHistory() {
+    _historyDirty = true;
+    final prefs = _prefs;
+    if (prefs == null || !_historyLoaded) return;
+    final payload = jsonEncode(_historyRaw);
+    unawaited(
+      prefs.setString('history', payload).then((_) {
+        _historyDirty = false;
+      }).catchError((Object e, StackTrace st) {
+        DebugLog.log('history save failed', e, st);
+      }),
+    );
   }
 
   Map<int, int>? _playCountsCache;
@@ -1616,10 +1806,17 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> clearHistory() async {
     _historyRaw = [];
+    _historyCleared = true;
+    _historyDirty = true;
     _playCountsCache = null;
     _invalidateDerivedCaches();
     _invalidateSmartCaches();
-    await _prefs?.remove('history');
+    final prefs = _prefs;
+    if (prefs != null) {
+      await prefs.remove('history');
+      _historyDirty = false;
+      if (_stateLoaded) _historyCleared = false;
+    }
     _notifyMediaBrowseChanged();
     _notify('clearHistory');
   }
@@ -2717,13 +2914,20 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   SortOrder _sortOrder = SortOrder.title;
+  bool _sortTouched = false;
+  bool _shuffleTouched = false;
+  bool _xBoostTouched = false;
+  bool _repeatTouched = false;
   SortOrder get sortOrder => _sortOrder;
   set sortOrder(SortOrder value) {
     _sortOrder = value;
+    _sortTouched = true;
     _invalidateFolderCache();
     _invalidateCategoryCache();
     _allTracks = sortTracks(_allTracks, value);
-    _prefs?.setString('sort_order', value.name);
+    if (_prefs != null) {
+      unawaited(_prefs!.setString('sort_order', value.name));
+    }
     _notify('sortOrder');
   }
 
@@ -3168,6 +3372,7 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> playAt(int index) async {
     if (index < 0 || index >= _playlist.length) return;
+    _playbackStartedByUser = true;
     // R1: токен запроса — если пользователь уже тапнул следующий трек,
     // устаревший playAt прекращается после каждого await.
     final req = ++_playReqSeq;
@@ -3214,6 +3419,7 @@ class PlayerProvider extends ChangeNotifier {
     if (_isPlaying) {
       await _audioPlayer.pause();
     } else {
+      _playbackStartedByUser = true;
       await _audioPlayer.play();
     }
     _isPlaying = _audioPlayer.playing;
@@ -3398,6 +3604,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void toggleRepeat() {
+    _repeatTouched = true;
     switch (_repeatMode) {
       case PlayerRepeatMode.off:
         _repeatMode = PlayerRepeatMode.all;
@@ -3409,6 +3616,7 @@ class PlayerProvider extends ChangeNotifier {
         _repeatMode = PlayerRepeatMode.off;
         break;
     }
+    _prefs?.setString('repeat_mode', _repeatMode.name);
     _applyNativeLoopMode();
     _audioHandler?.setRepeatState(_repeatMode.index);
     _notify('toggleRepeat');
@@ -3419,12 +3627,14 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> applyShuffle(bool on) async {
     if (_shuffleMode == on) return;
     _shuffleMode = on;
+    _shuffleTouched = true;
     if (on) {
       _rebuildShuffleOrder();
     } else {
       _shuffleOrder = const [];
       _shufflePos = -1;
     }
+    _prefs?.setBool('shuffle_mode', on);
     _audioHandler?.setShuffleState(on);
     _notify('applyShuffle');
     WidgetService.playerChanged(this);
@@ -3433,7 +3643,9 @@ class PlayerProvider extends ChangeNotifier {
   /// 0 = выкл, 1 = все, 2 = один (индекс PlayerRepeatMode).
   Future<void> applyRepeatIndex(int mode) async {
     if (mode < 0 || mode > 2 || _repeatMode.index == mode) return;
+    _repeatTouched = true;
     _repeatMode = PlayerRepeatMode.values[mode];
+    _prefs?.setString('repeat_mode', _repeatMode.name);
     await _applyNativeLoopMode();
     _audioHandler?.setRepeatState(mode);
     _notify('applyRepeatIndex');
@@ -3442,12 +3654,14 @@ class PlayerProvider extends ChangeNotifier {
 
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
+    _shuffleTouched = true;
     if (_shuffleMode) {
       _rebuildShuffleOrder();
     } else {
       _shuffleOrder = const [];
       _shufflePos = -1;
     }
+    _prefs?.setBool('shuffle_mode', _shuffleMode);
     _audioHandler?.setShuffleState(_shuffleMode);
     _notify('toggleShuffle');
     WidgetService.playerChanged(this);
@@ -3991,6 +4205,8 @@ class PlayerProvider extends ChangeNotifier {
 
   void toggleXBoost() {
     _xBoost = !_xBoost;
+    _xBoostTouched = true;
+    _prefs?.setBool('x_boost', _xBoost);
     if (debugNoAudioEffects) {
       _notify('toggleXBoost');
       return;

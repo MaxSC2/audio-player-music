@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v135**
+Current app version: **v136**
 
 ## Scope
 
@@ -35,6 +35,19 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v136 — persistent state and startup races
+
+Implemented:
+- late SharedPreferences adoption no longer overwrites user choices made in the first seconds;
+- sorting is re-applied to an already loaded library, with caches invalidated;
+- favorites are merged, caches/flags refreshed, pending toggles replayed;
+- playlists/history gain dirty flags and deferred writes; clearing history cannot resurrect it;
+- repeat/shuffle/X-Boost persistence;
+- UI style and palette controllers respect choices made before init completes;
+- late resume, delete-track persistence, safe prefs reads.
+
+Validation: `flutter analyze` clean, 58 tests pass. Device check still needed for restart persistence.
 
 ## v135 — startup stream attachment, data loading, neon visualizer
 
