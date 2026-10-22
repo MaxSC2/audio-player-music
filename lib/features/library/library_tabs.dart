@@ -210,13 +210,16 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Widget _buildHeaderRow(PlayerProvider player) {
     final neon = widget.neon;
-    final fieldRadius = neon ? 14.0 : 12.0;
-    final fieldFill = neon ? const Color(0x14FFFFFF) : AppTheme.surfaceLight;
-    final fieldText = neon ? Colors.white : AppTheme.textPrimary;
-    final fieldHint = neon ? Colors.white38 : AppTheme.textMuted;
-    final fieldBorderSide = neon
-        ? const BorderSide(color: Color(0x24FFFFFF))
-        : BorderSide.none;
+    final cardWave = context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
+    final fieldRadius = (neon || cardWave) ? 14.0 : 12.0;
+    final fieldFill = cardWave
+        ? const Color(0xFF17151A)
+        : (neon ? const Color(0x14FFFFFF) : AppTheme.surfaceLight);
+    final fieldText = cardWave ? const Color(0xFFE9E2D4) : (neon ? Colors.white : AppTheme.textPrimary);
+    final fieldHint = cardWave ? const Color(0xFF938A78) : (neon ? Colors.white38 : AppTheme.textMuted);
+    final fieldBorderSide = cardWave
+        ? const BorderSide(color: Color(0x665B503B))
+        : (neon ? const BorderSide(color: Color(0x24FFFFFF)) : BorderSide.none);
 
     if (_selectionMode) {
       return Padding(
@@ -226,7 +229,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             Text(
               '${_selectedIds.length} выбрано',
               style: TextStyle(
-                color: AppTheme.accentLight,
+                color: cardWave ? const Color(0xFFE9D39B) : AppTheme.accentLight,
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
@@ -319,7 +322,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             IconButton(
               icon: Icon(
                 Icons.auto_awesome_rounded,
-                color: neon ? Colors.white54 : AppTheme.textSecondary,
+                color: cardWave ? const Color(0xFFD8B86B) : (neon ? Colors.white54 : AppTheme.textSecondary),
               ),
               onPressed: () => SmartPlaylistsSheet.show(context),
               tooltip: 'Умные плейлисты',
@@ -353,11 +356,11 @@ class _LibraryTabsState extends State<LibraryTabs>
                 Icons.sort_rounded,
                 color: neon ? Colors.white54 : AppTheme.textSecondary,
               ),
-              color: neon ? const Color(0xFF141622) : AppTheme.surfaceLight,
+              color: cardWave ? const Color(0xFF17151A) : (neon ? const Color(0xFF141622) : AppTheme.surfaceLight),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
                 side: BorderSide(
-                  color: neon ? const Color(0x24FFFFFF) : AppTheme.cardBorder,
+                  color: cardWave ? const Color(0x665B503B) : (neon ? const Color(0x24FFFFFF) : AppTheme.cardBorder),
                 ),
               ),
               onSelected: (value) {
