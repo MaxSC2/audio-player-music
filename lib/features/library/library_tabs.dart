@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../models/audio_track.dart';
 import '../../providers/player_provider.dart';
 import '../../screens/artist_detail_screen.dart';
@@ -64,6 +65,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   // обновляем запрос не на каждую букву, а через короткий дебаунс.
   Timer? _searchDebounce;
   bool _permissionDenied = false;
+  bool _scanCompleted = false;
   bool _refreshingLibrary = false;
   bool _selectionMode = false;
   final Set<int> _selectedIds = <int>{};
@@ -131,9 +133,11 @@ class _LibraryTabsState extends State<LibraryTabs>
     if (!player.hasLibrary) {
       await player.requestPermission();
     }
+    final audioPermission = await Permission.audio.status;
     if (!mounted) return;
     setState(() {
-      _permissionDenied = player.allTracks.isEmpty;
+      _permissionDenied = !audioPermission.isGranted;
+      _scanCompleted = true;
     });
   }
 
@@ -150,7 +154,10 @@ class _LibraryTabsState extends State<LibraryTabs>
       if (!mounted) return;
 
       if (result == null) {
-        setState(() => _permissionDenied = true);
+        setState(() {
+          _permissionDenied = true;
+          _scanCompleted = true;
+        });
         if (!automatic) {
           showNeonSnack(
             context,
@@ -162,7 +169,10 @@ class _LibraryTabsState extends State<LibraryTabs>
         return;
       }
 
-      setState(() => _permissionDenied = false);
+      setState(() {
+        _permissionDenied = false;
+        _scanCompleted = true;
+      });
       if (automatic || (result.added == 0 && result.removed == 0)) {
         return;
       }
@@ -258,10 +268,16 @@ class _LibraryTabsState extends State<LibraryTabs>
           ],
         ),
         Expanded(
-          child: _permissionDenied && player.allTracks.isEmpty
+          child: _permissionDenied
               ? _buildPermissionDenied()
               : player.allTracks.isEmpty
-              ? _buildLoading()
+              ? (_scanCompleted
+                  ? _buildEmptyState(
+                      'Музыка не найдена',
+                      Icons.library_music_outlined,
+                      subtitle: 'После загрузки файла нажмите обновить. Аудио появится здесь, когда Android добавит его в медиатеку.',
+                    )
+                  : _buildLoading())
               : TabBarView(
                   controller: _tabController,
                   children: [
