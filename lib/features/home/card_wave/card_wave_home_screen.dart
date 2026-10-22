@@ -151,7 +151,7 @@ class CardWaveHomeScreen extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(21),
-                  child: Stack(
+                  child: const Stack(
                     children: [
                       const Positioned(
                         top: 8,
@@ -164,7 +164,7 @@ class CardWaveHomeScreen extends StatelessWidget {
                         child: _DeckCorner(top: true, left: false),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 6),
+                        padding: EdgeInsets.only(top: 6),
                         child: LibraryTabs(),
                       ),
                     ],
