@@ -3223,7 +3223,10 @@ class PlayerProvider extends ChangeNotifier {
   /// user, but lets the service expose the local library when permission was
   /// granted during a previous phone session.
   Future<bool> loadTracksIfAuthorized() {
-    if (_allTracks.isNotEmpty) return Future.value(true);
+    if (_allTracks.isNotEmpty) {
+      _startMediaStoreWatcher();
+      return Future.value(true);
+    }
 
     final existing = _authorizedLoadFuture;
     if (existing != null) return existing;
