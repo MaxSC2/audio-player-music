@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/ui_style.dart';
 import '../../../providers/player_provider.dart';
 import '../../../ui/theme.dart';
 import '../../library/library_tabs.dart';
