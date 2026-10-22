@@ -14,8 +14,14 @@ Copyright: © 2021, Lucas Josino. All rights reserved.
 
 package com.lucasjosino.on_audio_query
 
+import android.content.ContentObserver
+import android.content.Context
 import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import com.lucasjosino.on_audio_query.consts.Method
 import com.lucasjosino.on_audio_query.controllers.MethodController
 import com.lucasjosino.on_audio_query.controllers.PermissionController
@@ -23,6 +29,7 @@ import io.flutter.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -41,22 +48,97 @@ class OnAudioQueryPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
         // Method channel name.
         private const val CHANNEL_NAME = "com.lucasjosino.on_audio_query"
+        private const val MEDIA_STORE_EVENTS_CHANNEL = "audio_player/media_store_changes"
     }
 
     private var permissionController = PermissionController()
     private var methodController = MethodController()
 
     private var binding: ActivityPluginBinding? = null
+    private var appContext: Context? = null
+    private var eventChannel: EventChannel? = null
+    private var eventSink: EventChannel.EventSink? = null
+    private var mediaStoreObserver: ContentObserver? = null
+    private val mediaStoreHandler = Handler(Looper.getMainLooper())
+    private var pendingMediaStoreNotification: Runnable? = null
 
     private lateinit var channel: MethodChannel
+
+    private val mediaStoreStreamHandler = object : EventChannel.StreamHandler {
+        override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+            eventSink = events
+            appContext?.let { registerMediaStoreObserver(it) }
+        }
+
+        override fun onCancel(arguments: Any?) {
+            stopMediaStoreObserver()
+            eventSink = null
+        }
+    }
 
     // Dart <-> Kotlin communication
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.i(TAG, "Attached to engine")
 
-        // Setup the method channel communication.
+        // Setup method and MediaStore change channels.
+        appContext = flutterPluginBinding.applicationContext
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(this)
+        eventChannel = EventChannel(
+            flutterPluginBinding.binaryMessenger,
+            MEDIA_STORE_EVENTS_CHANNEL
+        ).also { it.setStreamHandler(mediaStoreStreamHandler) }
+    }
+
+    private fun registerMediaStoreObserver(context: Context) {
+        stopMediaStoreObserver()
+        try {
+            val observer = object : ContentObserver(mediaStoreHandler) {
+                override fun onChange(selfChange: Boolean) {
+                    scheduleMediaStoreNotification()
+                }
+
+                override fun onChange(selfChange: Boolean, uri: Uri?) {
+                    scheduleMediaStoreNotification()
+                }
+            }
+            context.contentResolver.registerContentObserver(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                true,
+                observer
+            )
+            mediaStoreObserver = observer
+            Log.i(TAG, "MediaStore audio observer registered")
+        } catch (error: SecurityException) {
+            mediaStoreObserver = null
+            Log.w(TAG, "Cannot observe MediaStore without audio permission", error)
+        } catch (error: Exception) {
+            mediaStoreObserver = null
+            Log.w(TAG, "Cannot register MediaStore observer", error)
+        }
+    }
+
+    private fun scheduleMediaStoreNotification() {
+        pendingMediaStoreNotification?.let { mediaStoreHandler.removeCallbacks(it) }
+        val notification = Runnable {
+            eventSink?.success(System.currentTimeMillis())
+        }
+        pendingMediaStoreNotification = notification
+        // One download may cause many row and artwork updates. Send one event
+        // after MediaStore settles instead of scanning once for every row.
+        mediaStoreHandler.postDelayed(notification, 800)
+    }
+
+    private fun stopMediaStoreObserver() {
+        pendingMediaStoreNotification?.let { mediaStoreHandler.removeCallbacks(it) }
+        pendingMediaStoreNotification = null
+        val observer = mediaStoreObserver ?: return
+        try {
+            appContext?.contentResolver?.unregisterContentObserver(observer)
+        } catch (error: Exception) {
+            Log.w(TAG, "Cannot unregister MediaStore observer", error)
+        }
+        mediaStoreObserver = null
     }
 
     // Methods will always follow the same route:
@@ -149,7 +231,12 @@ class OnAudioQueryPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Log.i(TAG, "Detached from engine")
+        stopMediaStoreObserver()
+        eventSink = null
+        eventChannel?.setStreamHandler(null)
+        eventChannel = null
         channel.setMethodCallHandler(null)
+        appContext = null
         // Clear provider references when the engine detaches to avoid stale refs.
         PluginProvider.clear()
     }

@@ -641,6 +641,12 @@ class PlayerProvider extends ChangeNotifier {
   final Future<SharedPreferences>? _prefsFuture;
   final RescueStore? _rescue;
   Future<bool>? _authorizedLoadFuture;
+  Future<void>? _trackScanFuture;
+  StreamSubscription<dynamic>? _mediaStoreSubscription;
+  Timer? _mediaStoreRefreshTimer;
+
+  static const EventChannel _mediaStoreEvents =
+      EventChannel('audio_player/media_store_changes');
 
   PlayerProvider({
     Future<SharedPreferences>? prefsFuture,
@@ -3217,7 +3223,10 @@ class PlayerProvider extends ChangeNotifier {
   /// user, but lets the service expose the local library when permission was
   /// granted during a previous phone session.
   Future<bool> loadTracksIfAuthorized() {
-    if (_allTracks.isNotEmpty) return Future.value(true);
+    if (_allTracks.isNotEmpty) {
+      _startMediaStoreWatcher();
+      return Future.value(true);
+    }
 
     final existing = _authorizedLoadFuture;
     if (existing != null) return existing;
@@ -3234,10 +3243,14 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<bool> _loadTracksIfAuthorizedOnce() async {
     await ready;
-    if (_allTracks.isNotEmpty) return true;
+    if (_allTracks.isNotEmpty) {
+      _startMediaStoreWatcher();
+      return true;
+    }
     try {
       final status = await Permission.audio.status;
       if (!status.isGranted) return false;
+      _startMediaStoreWatcher();
       await loadTracks();
       return _allTracks.isNotEmpty;
     } catch (e) {
@@ -3255,8 +3268,83 @@ class PlayerProvider extends ChangeNotifier {
     }
     await _requestNotificationPermission();
     try {
+      _startMediaStoreWatcher();
       await loadTracks();
-    } catch (_) {}
+    } catch (e, st) {
+      DebugLog.log('requestPermission: loadTracks failed', e, st);
+    }
+  }
+
+  /// Re-query MediaStore without restarting playback or rebuilding its queue.
+  /// Returns the number of tracks and the added/removed ID counts, or null if
+  /// the audio permission is not granted.
+  Future<({int total, int added, int removed})?> refreshLibrary({
+    bool requestPermissionIfNeeded = false,
+  }) async {
+    await ready;
+    var status = await Permission.audio.status;
+    if (!status.isGranted && requestPermissionIfNeeded) {
+      status = await Permission.audio.request();
+    }
+    if (!status.isGranted) return null;
+
+    _startMediaStoreWatcher();
+    final before = _allTracks.map((track) => track.id).toSet();
+
+    // If a query started before this refresh request, wait for it and then
+    // issue a fresh query. Otherwise a file added midway through that query
+    // could be missed by both the caller and its in-flight scan.
+    final running = _trackScanFuture;
+    if (running != null) {
+      try {
+        await running;
+      } catch (_) {
+        // The fresh query below gets another chance to recover the library.
+      }
+    }
+    await _scanTracks(preparePlayback: false);
+    final after = _allTracks.map((track) => track.id).toSet();
+    return (
+      total: _allTracks.length,
+      added: after.difference(before).length,
+      removed: before.difference(after).length,
+    );
+  }
+
+  void _startMediaStoreWatcher() {
+    if (_mediaStoreSubscription != null) return;
+    try {
+      _mediaStoreSubscription = _mediaStoreEvents.receiveBroadcastStream().listen(
+        (_) {
+          // MediaStore can publish several notifications for a single download.
+          // Coalesce them into one scan after the write/import has settled.
+          _mediaStoreRefreshTimer?.cancel();
+          _mediaStoreRefreshTimer = Timer(
+            const Duration(milliseconds: 1100),
+            () => unawaited(_refreshAfterMediaStoreChange()),
+          );
+        },
+        onError: (Object error, StackTrace stack) {
+          DebugLog.log('MediaStore watcher failed', error, stack);
+          _mediaStoreSubscription = null;
+        },
+      );
+    } catch (e, st) {
+      DebugLog.log('MediaStore watcher could not start', e, st);
+    }
+  }
+
+  Future<void> _refreshAfterMediaStoreChange() async {
+    try {
+      final result = await refreshLibrary();
+      if (result != null && (result.added > 0 || result.removed > 0)) {
+        DebugLog.log(
+          'MediaStore refresh: +${result.added}, -${result.removed}, total ${result.total}',
+        );
+      }
+    } catch (e, st) {
+      DebugLog.log('MediaStore refresh failed', e, st);
+    }
   }
 
   /// Лёгкий запрос только разрешения на уведомления (для медиа-карточки),
@@ -3329,19 +3417,70 @@ class PlayerProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> loadTracks() async {
+  Future<void> loadTracks() => _scanTracks(preparePlayback: true);
+
+  Future<void> _scanTracks({required bool preparePlayback}) {
+    // Prevent an automatic MediaStore event and a manual tap from running two
+    // full MediaStore queries at the same time.
+    final running = _trackScanFuture;
+    if (running != null) return running;
+
+    late final Future<void> scan;
+    scan = _performTrackScan(preparePlayback: preparePlayback).whenComplete(() {
+      if (identical(_trackScanFuture, scan)) _trackScanFuture = null;
+    });
+    _trackScanFuture = scan;
+    return scan;
+  }
+
+  Future<void> _performTrackScan({required bool preparePlayback}) async {
     final raw = await _querySongsRaw();
-    _allTracks = raw.map(_trackFromRaw).toList();
-    _allTracks = sortTracks(_allTracks, _sortOrder);
-    _invalidateFolderCache();
-    _invalidateCategoryCache();
-    _notifyMediaBrowseChanged();
-    _notify('loadTracks');
-    await _maybeResume();
-    await _prepareInitialPlaylist();
-    // Прогрев тяжёлых агрегатов в простое: иначе первый заход на вкладки
-    // DNA/Категории/Плейлисты даёт синхронный фриз 0.3–1.5с прямо в build.
-    unawaited(_precomputeAggregates());
+    final refreshed = sortTracks(raw.map(_trackFromRaw).toList(), _sortOrder);
+    final changed = !_sameLibrarySnapshot(_allTracks, refreshed);
+    if (changed) {
+      _allTracks = refreshed;
+      _invalidateFolderCache();
+      _invalidateCategoryCache();
+      _notifyMediaBrowseChanged();
+      _notify('loadTracks');
+    }
+
+    // Initial loading may restore a saved queue. A user-triggered or automatic
+    // refresh must never seek or resume playback just because files changed.
+    if (preparePlayback) {
+      await _maybeResume();
+      await _prepareInitialPlaylist();
+    }
+
+    if (changed) {
+      // Heavy aggregates are only precomputed when the library actually changed.
+      unawaited(_precomputeAggregates());
+    }
+    DebugLog.log(
+      'MediaStore scan: ${_allTracks.length} tracks, changed=$changed',
+    );
+  }
+
+  bool _sameLibrarySnapshot(List<AudioTrack> a, List<AudioTrack> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i];
+      final y = b[i];
+      if (x.id != y.id ||
+          x.title != y.title ||
+          x.artist != y.artist ||
+          x.album != y.album ||
+          x.uri != y.uri ||
+          x.duration != y.duration ||
+          x.size != y.size ||
+          x.dateAdded != y.dateAdded ||
+          x.data != y.data ||
+          x.albumId != y.albumId ||
+          x.isFavorite != y.isFavorite) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Фоновая предвыборка агрегатов после загрузки библиотеки.
@@ -4385,6 +4524,8 @@ class PlayerProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _mediaStoreRefreshTimer?.cancel();
+    _mediaStoreSubscription?.cancel();
     _sleepTimer?.cancel();
     _noisySub?.cancel();
     _sessionEventSub?.cancel();

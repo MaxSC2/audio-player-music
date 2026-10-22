@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../models/audio_track.dart';
 import '../../providers/player_provider.dart';
 import '../../screens/artist_detail_screen.dart';
@@ -56,7 +57,7 @@ class LibraryTabs extends StatefulWidget {
 }
 
 class _LibraryTabsState extends State<LibraryTabs>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -64,6 +65,8 @@ class _LibraryTabsState extends State<LibraryTabs>
   // обновляем запрос не на каждую букву, а через короткий дебаунс.
   Timer? _searchDebounce;
   bool _permissionDenied = false;
+  bool _scanCompleted = false;
+  bool _refreshingLibrary = false;
   bool _selectionMode = false;
   final Set<int> _selectedIds = <int>{};
   bool _albumGridView = false;
@@ -82,10 +85,24 @@ class _LibraryTabsState extends State<LibraryTabs>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController =
         widget.controller ?? TabController(length: 9, vsync: this);
     _tabController.addListener(_onTabChanged);
     _requestPermission();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Pick up downloads completed in background even if a MediaStore event was missed.
+      unawaited(
+        _refreshLibrary(
+          automatic: true,
+          requestPermissionIfNeeded: false,
+        ),
+      );
+    }
   }
 
   void _onTabChanged() {
@@ -100,6 +117,7 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.removeListener(_onTabChanged);
     if (widget.controller == null) {
       _tabController.dispose();
@@ -115,10 +133,77 @@ class _LibraryTabsState extends State<LibraryTabs>
     if (!player.hasLibrary) {
       await player.requestPermission();
     }
+    final audioPermission = await Permission.audio.status;
     if (!mounted) return;
     setState(() {
-      _permissionDenied = player.allTracks.isEmpty;
+      _permissionDenied = !audioPermission.isGranted;
+      _scanCompleted = true;
     });
+  }
+
+  Future<void> _refreshLibrary({
+    bool automatic = false,
+    bool requestPermissionIfNeeded = true,
+  }) async {
+    if (_refreshingLibrary) return;
+    setState(() => _refreshingLibrary = true);
+    try {
+      final result = await context.read<PlayerProvider>().refreshLibrary(
+        requestPermissionIfNeeded: requestPermissionIfNeeded,
+      );
+      if (!mounted) return;
+
+      if (result == null) {
+        // A silent lifecycle check must not race with the initial permission
+        // prompt or replace a populated screen just because access was revoked.
+        if (!automatic) {
+          setState(() {
+            _permissionDenied = true;
+            _scanCompleted = true;
+          });
+          showNeonSnack(
+            context,
+            'Разрешите доступ к аудиофайлам для обновления медиатеки',
+            icon: Icons.lock_outline_rounded,
+            accent: AppTheme.accentCyan,
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _permissionDenied = false;
+        _scanCompleted = true;
+      });
+      if (automatic || (result.added == 0 && result.removed == 0)) {
+        return;
+      }
+
+      final changes = <String>[];
+      if (result.added > 0) changes.add('+${result.added} новых');
+      if (result.removed > 0) changes.add('−${result.removed} удалено');
+      final message = changes.isEmpty
+          ? 'Медиатека актуальна · ${result.total} треков'
+          : 'Медиатека обновлена · ${changes.join(', ')} · всего ${result.total}';
+      showNeonSnack(
+        context,
+        message,
+        icon: Icons.library_music_rounded,
+        accent: AppTheme.accentCyan,
+      );
+    } catch (e, st) {
+      DebugLog.log('manual library refresh failed', e, st);
+      if (mounted && !automatic) {
+        showNeonSnack(
+          context,
+          'Не удалось обновить медиатеку',
+          icon: Icons.error_outline_rounded,
+          accent: AppTheme.accentPink,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _refreshingLibrary = false);
+    }
   }
 
   /// Оверлейный акцент для свайп-кнопок в neon/cinematic — берётся из
@@ -185,10 +270,16 @@ class _LibraryTabsState extends State<LibraryTabs>
           ],
         ),
         Expanded(
-          child: _permissionDenied && player.allTracks.isEmpty
+          child: _permissionDenied
               ? _buildPermissionDenied()
               : player.allTracks.isEmpty
-              ? _buildLoading()
+              ? (_scanCompleted
+                  ? _buildEmptyState(
+                      'Музыка не найдена',
+                      Icons.library_music_outlined,
+                      subtitle: 'После загрузки файла нажмите обновить. Аудио появится здесь, когда Android добавит его в медиатеку.',
+                    )
+                  : _buildLoading())
               : TabBarView(
                   controller: _tabController,
                   children: [
@@ -317,6 +408,31 @@ class _LibraryTabsState extends State<LibraryTabs>
                 ),
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Обновить медиатеку',
+            onPressed: _refreshingLibrary
+                ? null
+                : () => _refreshLibrary(
+                    requestPermissionIfNeeded: true,
+                  ),
+            icon: _refreshingLibrary
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: cardWave
+                          ? const Color(0xFFD8B86B)
+                          : (neon ? Colors.white54 : AppTheme.textSecondary),
+                    ),
+                  )
+                : Icon(
+                    Icons.sync_rounded,
+                    color: cardWave
+                        ? const Color(0xFFD8B86B)
+                        : (neon ? Colors.white54 : AppTheme.textSecondary),
+                  ),
           ),
           if (player.allTracks.isNotEmpty) ...[
             IconButton(
