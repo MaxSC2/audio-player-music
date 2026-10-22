@@ -3290,7 +3290,7 @@ class PlayerProvider extends ChangeNotifier {
 
     _startMediaStoreWatcher();
     final before = _allTracks.map((track) => track.id).toSet();
-    await _scanTracks(preparePlayback: _allTracks.isEmpty);
+    await _scanTracks(preparePlayback: false);
     final after = _allTracks.map((track) => track.id).toSet();
     return (
       total: _allTracks.length,
