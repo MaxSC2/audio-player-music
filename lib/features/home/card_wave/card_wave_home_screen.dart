@@ -153,12 +153,12 @@ class CardWaveHomeScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(21),
                   child: const Stack(
                     children: [
-                      const Positioned(
+                      Positioned(
                         top: 8,
                         left: 8,
                         child: _DeckCorner(top: true, left: true),
                       ),
-                      const Positioned(
+                      Positioned(
                         top: 8,
                         right: 8,
                         child: _DeckCorner(top: true, left: false),
