@@ -19,6 +19,8 @@ class TrackTile extends StatelessWidget {
   /// тонкой кромкой, как мини-плеер и сцена. Без фиолетовой заливки, чтобы
   /// палитра списка не спорила с неоном плеера (жалоба по скринам).
   final bool neon;
+  /// Cardwave: paper-like cards with fine gilded outlines.
+  final bool cardWave;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -30,6 +32,7 @@ class TrackTile extends StatelessWidget {
     this.selected = false,
     this.threeD = false,
     this.neon = false,
+    this.cardWave = false,
     required this.onTap,
     this.onLongPress,
   });
@@ -43,9 +46,16 @@ class TrackTile extends StatelessWidget {
     // согласованные со сценой/мини-плеером.
     const neonCard = Color(0x0FFFFFFF);
     const neonBorder = Color(0x24FFFFFF);
-    final accent = AppTheme.accent;
-    final baseColor = neon ? neonCard : AppTheme.card;
-    final baseBorder = neon ? neonBorder : AppTheme.cardBorder;
+    const cardWaveSurface = Color(0xFF17151A);
+    const cardWaveBorder = Color(0x665B503B);
+    const cardWaveGold = Color(0xFFD8B86B);
+    final accent = cardWave ? cardWaveGold : AppTheme.accent;
+    final baseColor = cardWave
+        ? cardWaveSurface
+        : (neon ? neonCard : AppTheme.card);
+    final baseBorder = cardWave
+        ? cardWaveBorder
+        : (neon ? neonBorder : AppTheme.cardBorder);
 
     final tile = Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -55,7 +65,8 @@ class TrackTile extends StatelessWidget {
             : isCurrent
             ? accent.withValues(alpha: accent.a * (neon ? 0.16 : 0.12))
             : baseColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(cardWave ? 12 : 16),
+        boxShadow: cardWave ? const [BoxShadow(color: Color(0x18000000), blurRadius: 10, offset: Offset(0, 4))] : null,
         border: Border.all(
           color: selected
               ? accent
@@ -70,11 +81,11 @@ class TrackTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(16),
-          splashColor: AppTheme.accent.withValues(
+          borderRadius: BorderRadius.circular(cardWave ? 12 : 16),
+          splashColor: accent.withValues(
             alpha: AppTheme.accent.a * (0.15),
           ),
-          highlightColor: AppTheme.accent.withValues(
+          highlightColor: accent.withValues(
             alpha: AppTheme.accent.a * (0.08),
           ),
           child: Padding(
@@ -168,9 +179,9 @@ class TrackTile extends StatelessWidget {
                           fontWeight: isCurrent
                               ? FontWeight.w700
                               : FontWeight.w600,
-                          color: isCurrent
-                              ? AppTheme.accentLight
-                              : AppTheme.textPrimary,
+                          color: cardWave
+                              ? (isCurrent ? const Color(0xFFF1DDA7) : const Color(0xFFE9E2D4))
+                              : (isCurrent ? AppTheme.accentLight : AppTheme.textPrimary),
                           letterSpacing: 0.2,
                         ),
                         maxLines: 1,
@@ -184,7 +195,7 @@ class TrackTile extends StatelessWidget {
                               track.artist,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: AppTheme.textSecondary,
+                                color: cardWave ? const Color(0xFFB4AA97) : AppTheme.textSecondary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -194,7 +205,7 @@ class TrackTile extends StatelessWidget {
                             ' • ${track.formattedDuration}',
                             style: TextStyle(
                               fontSize: 11,
-                              color: AppTheme.textMuted,
+                              color: cardWave ? const Color(0xFF817968) : AppTheme.textMuted,
                             ),
                           ),
                         ],
