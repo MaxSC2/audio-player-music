@@ -263,6 +263,28 @@ class _ActionButton extends StatelessWidget {
         iconColor = Color.lerp(Colors.white, c, 0.55)!;
         labelColor = Colors.white70;
         break;
+
+      case PlayerUIStyle.cardWave:
+        // Тёплая золотая окантовка на тёмном фоне под карточный стиль.
+        deco = BoxDecoration(
+          color: const Color(0xFF1B160E),
+          border: Border(
+            left: first
+                ? BorderSide.none
+                : const BorderSide(color: Color(0x66D6A64D), width: 0.8),
+            top: const BorderSide(color: Color(0x55D6A64D), width: 0.7),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFD6A64D).withValues(alpha: 0.18),
+              blurRadius: 12,
+              spreadRadius: -2,
+            ),
+          ],
+        );
+        iconColor = const Color(0xFFE9C777);
+        labelColor = const Color(0xFFF4E5C2);
+        break;
     }
 
     return GestureDetector(
