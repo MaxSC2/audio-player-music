@@ -543,6 +543,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildTrackList(PlayerProvider player, PlayerUIStyle style, Color? accent) {
+    final cardWave = style == PlayerUIStyle.cardWave;
     final tracks = player.searchTracks(_searchQuery);
     final playlist = tracks;
 
@@ -1374,6 +1375,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       PlayerProvider player,
       PlayerUIStyle style,
       Color? accent) {
+    final cardWave = style == PlayerUIStyle.cardWave;
     final query = _searchQuery;
     final favs = player.favoriteTracks
         .where(
@@ -1524,6 +1526,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       PlayerProvider player,
       PlayerUIStyle style,
       Color? accent) {
+    final cardWave = style == PlayerUIStyle.cardWave;
     final query = _searchQuery.toLowerCase();
     final entries = player.historyEntries
         .where(
