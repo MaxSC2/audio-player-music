@@ -846,13 +846,14 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildPlaylistCard(PlayerProvider player, _PlaylistItem item) {
+    final cardWave = context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
     return GestureDetector(
       onTap: item.onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.cardBorder),
+          color: cardWave ? const Color(0xFF17151A) : AppTheme.card,
+          borderRadius: BorderRadius.circular(cardWave ? 13 : 18),
+          border: Border.all(color: cardWave ? const Color(0x88C9A95D) : AppTheme.cardBorder, width: cardWave ? 1.2 : 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
@@ -864,7 +865,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(cardWave ? 12 : 18),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1361,7 +1362,12 @@ class _LibraryTabsState extends State<LibraryTabs>
     String album,
     List<AudioTrack> tracks,
   ) {
-    return AlbumCard(player: player, album: album, tracks: tracks);
+    return AlbumCard(
+      player: player,
+      album: album,
+      tracks: tracks,
+      cardWave: context.read<UiStyleController>().style == PlayerUIStyle.cardWave,
+    );
   }
 
   Widget _buildFavoriteList(
