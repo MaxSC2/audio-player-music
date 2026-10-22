@@ -1608,6 +1608,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           isCurrent: isCurrent,
           threeD: widget.threeD,
           neon: widget.neon,
+          cardWave: cardWave,
           onTap: () {
             final ids = items.map((e) => e.track.id).toList();
             final idx = ids.indexOf(track.id);
