@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'debug_log.dart';
 import 'rescue_store.dart';
 
-enum PlayerUIStyle { simple, coverFlow3D, cinematic, neon }
+enum PlayerUIStyle { simple, coverFlow3D, cinematic, neon, cardWave }
 
 /// Фиксированные темы Cinematic + Auto (цвета из обложки).
 enum CinematicThemeMode { auto, crimson, ocean, emerald, violet, mono }
