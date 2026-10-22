@@ -154,11 +154,13 @@ class _LibraryTabsState extends State<LibraryTabs>
       if (!mounted) return;
 
       if (result == null) {
-        setState(() {
-          _permissionDenied = true;
-          _scanCompleted = true;
-        });
+        // A silent lifecycle check must not race with the initial permission
+        // prompt or replace a populated screen just because access was revoked.
         if (!automatic) {
+          setState(() {
+            _permissionDenied = true;
+            _scanCompleted = true;
+          });
           showNeonSnack(
             context,
             'Разрешите доступ к аудиофайлам для обновления медиатеки',
