@@ -14,7 +14,7 @@ Copyright: © 2021, Lucas Josino. All rights reserved.
 
 package com.lucasjosino.on_audio_query
 
-import android.content.ContentObserver
+import android.database.ContentObserver
 import android.content.Context
 import android.media.MediaScannerConnection
 import android.net.Uri
