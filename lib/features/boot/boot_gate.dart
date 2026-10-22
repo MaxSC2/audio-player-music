@@ -366,6 +366,14 @@ class _SplashTheme {
         label: 'NEON',
         neon: true,
       ),
+      PlayerUIStyle.cardWave => const _SplashTheme(
+        accent: Color(0xFFD6A64D),
+        secondary: Color(0xFF735018),
+        icon: Icons.album_rounded,
+        tagline: 'ТВОЯ МУЗЫКА · ТВОЯ КОЛОДА',
+        label: 'CARDWAVE',
+        stacked: true,
+      ),
     };
   }
 }
