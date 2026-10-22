@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/ui_style.dart';
 import 'cinematic/cinematic_mini_player.dart';
+import 'card_wave/card_wave_mini_player.dart';
 import 'cover_flow/cover_flow_mini_player.dart';
 import 'neon/neon_mini_player.dart';
 import 'simple/simple_mini_player.dart';
@@ -22,6 +23,7 @@ class MiniPlayer extends StatelessWidget {
         PlayerUIStyle.coverFlow3D => CoverFlowMiniPlayer(onExpand: onExpand),
         PlayerUIStyle.cinematic => CinematicMiniPlayer(onExpand: onExpand),
         PlayerUIStyle.neon => NeonMiniPlayer(onExpand: onExpand),
+        PlayerUIStyle.cardWave => CardWaveMiniPlayer(onExpand: onExpand),
       },
     );
   }
