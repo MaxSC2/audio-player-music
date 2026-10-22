@@ -1,9 +1,9 @@
 # NeonWave — Master Audit 2026
 
-Date: 2026-09-20 · Updated: 2026-10-21
+Date: 2026-09-20 · Updated: 2026-10-22
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v139**
+Current app version: **v140**
 
 ## Scope
 
@@ -35,6 +35,15 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v140 — neon mini player with swipe navigation
+
+- added a dedicated neon mini player with a single play/pause control;
+- swipe left selects the next track, swipe right selects the previous one, with an interactive card offset, velocity threshold, light haptic feedback and a smooth content transition;
+- tapping the card still expands the full player; gesture cancellation resets the offset;
+- swipe direction logic is covered by unit tests.
+
+Validation: `flutter analyze` clean; 68 tests pass.
 
 ## v139 — simpler full-screen splash
 

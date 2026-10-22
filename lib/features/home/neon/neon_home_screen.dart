@@ -7,7 +7,7 @@ import '../../library/library_bottom_nav.dart';
 import '../../library/library_tabs.dart';
 import '../../library/personal_dj_sheet.dart';
 import '../../../ui/theme.dart';
-import '../../mini_player/cinematic/cinematic_mini_player.dart';
+import '../../mini_player/neon/neon_mini_player.dart';
 import '../../now_playing/cinematic/cinematic_player_body.dart';
 import '../../now_playing/now_playing_screen.dart';
 import '../../settings/settings_screen.dart';
@@ -76,7 +76,7 @@ class _NeonHomeScreenState extends State<NeonHomeScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CinematicMiniPlayer(onExpand: () => _expand(context)),
+          NeonMiniPlayer(onExpand: () => _expand(context)),
           LibraryBottomNav(
             current: _tabs.index.clamp(0, 8),
             accent: cinematicAccent(context, currentTrackId),

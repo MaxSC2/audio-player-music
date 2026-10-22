@@ -3592,9 +3592,11 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> previous() async {
+  /// [restartCurrent] = false — всегда переходить к предыдущему треку
+  /// (свайп в мини-плеере), даже если текущий играет больше 3 секунд.
+  Future<void> previous({bool restartCurrent = true}) async {
     if (_playlist.isEmpty) return;
-    if (_position.inSeconds > 3) {
+    if (restartCurrent && _position.inSeconds > 3) {
       await _audioPlayer.seek(Duration.zero);
       return;
     }
