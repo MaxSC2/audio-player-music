@@ -137,6 +137,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     DebugLog.rebuild('LibraryTabs');
     final player = context.watch<PlayerProvider>();
     final style = context.read<UiStyleController>().style;
+    final cardWave = style == PlayerUIStyle.cardWave;
     final swAccent = (style == PlayerUIStyle.neon ||
             style == PlayerUIStyle.cinematic)
         ? _swipeAccent(context, player.currentTrack?.id)
@@ -150,11 +151,11 @@ class _LibraryTabsState extends State<LibraryTabs>
           controller: _tabController,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
-          indicatorColor: AppTheme.accent,
+          indicatorColor: cardWave ? const Color(0xFFD8B86B) : AppTheme.accent,
           indicatorSize: TabBarIndicatorSize.label,
           indicatorWeight: 3,
-          labelColor: AppTheme.textPrimary,
-          unselectedLabelColor: AppTheme.textMuted,
+          labelColor: cardWave ? const Color(0xFFF4E8CC) : AppTheme.textPrimary,
+          unselectedLabelColor: cardWave ? const Color(0xFF938A78) : AppTheme.textMuted,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
@@ -209,13 +210,16 @@ class _LibraryTabsState extends State<LibraryTabs>
 
   Widget _buildHeaderRow(PlayerProvider player) {
     final neon = widget.neon;
-    final fieldRadius = neon ? 14.0 : 12.0;
-    final fieldFill = neon ? const Color(0x14FFFFFF) : AppTheme.surfaceLight;
-    final fieldText = neon ? Colors.white : AppTheme.textPrimary;
-    final fieldHint = neon ? Colors.white38 : AppTheme.textMuted;
-    final fieldBorderSide = neon
-        ? const BorderSide(color: Color(0x24FFFFFF))
-        : BorderSide.none;
+    final cardWave = context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
+    final fieldRadius = (neon || cardWave) ? 14.0 : 12.0;
+    final fieldFill = cardWave
+        ? const Color(0xFF17151A)
+        : (neon ? const Color(0x14FFFFFF) : AppTheme.surfaceLight);
+    final fieldText = cardWave ? const Color(0xFFE9E2D4) : (neon ? Colors.white : AppTheme.textPrimary);
+    final fieldHint = cardWave ? const Color(0xFF938A78) : (neon ? Colors.white38 : AppTheme.textMuted);
+    final fieldBorderSide = cardWave
+        ? const BorderSide(color: Color(0x665B503B))
+        : (neon ? const BorderSide(color: Color(0x24FFFFFF)) : BorderSide.none);
 
     if (_selectionMode) {
       return Padding(
@@ -225,7 +229,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             Text(
               '${_selectedIds.length} выбрано',
               style: TextStyle(
-                color: AppTheme.accentLight,
+                color: cardWave ? const Color(0xFFE9D39B) : AppTheme.accentLight,
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
@@ -318,7 +322,7 @@ class _LibraryTabsState extends State<LibraryTabs>
             IconButton(
               icon: Icon(
                 Icons.auto_awesome_rounded,
-                color: neon ? Colors.white54 : AppTheme.textSecondary,
+                color: cardWave ? const Color(0xFFD8B86B) : (neon ? Colors.white54 : AppTheme.textSecondary),
               ),
               onPressed: () => SmartPlaylistsSheet.show(context),
               tooltip: 'Умные плейлисты',
@@ -352,11 +356,11 @@ class _LibraryTabsState extends State<LibraryTabs>
                 Icons.sort_rounded,
                 color: neon ? Colors.white54 : AppTheme.textSecondary,
               ),
-              color: neon ? const Color(0xFF141622) : AppTheme.surfaceLight,
+              color: cardWave ? const Color(0xFF17151A) : (neon ? const Color(0xFF141622) : AppTheme.surfaceLight),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
                 side: BorderSide(
-                  color: neon ? const Color(0x24FFFFFF) : AppTheme.cardBorder,
+                  color: cardWave ? const Color(0x665B503B) : (neon ? const Color(0x24FFFFFF) : AppTheme.cardBorder),
                 ),
               ),
               onSelected: (value) {
@@ -539,6 +543,7 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildTrackList(PlayerProvider player, PlayerUIStyle style, Color? accent) {
+    final cardWave = style == PlayerUIStyle.cardWave;
     final tracks = player.searchTracks(_searchQuery);
     final playlist = tracks;
 
@@ -574,6 +579,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               selected: _selectedIds.contains(track.id),
               threeD: widget.threeD,
               neon: widget.neon,
+              cardWave: cardWave,
               onTap: () {
                 if (_selectionMode) {
                   _toggleSelection(track);
@@ -841,13 +847,14 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildPlaylistCard(PlayerProvider player, _PlaylistItem item) {
+    final cardWave = context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
     return GestureDetector(
       onTap: item.onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.cardBorder),
+          color: cardWave ? const Color(0xFF17151A) : AppTheme.card,
+          borderRadius: BorderRadius.circular(cardWave ? 13 : 18),
+          border: Border.all(color: cardWave ? const Color(0x88C9A95D) : AppTheme.cardBorder, width: cardWave ? 1.2 : 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
@@ -859,7 +866,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(cardWave ? 12 : 18),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1356,13 +1363,19 @@ class _LibraryTabsState extends State<LibraryTabs>
     String album,
     List<AudioTrack> tracks,
   ) {
-    return AlbumCard(player: player, album: album, tracks: tracks);
+    return AlbumCard(
+      player: player,
+      album: album,
+      tracks: tracks,
+      cardWave: context.read<UiStyleController>().style == PlayerUIStyle.cardWave,
+    );
   }
 
   Widget _buildFavoriteList(
       PlayerProvider player,
       PlayerUIStyle style,
       Color? accent) {
+    final cardWave = style == PlayerUIStyle.cardWave;
     final query = _searchQuery;
     final favs = player.favoriteTracks
         .where(
@@ -1411,6 +1424,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               selected: _selectedIds.contains(track.id),
               threeD: widget.threeD,
               neon: widget.neon,
+              cardWave: cardWave,
               onTap: () {
                 if (_selectionMode) {
                   _toggleSelection(track);
@@ -1512,6 +1526,7 @@ class _LibraryTabsState extends State<LibraryTabs>
       PlayerProvider player,
       PlayerUIStyle style,
       Color? accent) {
+    final cardWave = style == PlayerUIStyle.cardWave;
     final query = _searchQuery.toLowerCase();
     final entries = player.historyEntries
         .where(
@@ -1602,6 +1617,7 @@ class _LibraryTabsState extends State<LibraryTabs>
           isCurrent: isCurrent,
           threeD: widget.threeD,
           neon: widget.neon,
+          cardWave: cardWave,
           onTap: () {
             final ids = items.map((e) => e.track.id).toList();
             final idx = ids.indexOf(track.id);

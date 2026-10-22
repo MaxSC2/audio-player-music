@@ -95,12 +95,14 @@ class AlbumCard extends StatelessWidget {
   final PlayerProvider player;
   final String album;
   final List<AudioTrack> tracks;
+  final bool cardWave;
 
   const AlbumCard({
     super.key,
     required this.player,
     required this.album,
     required this.tracks,
+    this.cardWave = false,
   });
 
   @override
@@ -112,9 +114,12 @@ class AlbumCard extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.cardBorder),
+          color: cardWave ? const Color(0xFF17151A) : AppTheme.card,
+          borderRadius: BorderRadius.circular(cardWave ? 13 : 18),
+          border: Border.all(
+            color: cardWave ? const Color(0x88C9A95D) : AppTheme.cardBorder,
+            width: cardWave ? 1.2 : 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
@@ -126,7 +131,7 @@ class AlbumCard extends StatelessWidget {
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(cardWave ? 12 : 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -168,7 +173,7 @@ class AlbumCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppTheme.textPrimary,
+                              color: cardWave ? const Color(0xFFE9E2D4) : AppTheme.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
@@ -180,7 +185,7 @@ class AlbumCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppTheme.textMuted,
+                              color: cardWave ? const Color(0xFFB4AA97) : AppTheme.textMuted,
                               fontSize: 11,
                             ),
                           ),

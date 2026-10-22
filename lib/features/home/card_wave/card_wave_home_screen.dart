@@ -130,7 +130,49 @@ class CardWaveHomeScreen extends StatelessWidget {
               ],
             ),
           ),
-          const Expanded(child: LibraryTabs()),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF100F14),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: const Color(0x665B503B),
+                    width: 1,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x22000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(21),
+                  child: const Stack(
+                    children: [
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: _DeckCorner(top: true, left: true),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _DeckCorner(top: true, left: false),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: LibraryTabs(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
           SafeArea(
             top: false,
             child: Container(
@@ -140,13 +182,34 @@ class CardWaveHomeScreen extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [Color(0xFF09090D), Color(0xFF111016)],
                 ),
-                border: Border(top: BorderSide(color: Color(0x24C9B47C))),
+                border: Border(top: BorderSide(color: Color(0x665B503B))),
               ),
               padding: const EdgeInsets.only(top: 8, bottom: 4),
               child: MiniPlayer(onExpand: () => _openPlayer(context)),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DeckCorner extends StatelessWidget {
+  final bool top;
+  final bool left;
+
+  const _DeckCorner({required this.top, required this.left});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Transform.rotate(
+        angle: (top == left) ? 0 : 1.5708,
+        child: const Icon(
+          Icons.spa_outlined,
+          size: 14,
+          color: Color(0xFFC9B47C),
+        ),
       ),
     );
   }
