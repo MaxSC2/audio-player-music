@@ -3290,6 +3290,18 @@ class PlayerProvider extends ChangeNotifier {
 
     _startMediaStoreWatcher();
     final before = _allTracks.map((track) => track.id).toSet();
+
+    // If a query started before this refresh request, wait for it and then
+    // issue a fresh query. Otherwise a file added midway through that query
+    // could be missed by both the caller and its in-flight scan.
+    final running = _trackScanFuture;
+    if (running != null) {
+      try {
+        await running;
+      } catch (_) {
+        // The fresh query below gets another chance to recover the library.
+      }
+    }
     await _scanTracks(preparePlayback: false);
     final after = _allTracks.map((track) => track.id).toSet();
     return (
