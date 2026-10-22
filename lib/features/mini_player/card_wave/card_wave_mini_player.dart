@@ -70,15 +70,15 @@ class _CardWaveMiniPlayerState extends State<CardWaveMiniPlayer> {
             borderRadius: BorderRadius.circular(20),
             child: Stack(
               children: [
-                Positioned(
+                const Positioned(
                   left: 15,
                   top: 15,
-                  child: _BackCard(angle: -0.14, color: const Color(0xFF39303B)),
+                  child: _BackCard(angle: -0.14, color: Color(0xFF39303B)),
                 ),
-                Positioned(
+                const Positioned(
                   left: 23,
                   top: 10,
-                  child: _BackCard(angle: 0.13, color: const Color(0xFF574635)),
+                  child: _BackCard(angle: 0.13, color: Color(0xFF574635)),
                 ),
                 Positioned(
                   left: 12,
