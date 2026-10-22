@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-21
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v138**
+Current app version: **v139**
 
 ## Scope
 
@@ -35,6 +35,15 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v139 — simpler full-screen splash
+
+- fixed splash collapsing into the left half: `AnimatedSwitcher` now uses `StackFit.expand` and the splash is wrapped in `SizedBox.expand`;
+- replaced the heavy per-style backdrop painters and wave with a restrained centered layout: logo, wordmark, tagline, progress and style label;
+- the breathing animation now rebuilds only the logo instead of the whole `Scaffold`;
+- added a widget test that asserts a full-screen, horizontally centered splash.
+
+Validation: `flutter analyze` clean; 65 tests pass.
 
 ## v138 — rescue copy, diagnostic log and style-specific splash
 
