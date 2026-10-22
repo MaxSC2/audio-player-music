@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-22
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v140**
+Current app version: **v141**
 
 ## Scope
 
@@ -35,6 +35,17 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v141 — P0 navigation and settings cleanup
+
+- replaced the horizontally scrolling nine-tab library bar with five stable destinations: Tracks, Playlists, Albums, Artists and More;
+- Folders, Favorites, History, DNA and Categories now live in a compact “More” sheet with a clear selected state and no clipped labels;
+- the UI style picker is a 2×2 grid with short descriptions instead of a cramped segmented control;
+- palette presets use a four-column grid, so every swatch is visible without horizontal scrolling;
+- the About section reads the real app version through `package_info_plus` instead of the stale 1.0.0 string;
+- Neon and Cinematic now use the shared mini-player wrapper, making the documented long-press style switch work everywhere.
+
+Validation: `flutter analyze` clean; 70 tests pass, including compact navigation at 360 px width.
 
 ## v140 — neon mini player with swipe navigation
 

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -72,43 +73,64 @@ class SettingsScreen extends StatelessWidget {
                     title: 'Стиль интерфейса',
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<PlayerUIStyle>(
-                      segments: const [
-                        ButtonSegment(
-                          value: PlayerUIStyle.simple,
-                          label: Text('Простой'),
-                          icon: Icon(Icons.view_agenda_outlined, size: 18),
-                        ),
-                        ButtonSegment(
-                          value: PlayerUIStyle.coverFlow3D,
-                          label: Text('3D'),
-                          icon: Icon(Icons.album_rounded, size: 18),
-                        ),
-                        ButtonSegment(
-                          value: PlayerUIStyle.cinematic,
-                          label: Text('Кино'),
-                          icon: Icon(Icons.movie_outlined, size: 18),
-                        ),
-                        ButtonSegment(
-                          value: PlayerUIStyle.neon,
-                          label: Text('Неон'),
-                          icon: Icon(Icons.auto_awesome_rounded, size: 18),
-                        ),
-                      ],
-                      selected: {uiStyle.style},
-                      showSelectedIcon: false,
-                      style: SegmentedButton.styleFrom(
-                        selectedBackgroundColor: AppTheme.accent,
-                        selectedForegroundColor: Colors.white,
-                        backgroundColor: AppTheme.surfaceLight,
-                        foregroundColor: AppTheme.textSecondary,
-                        side: BorderSide(color: AppTheme.cardBorder),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      onSelectionChanged: (sel) => uiStyle.setStyle(sel.first),
-                    ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      const gap = 8.0;
+                      final tileWidth = (constraints.maxWidth - gap) / 2;
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          SizedBox(
+                            width: tileWidth,
+                            child: _StyleChoice(
+                              icon: Icons.view_agenda_outlined,
+                              label: 'Простой',
+                              subtitle: 'Список и обложка',
+                              selected:
+                                  uiStyle.style == PlayerUIStyle.simple,
+                              onTap: () =>
+                                  uiStyle.setStyle(PlayerUIStyle.simple),
+                            ),
+                          ),
+                          SizedBox(
+                            width: tileWidth,
+                            child: _StyleChoice(
+                              icon: Icons.album_rounded,
+                              label: '3D Cover',
+                              subtitle: 'Обложки в глубине',
+                              selected:
+                                  uiStyle.style == PlayerUIStyle.coverFlow3D,
+                              onTap: () =>
+                                  uiStyle.setStyle(PlayerUIStyle.coverFlow3D),
+                            ),
+                          ),
+                          SizedBox(
+                            width: tileWidth,
+                            child: _StyleChoice(
+                              icon: Icons.movie_outlined,
+                              label: 'Кино',
+                              subtitle: 'Атмосферная сцена',
+                              selected:
+                                  uiStyle.style == PlayerUIStyle.cinematic,
+                              onTap: () =>
+                                  uiStyle.setStyle(PlayerUIStyle.cinematic),
+                            ),
+                          ),
+                          SizedBox(
+                            width: tileWidth,
+                            child: _StyleChoice(
+                              icon: Icons.auto_awesome_rounded,
+                              label: 'Неон',
+                              subtitle: 'Градиенты и свечение',
+                              selected: uiStyle.style == PlayerUIStyle.neon,
+                              onTap: () =>
+                                  uiStyle.setStyle(PlayerUIStyle.neon),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -143,36 +165,47 @@ class SettingsScreen extends StatelessWidget {
                     title: 'Палитра',
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 92,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: PaletteController.presets.length + 1,
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (context, i) {
-                        if (i == PaletteController.presets.length) {
-                          final selected = palette.isCustom;
-                          return _PaletteCard(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      const gap = 8.0;
+                      const columns = 4;
+                      final tileWidth =
+                          (constraints.maxWidth - gap * (columns - 1)) /
+                          columns;
+                      final cards = <Widget>[
+                        for (var i = 0;
+                            i < PaletteController.presets.length;
+                            i++)
+                          _PaletteCard(
                             gradientColors: [
-                              palette.active.accent,
-                              palette.active.accentCyan,
+                              PaletteController.presets[i].accent,
+                              PaletteController.presets[i].accentCyan,
                             ],
-                            name: 'Своя',
-                            selected: selected,
-                            onTap: () => _showCustomPalette(context, palette),
-                          );
-                        }
-                        final p = PaletteController.presets[i];
-                        final selected =
-                            !palette.isCustom && palette.index == i;
-                        return _PaletteCard(
-                          gradientColors: [p.accent, p.accentCyan],
-                          name: PaletteController.presetNames[i],
-                          selected: selected,
-                          onTap: () => palette.select(i),
-                        );
-                      },
-                    ),
+                            name: PaletteController.presetNames[i],
+                            selected:
+                                !palette.isCustom && palette.index == i,
+                            onTap: () => palette.select(i),
+                          ),
+                        _PaletteCard(
+                          gradientColors: [
+                            palette.active.accent,
+                            palette.active.accentCyan,
+                          ],
+                          name: 'Своя',
+                          selected: palette.isCustom,
+                          onTap: () =>
+                              _showCustomPalette(context, palette),
+                        ),
+                      ];
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: 10,
+                        children: [
+                          for (final card in cards)
+                            SizedBox(width: tileWidth, child: card),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 14),
                   SizedBox(
@@ -1013,25 +1046,7 @@ class SettingsScreen extends StatelessWidget {
           _SettingsCard(
             child: Column(
               children: [
-                ListTile(
-                  leading: const _TileIcon(Icons.apps_rounded),
-                  title: Text(
-                    'NeonWave',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Локальный музыкальный плеер\nВерсия 1.0.0',
-                    style: TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
+                const _AppVersionTile(),
                 ListTile(
                   leading: const _TileIcon(Icons.favorite_rounded),
                   title: Text(
@@ -1723,6 +1738,149 @@ class _TileTitle extends StatelessWidget {
   }
 }
 
+class _AppVersionTile extends StatefulWidget {
+  const _AppVersionTile();
+
+  @override
+  State<_AppVersionTile> createState() => _AppVersionTileState();
+}
+
+class _AppVersionTileState extends State<_AppVersionTile> {
+  late final Future<PackageInfo> _info = PackageInfo.fromPlatform();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: _info,
+      builder: (context, snapshot) {
+        final String version;
+        if (snapshot.hasData) {
+          final info = snapshot.data!;
+          version = 'Версия ${info.version} (${info.buildNumber})';
+        } else if (snapshot.hasError) {
+          version = 'Версия: локальная сборка';
+        } else {
+          version = 'Версия…';
+        }
+        return ListTile(
+          leading: const _TileIcon(Icons.apps_rounded),
+          title: Text(
+            'NeonWave',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Text(
+            'Локальный музыкальный плеер\n$version',
+            style: TextStyle(
+              color: AppTheme.textMuted,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StyleChoice extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _StyleChoice({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label. $subtitle',
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppTheme.accent.withValues(alpha: 0.16)
+                : AppTheme.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? AppTheme.accent.withValues(alpha: 0.65)
+                  : AppTheme.cardBorder,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 19,
+                color: selected ? AppTheme.accentLight : AppTheme.textMuted,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? AppTheme.textPrimary
+                            : AppTheme.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? AppTheme.accentLight
+                            : AppTheme.textMuted,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected)
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: AppTheme.accentLight,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PaletteCard extends StatelessWidget {
   final List<Color> gradientColors;
   final String name;
@@ -1743,23 +1901,32 @@ class _PaletteCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 64,
-            height: 64,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: gradientColors,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(15),
               border: Border.all(
                 color: selected ? AppTheme.accentLight : AppTheme.cardBorder,
                 width: selected ? 2.5 : 1,
               ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: gradientColors.first.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                      ),
+                    ]
+                  : null,
             ),
             child: selected
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 24)
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
                 : null,
           ),
           const SizedBox(height: 6),

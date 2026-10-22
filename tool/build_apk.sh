@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Собирает release APK и кладёт в корень проекта ровно один файл NeonWave.apk.
 # На ПК: tool/build_apk.sh
-# VERSION_CODE=140 tool/build_apk.sh  — переопределить versionCode.
+# VERSION_CODE=141 tool/build_apk.sh  — переопределить versionCode.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +11,7 @@ if [[ ! -f android/app/build.gradle.kts || ! -f android/settings.gradle.kts ]]; 
   tool/setup_local_android.sh
 fi
 
-export VERSION_CODE="${VERSION_CODE:-140}"
+export VERSION_CODE="${VERSION_CODE:-141}"
 
 if [[ ! -f android/app/key.properties ]]; then
   echo "ВНИМАНИЕ: key.properties не найден — APK будет подписан debug-ключом." >&2
