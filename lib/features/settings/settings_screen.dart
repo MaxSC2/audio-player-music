@@ -128,6 +128,17 @@ class SettingsScreen extends StatelessWidget {
                                   uiStyle.setStyle(PlayerUIStyle.neon),
                             ),
                           ),
+                          SizedBox(
+                            width: tileWidth,
+                            child: _StyleChoice(
+                              icon: Icons.style_rounded,
+                              label: 'Cardwave',
+                              subtitle: 'Музыка как колода карт',
+                              selected: uiStyle.style == PlayerUIStyle.cardWave,
+                              onTap: () =>
+                                  uiStyle.setStyle(PlayerUIStyle.cardWave),
+                            ),
+                          ),
                         ],
                       );
                     },
