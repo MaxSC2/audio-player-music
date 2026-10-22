@@ -137,6 +137,7 @@ class _LibraryTabsState extends State<LibraryTabs>
     DebugLog.rebuild('LibraryTabs');
     final player = context.watch<PlayerProvider>();
     final style = context.read<UiStyleController>().style;
+    final cardWave = style == PlayerUIStyle.cardWave;
     final swAccent = (style == PlayerUIStyle.neon ||
             style == PlayerUIStyle.cinematic)
         ? _swipeAccent(context, player.currentTrack?.id)
@@ -150,11 +151,11 @@ class _LibraryTabsState extends State<LibraryTabs>
           controller: _tabController,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
-          indicatorColor: AppTheme.accent,
+          indicatorColor: cardWave ? const Color(0xFFD8B86B) : AppTheme.accent,
           indicatorSize: TabBarIndicatorSize.label,
           indicatorWeight: 3,
-          labelColor: AppTheme.textPrimary,
-          unselectedLabelColor: AppTheme.textMuted,
+          labelColor: cardWave ? const Color(0xFFF4E8CC) : AppTheme.textPrimary,
+          unselectedLabelColor: cardWave ? const Color(0xFF938A78) : AppTheme.textMuted,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
@@ -574,6 +575,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               selected: _selectedIds.contains(track.id),
               threeD: widget.threeD,
               neon: widget.neon,
+              cardWave: cardWave,
               onTap: () {
                 if (_selectionMode) {
                   _toggleSelection(track);
@@ -1411,6 +1413,7 @@ class _LibraryTabsState extends State<LibraryTabs>
               selected: _selectedIds.contains(track.id),
               threeD: widget.threeD,
               neon: widget.neon,
+              cardWave: cardWave,
               onTap: () {
                 if (_selectionMode) {
                   _toggleSelection(track);
