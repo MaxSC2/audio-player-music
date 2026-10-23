@@ -30,7 +30,7 @@ Flutter-приложение для Android: играет локальную м�
 ```
 lib/
   core/          — UI-стиль, debug-лог, навигационный observer
-  features/      — home (4 стиля), now_playing, mini_player, library, settings
+  features/      — home (5 стилей), now_playing, mini_player, library, settings
   models/        — AudioTrack, плейлисты, жанры, display names, снимки очереди
   providers/     — PlayerProvider (состояние и воспроизведение)
   services/      — audio_service handler, виджеты, визуализатор, мост Mini-UNA

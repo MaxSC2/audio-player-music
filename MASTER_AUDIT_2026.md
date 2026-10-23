@@ -1,9 +1,9 @@
 # NeonWave — Master Audit 2026
 
-Date: 2026-09-20 · Updated: 2026-10-22
+Date: 2026-09-20 · Updated: 2026-10-23
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v141**
+Current app version: **v142**
 
 ## Scope
 
@@ -26,7 +26,7 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - History, skip learning, favorites, bookmarks and statistics.
 - Smart playlists and queue snapshots.
 - M3U import/export with path-aware deterministic matching.
-- Four UI styles: Simple, Cover Flow 3D, Cinematic, Neon.
+- Five UI styles: Simple, Cover Flow 3D, Cinematic, Neon, Cardwave.
 - Preset/custom palettes and light/dark modes.
 - Visualizers with lifecycle handling.
 - Widgets and Android MediaSession controls.
@@ -35,6 +35,17 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v142 — Cardwave card table
+
+- Cardwave home now uses the compact five-destination bottom navigation, shared mini-player and library bottom inset instead of the nine-tab top strip;
+- the full-screen Cardwave player is a dealer table: a 2:3 gilded card, fanned neighbouring tracks, gold progress and card-style transport controls;
+- horizontal swipe deals the next card or returns the previous one, with distance/velocity thresholds, haptic feedback and a settle-back animation;
+- tapping the card flips it to the deck back with the upcoming tracks and a shortcut to the full queue;
+- the Cardwave palette lives in a shared theme file, so home and player stay visually consistent without a circular import;
+- widget tests cover the front/back table at 360×800 and 320×640, plus the swipe-direction helper.
+
+Validation: `flutter analyze` clean; full suite includes Cardwave table smoke tests.
 
 ## v141 — P0 navigation and settings cleanup
 

@@ -1,7 +1,7 @@
 name: audio_player
 description: NeonWave - Modern Local Music Player
 publish_to: 'none'
-version: 1.1.141+141
+version: 1.1.142+142
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
