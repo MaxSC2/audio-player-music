@@ -63,6 +63,65 @@ void main() {
     });
   });
 
+  group('MediaSession metadata', () {
+    test('queue replacement publishes the new current item', () async {
+      AudioTrack track(int id, String title) => AudioTrack(
+            id: id,
+            title: title,
+            artist: 'Artist',
+            album: 'Album',
+            uri: 'file:///$id.mp3',
+            duration: 1000,
+          );
+
+      final player = AudioPlayer();
+      final handler = PlayerAudioHandler(
+        player,
+        onToggleRepeat: () {},
+        onToggleShuffle: () {},
+        onToggleFavorite: () {},
+        onNext: () async {},
+        onPrevious: () async {},
+        onPlayAt: (_) async {},
+        onApplyShuffle: (_) async {},
+        onApplyRepeat: (_) async {},
+        ensureLibraryLoaded: () async {},
+        getLibraryTracks: () => const [],
+        getFavoriteTracks: () => const [],
+        getRecentTracks: () => const [],
+        getPlaylists: () => const [],
+        getPlaylistTracks: (_) => const [],
+        onPlayTrackById: (_) async {},
+      );
+
+      handler.setQueueWindow(
+        [track(1, 'First window'), track(2, 'Second')],
+        0,
+        currentProviderIndex: 1,
+      );
+      expect(handler.queue.value.map((item) => item.title), [
+        'First window',
+        'Second',
+      ]);
+      expect(handler.mediaItem.value?.title, 'Second');
+      expect(handler.playbackState.value.queueIndex, 1);
+
+      handler.setQueueWindow(
+        [track(101, 'New window'), track(102, 'Fourth')],
+        100,
+        currentProviderIndex: 101,
+      );
+      expect(handler.queue.value.map((item) => item.title), [
+        'New window',
+        'Fourth',
+      ]);
+      expect(handler.mediaItem.value?.title, 'Fourth');
+      expect(handler.playbackState.value.queueIndex, 1);
+
+      await player.dispose();
+    });
+  });
+
   group('recommendation history recency', () {
     test('newest-first history uses the first matching entry', () {
       final history = <Map<String, int>>[

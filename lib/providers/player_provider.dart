@@ -221,9 +221,10 @@ class PlayerProvider extends ChangeNotifier {
   /// source of truth for the full queue; audio_service only receives the
   /// currently materialized native window to avoid marshaling thousands of
   /// MediaItem objects for large libraries.
-  void _syncAudioHandlerQueue() {
+  void _syncAudioHandlerQueue({int? currentProviderIndex}) {
     final handler = _audioHandler;
     if (handler == null) return;
+    final current = currentProviderIndex ?? _currentIndex;
     if (_playlist.isEmpty || _nativeLength <= 0) {
       handler.setQueueWindow(const [], _nativeOffset);
       return;
@@ -234,17 +235,24 @@ class PlayerProvider extends ChangeNotifier {
       handler.setQueueWindow(const [], start);
       return;
     }
-    handler.setQueueWindow(_playlist.sublist(start, end), start);
+    handler.setQueueWindow(
+      _playlist.sublist(start, end),
+      start,
+      currentProviderIndex: current,
+    );
   }
 
   /// Строит нативное окно вокруг provider-индекса. Без гарда —
   /// вызывать только под гардом _switchingSource.
-  Future<void> _buildNativeSlice(int centerProvider, {bool force = false}) async {
+  Future<bool> _buildNativeSlice(
+    int centerProvider, {
+    bool force = false,
+  }) async {
     final len = _playlist.length;
     if (len == 0) {
       _nativeOffset = 0;
       _nativeLength = 0;
-      return;
+      return false;
     }
     final center = centerProvider.clamp(0, len - 1);
     const span = _windowRadius * 2 + 1;
@@ -256,7 +264,7 @@ class PlayerProvider extends ChangeNotifier {
       start = math.max(0, end - span);
     }
     if (!force && start == _nativeOffset && (end - start) == _nativeLength) {
-      return; // покрытие то же — пересборка не нужна, без гэпа
+      return false; // покрытие то же — пересборка не нужна, без гэпа
     }
     final seq = ++_sliceBuildSeq;
     final slice = _playlist.sublist(start, end);
@@ -265,9 +273,10 @@ class PlayerProvider extends ChangeNotifier {
       slice.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
       preload: true,
     );
-    if (seq != _sliceBuildSeq) return; // устаревшее завершение — игнорируем
+    if (seq != _sliceBuildSeq) return false; // устаревшее завершение
     _nativeOffset = start;
     _nativeLength = end - start;
+    return true;
   }
 
   /// Keeps the native queue bounded after point mutations such as
@@ -3612,7 +3621,7 @@ class PlayerProvider extends ChangeNotifier {
         _prefs?.setInt('last_track_id', tracks[startIndex].id); // D1
         // Только окно вокруг старта: маршалинг ~81 трека вместо тысяч.
         await _buildNativeSlice(startIndex, force: true);
-        _syncAudioHandlerQueue();
+        _syncAudioHandlerQueue(currentProviderIndex: startIndex);
       }
 
       // Оптимистичный индекс: UI сразу показывает выбранный трек,
@@ -3635,9 +3644,10 @@ class PlayerProvider extends ChangeNotifier {
     // R1: токен запроса — если пользователь уже тапнул следующий трек,
     // устаревший playAt прекращается после каждого await.
     final req = ++_playReqSeq;
+    var windowChanged = false;
     _switchingSource = true;
     try {
-      await _buildNativeSlice(index);
+      windowChanged = await _buildNativeSlice(index);
     } finally {
       _lastEventIndex = _currentIndex;
       _switchingSource = false;
@@ -3658,6 +3668,12 @@ class PlayerProvider extends ChangeNotifier {
     }
     await _audioPlayer.seek(Duration.zero, index: index - _nativeOffset);
     if (req != _playReqSeq) return;
+    // After a long jump the native slice is replaced. Publish the matching
+    // MediaSession window only after the seek, otherwise a stale queueIndex
+    // can restore the previous track's title/artwork in the notification.
+    if (windowChanged) {
+      _syncAudioHandlerQueue(currentProviderIndex: index);
+    }
     // E3-часть 2: стартуем с итоговой громкостью (баланс + X-Boost),
     // эталон для обучения — пользовательская громкость.
     _baseVolumeMark = _volume;

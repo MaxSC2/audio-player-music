@@ -316,7 +316,8 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       if (nativeIdx != null &&
           nativeIdx >= 0 &&
           nativeIdx < _queueTracks.length &&
-          _queueTracks[nativeIdx].id == track.id) {
+          _queueTracks[nativeIdx].id == track.id &&
+          mediaItem.value?.id == track.id.toString()) {
         mediaItem.add(_toMediaItem(track));
       }
     } catch (_) {}
@@ -489,16 +490,53 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   /// Publishes only the materialized just_audio window to the system
   /// MediaSession. [providerOffset] maps local MediaSession queue indices to
-  /// the provider's full playlist indices.
-  void setQueueWindow(List<AudioTrack> tracks, int providerOffset) {
+  /// the provider's full playlist indices. When [currentProviderIndex] is
+  /// supplied the matching item is published together with the queue, so a
+  /// rebuilt native window cannot leave stale metadata in the notification.
+  void setQueueWindow(
+    List<AudioTrack> tracks,
+    int providerOffset, {
+    int? currentProviderIndex,
+  }) {
     _queueTracks = List.of(tracks);
     _queueProviderOffset = providerOffset;
     queue.add(_queueTracks.map(_toMediaItem).toList(growable: false));
-    final nativeIdx = player.currentIndex;
-    final mediaQueueIndex = nativeIdx == null
-        ? null
-        : (nativeIdx >= 0 && nativeIdx < _queueTracks.length ? nativeIdx : null);
-    playbackState.add(_state.copyWith(queueIndex: mediaQueueIndex));
+    int? localIndex;
+    if (currentProviderIndex != null) {
+      localIndex = currentProviderIndex - providerOffset;
+      if (localIndex < 0 || localIndex >= _queueTracks.length) {
+        localIndex = null;
+      }
+    } else {
+      localIndex = player.currentIndex;
+      if (localIndex != null &&
+          (localIndex < 0 || localIndex >= _queueTracks.length)) {
+        localIndex = null;
+      }
+    }
+    _publishCurrentItem(localIndex);
+  }
+
+  void _publishCurrentItem(int? localIndex) {
+    final valid = localIndex != null &&
+        localIndex >= 0 &&
+        localIndex < _queueTracks.length;
+    if (valid) {
+      final track = _queueTracks[localIndex];
+      final item = _toMediaItem(track);
+      final previous = mediaItem.value;
+      if (previous == null ||
+          previous.id != item.id ||
+          previous.title != item.title ||
+          previous.artist != item.artist ||
+          previous.artUri != item.artUri) {
+        mediaItem.add(item);
+      }
+      unawaited(_attachArt(track));
+    }
+    playbackState.add(
+      _state.copyWith(queueIndex: valid ? localIndex : null),
+    );
   }
 
   /// Backward-compatible full-queue API. New provider code should use
@@ -561,19 +599,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     player.currentIndexStream.listen((nativeIndex) {
       // Native index is local to the bounded MediaSession queue.
       // MediaItem lookup therefore uses the local window index directly.
-      if (nativeIndex != null &&
-          nativeIndex >= 0 &&
-          nativeIndex < _queueTracks.length) {
-        final track = _queueTracks[nativeIndex];
-        mediaItem.add(_toMediaItem(track));
-        unawaited(_attachArt(track));
-      }
-      final mediaQueueIndex = nativeIndex == null
-          ? null
-          : (nativeIndex >= 0 && nativeIndex < _queueTracks.length
-              ? nativeIndex
-              : null);
-      playbackState.add(_state.copyWith(queueIndex: mediaQueueIndex));
+      _publishCurrentItem(nativeIndex);
     });
   }
 

@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-23
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v143**
+Current app version: **v144**
 
 ## Scope
 
@@ -35,6 +35,14 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v144 — MediaSession metadata stays on the current track
+
+- fixed stale notification/lockscreen title and artwork after long track jumps: the bounded MediaSession queue window is now republished after the native seek, with the current provider index;
+- artwork loaded for a previous track can no longer overwrite metadata for the new current track;
+- added a handler test that replaces the queue window and verifies queue, `MediaItem` and `queueIndex` together.
+
+Validation: `flutter analyze` clean; 79 tests pass.
 
 ## v143 — Cardwave playlist and album decks
 
