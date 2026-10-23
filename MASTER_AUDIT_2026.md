@@ -3,7 +3,7 @@
 Date: 2026-09-20 · Updated: 2026-10-23
 Branch: `stack-upgrade` (merged) → `master`
 Base at audit time: `master` (v94)
-Current app version: **v142**
+Current app version: **v143**
 
 ## Scope
 
@@ -35,6 +35,15 @@ This audit is based on the current source tree, not on older backlog claims. Exi
 - Sleep timer and fade.
 - Resume playback.
 - Permission and media-service diagnostics.
+
+## v143 — Cardwave playlist and album decks
+
+- playlists now render as card decks: two offset card backs, a gilded front card with the first track's artwork, count and a dedicated play control;
+- album grid tiles use the same deck treatment with artwork, artist, track count and the existing album menu;
+- Cardwave opens albums in grid mode by default; list rows, playlist header, create/sort controls and album filters follow the dark-and-gold table palette;
+- a widget test covers deck rendering, the play/card tap split and long titles in a compact tile.
+
+Validation: `flutter analyze` clean; 78 tests pass.
 
 ## v142 — Cardwave card table
 

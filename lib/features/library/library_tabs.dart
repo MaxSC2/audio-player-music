@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../models/audio_track.dart';
+import '../../models/display_names.dart';
 import '../../providers/player_provider.dart';
 import '../../screens/artist_detail_screen.dart';
 import '../../screens/playlist_detail_screen.dart';
@@ -16,6 +17,8 @@ import '../../widgets/swipe_reveal.dart';
 import '../../widgets/track_actions_sheet.dart';
 import '../../models/custom_playlist.dart';
 import '../../widgets/track_tile.dart';
+import '../now_playing/card_wave/card_wave_theme.dart';
+import 'card_wave_deck.dart';
 import 'category_tab.dart';
 import 'music_dna_tab.dart';
 import '../../core/debug_log.dart';
@@ -89,6 +92,8 @@ class _LibraryTabsState extends State<LibraryTabs>
     _tabController =
         widget.controller ?? TabController(length: 9, vsync: this);
     _tabController.addListener(_onTabChanged);
+    _albumGridView =
+        context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
     _requestPermission();
   }
 
@@ -447,7 +452,9 @@ class _LibraryTabsState extends State<LibraryTabs>
               IconButton(
                 icon: Icon(
                   Icons.checklist_rounded,
-                  color: neon ? Colors.white54 : AppTheme.textSecondary,
+                  color: cardWave
+                      ? const Color(0xFFD8B86B)
+                      : (neon ? Colors.white54 : AppTheme.textSecondary),
                 ),
                 onPressed: () => setState(() {
                   _selectionMode = true;
@@ -461,7 +468,9 @@ class _LibraryTabsState extends State<LibraryTabs>
                   _albumGridView
                       ? Icons.view_list_rounded
                       : Icons.grid_view_rounded,
-                  color: neon ? Colors.white54 : AppTheme.textSecondary,
+                  color: cardWave
+                      ? const Color(0xFFD8B86B)
+                      : (neon ? Colors.white54 : AppTheme.textSecondary),
                 ),
                 onPressed: () =>
                     setState(() => _albumGridView = !_albumGridView),
@@ -716,6 +725,8 @@ class _LibraryTabsState extends State<LibraryTabs>
   static const _playlistSortNames = ['По имени', 'Сначала новые', 'Сначала старые', 'По трекам'];
 
   Widget _buildPlaylistList(PlayerProvider player) {
+    final cardWave =
+        context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
     final query = _searchQuery.toLowerCase();
     final playlists = player.playlists
         .where((p) => p.name.toLowerCase().contains(query))
@@ -853,13 +864,12 @@ class _LibraryTabsState extends State<LibraryTabs>
               (context, index) => _buildPlaylistCard(player, items[index]),
               childCount: items.length,
             ),
-            gridDelegate:
-                const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 220,
-                  childAspectRatio: 0.86,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
+              childAspectRatio: cardWave ? 0.8 : 0.86,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
           ),
         ),
       ],
@@ -867,6 +877,30 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildPlaylistHeader() {
+    final cardWave =
+        context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
+    final titleColor = cardWave ? cardWaveCream : AppTheme.textPrimary;
+    final subtitleColor = cardWave ? cardWaveMuted : AppTheme.textMuted;
+    final addGradient = cardWave
+        ? const LinearGradient(
+            colors: [cardWaveGoldSoft, Color(0xFF8F7542)],
+          )
+        : AppTheme.primaryGradient;
+    final addShadow = cardWave
+        ? const [
+            BoxShadow(color: Color(0x33D8B86B), blurRadius: 12),
+          ]
+        : [
+            BoxShadow(
+              color: AppTheme.accent.withValues(
+                alpha: AppTheme.accent.a * 0.4,
+              ),
+              blurRadius: 12,
+            ),
+          ];
+    final sortFill = cardWave ? cardWaveSurface : AppTheme.surfaceLight;
+    final sortBorder = cardWave ? cardWaveBorder : AppTheme.cardBorder;
+    final sortIcon = cardWave ? cardWaveGold : AppTheme.textSecondary;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: Row(
@@ -879,7 +913,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                 Text(
                   'Плейлисты',
                   style: TextStyle(
-                    color: AppTheme.textPrimary,
+                    color: titleColor,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -888,7 +922,7 @@ class _LibraryTabsState extends State<LibraryTabs>
                 Text(
                   'Ваши музыкальные коллекции',
                   style: TextStyle(
-                    color: AppTheme.textMuted,
+                    color: subtitleColor,
                     fontSize: 12,
                   ),
                 ),
@@ -897,41 +931,37 @@ class _LibraryTabsState extends State<LibraryTabs>
           ),
           Container(
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
+              gradient: addGradient,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.accent.withValues(
-                    alpha: AppTheme.accent.a * 0.4,
-                  ),
-                  blurRadius: 12,
-                ),
-              ],
+              boxShadow: addShadow,
             ),
             child: IconButton(
               onPressed: _createPlaylistDialog,
-              icon: const Icon(Icons.add_rounded, color: Colors.white),
+              icon: Icon(
+                Icons.add_rounded,
+                color: cardWave ? cardWaveBg : Colors.white,
+              ),
               tooltip: 'Создать плейлист',
             ),
           ),
           const SizedBox(width: 8),
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.surfaceLight,
+              color: sortFill,
               shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.cardBorder),
+              border: Border.all(color: sortBorder),
             ),
             child: PopupMenuButton<int>(
               icon: Icon(
                 Icons.sort_rounded,
-                color: AppTheme.textSecondary,
+                color: sortIcon,
                 size: 20,
               ),
               tooltip: 'Сортировка',
-              color: AppTheme.surfaceLight,
+              color: sortFill,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: AppTheme.cardBorder),
+                side: BorderSide(color: sortBorder),
               ),
               onSelected: (v) => setState(() => _playlistSort = v),
               itemBuilder: (context) => [
@@ -945,12 +975,17 @@ class _LibraryTabsState extends State<LibraryTabs>
                               ? Icons.check_circle_rounded
                               : Icons.circle_outlined,
                           color: _playlistSort == i
-                              ? AppTheme.accent
-                              : AppTheme.textMuted,
+                              ? (cardWave ? cardWaveGold : AppTheme.accent)
+                              : subtitleColor,
                           size: 18,
                         ),
                         const SizedBox(width: 10),
-                        Text(_playlistSortNames[i]),
+                        Text(
+                          _playlistSortNames[i],
+                          style: cardWave
+                              ? const TextStyle(color: cardWaveCream)
+                              : null,
+                        ),
                       ],
                     ),
                   ),
@@ -963,7 +998,19 @@ class _LibraryTabsState extends State<LibraryTabs>
   }
 
   Widget _buildPlaylistCard(PlayerProvider player, _PlaylistItem item) {
-    final cardWave = context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
+    final cardWave =
+        context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
+    if (cardWave) {
+      return CardWaveDeck(
+        title: item.name,
+        subtitle: '${item.count} ${_pluralTracks(item.count)}',
+        artTrackId: item.artTrackId,
+        icon: item.icon,
+        gradient: item.gradient,
+        onTap: item.onTap,
+        onPlay: item.onPlay,
+      );
+    }
     return GestureDetector(
       onTap: item.onTap,
       child: Container(
@@ -1308,6 +1355,8 @@ class _LibraryTabsState extends State<LibraryTabs>
   static const _albumFilterNames = ['Все', 'Недавние', 'Популярные', 'A–Z'];
 
   Widget _buildAlbumList(PlayerProvider player) {
+    final cardWave =
+        context.read<UiStyleController>().style == PlayerUIStyle.cardWave;
     final query = _searchQuery.toLowerCase();
     final albums = player.albums
         .where((a) => a.toLowerCase().contains(query))
@@ -1357,20 +1406,27 @@ class _LibraryTabsState extends State<LibraryTabs>
                 label: Text(_albumFilterNames[i]),
                 selected: selected,
                 onSelected: (_) => setState(() => _albumFilter = i),
-                selectedColor: AppTheme.accent.withValues(
-                  alpha: AppTheme.accent.a * 0.2,
-                ),
-                backgroundColor: AppTheme.surfaceLight,
+                selectedColor: cardWave
+                    ? const Color(0x33D8B86B)
+                    : AppTheme.accent.withValues(
+                        alpha: AppTheme.accent.a * 0.2,
+                      ),
+                backgroundColor:
+                    cardWave ? cardWaveSurface : AppTheme.surfaceLight,
                 labelStyle: TextStyle(
                   color: selected
-                      ? AppTheme.accentLight
-                      : AppTheme.textSecondary,
+                      ? (cardWave ? cardWaveGold : AppTheme.accentLight)
+                      : (cardWave
+                          ? cardWaveMuted
+                          : AppTheme.textSecondary),
                   fontWeight:
                       selected ? FontWeight.bold : FontWeight.normal,
                   fontSize: 12,
                 ),
                 side: BorderSide(
-                  color: selected ? AppTheme.accent : Colors.transparent,
+                  color: selected
+                      ? (cardWave ? cardWaveGold : AppTheme.accent)
+                      : (cardWave ? cardWaveBorder : Colors.transparent),
                 ),
               );
             },
@@ -1407,20 +1463,39 @@ class _LibraryTabsState extends State<LibraryTabs>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.card,
+                        color: cardWave ? cardWaveSurface : AppTheme.card,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.cardBorder),
+                        border: Border.all(
+                          color: cardWave
+                              ? cardWaveBorder
+                              : AppTheme.cardBorder,
+                        ),
                       ),
                       child: ListTile(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         leading: e.tracks.isNotEmpty
-                            ? CachedArtwork(
-                                trackId: e.tracks.first.id,
-                                width: 44,
-                                height: 44,
-                                radius: 10,
+                            ? Container(
+                                width: 48,
+                                height: 48,
+                                padding: cardWave
+                                    ? const EdgeInsets.all(2)
+                                    : EdgeInsets.zero,
+                                decoration: cardWave
+                                    ? BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: const Color(0x88C9A95D),
+                                        ),
+                                      )
+                                    : null,
+                                child: CachedArtwork(
+                                  trackId: e.tracks.first.id,
+                                  width: 44,
+                                  height: 44,
+                                  radius: cardWave ? 8 : 10,
+                                ),
                               )
                             : Container(
                                 width: 44,
@@ -1440,7 +1515,9 @@ class _LibraryTabsState extends State<LibraryTabs>
                         title: Text(
                           e.album,
                           style: TextStyle(
-                            color: AppTheme.textPrimary,
+                            color: cardWave
+                                ? cardWaveCream
+                                : AppTheme.textPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
                           ),
@@ -1452,7 +1529,9 @@ class _LibraryTabsState extends State<LibraryTabs>
                               ? '${e.tracks.length} треков'
                               : '$artist • ${e.tracks.length} треков',
                           style: TextStyle(
-                            color: AppTheme.textMuted,
+                            color: cardWave
+                                ? cardWaveMuted
+                                : AppTheme.textMuted,
                             fontSize: 12,
                           ),
                           maxLines: 1,
@@ -1460,7 +1539,9 @@ class _LibraryTabsState extends State<LibraryTabs>
                         ),
                         trailing: AlbumMenu(
                           tracks: e.tracks,
-                          iconColor: AppTheme.textSecondary,
+                          iconColor: cardWave
+                              ? cardWaveGold
+                              : AppTheme.textSecondary,
                         ),
                         onTap: () {
                           player.playFromPlaylist(e.tracks, 0);
@@ -1479,11 +1560,33 @@ class _LibraryTabsState extends State<LibraryTabs>
     String album,
     List<AudioTrack> tracks,
   ) {
+    if (context.read<UiStyleController>().style == PlayerUIStyle.cardWave) {
+      final artist = tracks.isNotEmpty ? tracks.first.artist : '';
+      void play() {
+        if (tracks.isNotEmpty) player.playFromPlaylist(tracks, 0);
+      }
+      return CardWaveDeck(
+        title: DisplayNames.album(album),
+        subtitle: artist.isEmpty
+            ? DisplayNames.tracks(tracks.length)
+            : '${DisplayNames.artist(artist)} • '
+                '${DisplayNames.tracks(tracks.length)}',
+        artTrackId: tracks.isNotEmpty ? tracks.first.id : null,
+        icon: Icons.album_rounded,
+        gradient: AppTheme.pinkPurpleGradient,
+        onTap: play,
+        onPlay: play,
+        menu: AlbumMenu(
+          tracks: tracks,
+          iconColor: cardWaveGold,
+          iconSize: 18,
+        ),
+      );
+    }
     return AlbumCard(
       player: player,
       album: album,
       tracks: tracks,
-      cardWave: context.read<UiStyleController>().style == PlayerUIStyle.cardWave,
     );
   }
 
