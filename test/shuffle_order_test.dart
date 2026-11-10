@@ -249,4 +249,21 @@ void main() {
       expect(r.pos, -1);
     });
   });
+
+  group('B31: ручной выбор трека в shuffle', () {
+    test('курсор раунда встаёт на выбранный трек', () {
+      final round = buildShuffleOrder(8, 0, random: math.Random(11));
+      // Пользователь выбрал трек 5 из очереди.
+      final pos = shufflePosFor(round, 5);
+      expect(round[pos], 5);
+      // Автопереход продолжает раунд с этого места, а не с начала.
+      final step = nextShuffleStep(round, pos);
+      expect(step.index, round[pos + 1 < round.length ? pos + 1 : 0]);
+    });
+
+    test('выбранного трека нет в раунде — безопасный фолбэк', () {
+      final pos = shufflePosFor(const [0, 1, 2], 7);
+      expect(pos, 0);
+    });
+  });
 }

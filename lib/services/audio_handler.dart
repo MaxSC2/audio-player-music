@@ -83,6 +83,11 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   /// полной очереди провайдера». Заполняется, когда опубликованная очередь
   /// переставлена (shuffle): смещение offset в этом случае неприменимо.
   List<int>? _queueProviderIndices;
+  /// Обратное отображение: «нативный локальный индекс -> позиция в
+  /// опубликованной очереди». Нужно, потому что при нативном shuffle индекс
+  /// just_audio считается по исходному порядку источников, а очередь в
+  /// MediaSession опубликована в порядке воспроизведения.
+  List<int>? _nativeToPublished;
   final OnAudioQuery _audioQuery = OnAudioQuery();
   final Map<int, String> _artPaths = {};
   final Map<String, BehaviorSubject<Map<String, dynamic>>> _browseSubjects = {};
@@ -316,11 +321,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
           } catch (_) {}
         }
       }
-      final nativeIdx = player.currentIndex;
-      if (nativeIdx != null &&
-          nativeIdx >= 0 &&
-          nativeIdx < _queueTracks.length &&
-          _queueTracks[nativeIdx].id == track.id &&
+      final publishedIdx = _publishedIndexFor(player.currentIndex);
+      if (publishedIdx != null &&
+          publishedIdx < _queueTracks.length &&
+          _queueTracks[publishedIdx].id == track.id &&
           mediaItem.value?.id == track.id.toString()) {
         mediaItem.add(_toMediaItem(track));
       }
@@ -506,16 +510,24 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     int providerOffset, {
     int? currentProviderIndex,
     List<int>? providerIndices,
+    List<int>? nativeToPublished,
   }) {
     _queueTracks = List.of(tracks);
     _queueProviderOffset = providerOffset;
     _queueProviderIndices = providerIndices == null
         ? null
         : List<int>.from(providerIndices);
+    _nativeToPublished = nativeToPublished == null
+        ? null
+        : List<int>.from(nativeToPublished);
     queue.add(_queueTracks.map(_toMediaItem).toList(growable: false));
     int? localIndex;
     if (currentProviderIndex != null) {
-      localIndex = currentProviderIndex - providerOffset;
+      // В переставленной (shuffle) очереди индекс уже координата публикации,
+      // смещение применять нельзя.
+      localIndex = providerIndices != null
+          ? currentProviderIndex
+          : currentProviderIndex - providerOffset;
       if (localIndex < 0 || localIndex >= _queueTracks.length) {
         localIndex = null;
       }
@@ -527,6 +539,18 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     }
     _publishCurrentItem(localIndex);
+  }
+
+  /// Переводит нативный индекс just_audio в позицию опубликованной очереди.
+  /// При включённом shuffle нативный порядок отличается от опубликованного.
+  int? _publishedIndexFor(int? nativeIndex) {
+    if (nativeIndex == null) return null;
+    final map = _nativeToPublished;
+    if (map == null) return nativeIndex;
+    if (nativeIndex < 0 || nativeIndex >= map.length) return null;
+    final published = map[nativeIndex];
+    if (published < 0 || published >= _queueTracks.length) return null;
+    return published;
   }
 
   void _publishCurrentItem(int? localIndex) {
@@ -591,12 +615,7 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
         shuffleMode: _shuffleOn
             ? AudioServiceShuffleMode.all
             : AudioServiceShuffleMode.none,
-        queueIndex: player.currentIndex == null
-            ? null
-            : (player.currentIndex! >= 0 &&
-                    player.currentIndex! < _queueTracks.length
-                ? player.currentIndex
-                : null),
+        queueIndex: _publishedIndexFor(player.currentIndex),
       );
       _log(
         'PUBLISH playing=$playing processing=${state.processingState} '
@@ -609,9 +628,9 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     });
 
     player.currentIndexStream.listen((nativeIndex) {
-      // Native index is local to the bounded MediaSession queue.
-      // MediaItem lookup therefore uses the local window index directly.
-      _publishCurrentItem(nativeIndex);
+      // Нативный индекс локальный для окна, но при shuffle порядок отличается
+      // от опубликованного — переводим через _nativeToPublished.
+      _publishCurrentItem(_publishedIndexFor(nativeIndex));
     });
   }
 

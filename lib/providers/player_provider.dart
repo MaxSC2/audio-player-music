@@ -403,6 +403,9 @@ class PlayerProvider extends ChangeNotifier {
   int _currentIndex = -1;
   int _lastEventIndex = -2;
   int _lastHistoryTrackId = -1;
+  /// true, если последний доигранный трек уже списан таймером «через N треков»
+  /// хуком автоперехода (B30) — чтобы `completed` не списал его повторно.
+  bool _advanceTracked = false;
   bool _notifCustomActions = true;
   bool _switchingSource = false;
   // P2 drag&drop: пока идёт нативный перенос источника, числовой индекс
@@ -496,13 +499,25 @@ class PlayerProvider extends ChangeNotifier {
           if (local >= 0 && local < _nativeLength) _playlist[start + local],
       ];
       if (reordered.length == _nativeLength) {
+        // publishedPos[local] — позиция трека (нативный локальный индекс local)
+        // в опубликованной очереди; currentLocal — где он сейчас.
+        final publishedPos = List<int>.filled(_nativeLength, 0);
+        for (var p = 0; p < shuffleOrder.length; p++) {
+          final local = shuffleOrder[p];
+          if (local >= 0 && local < _nativeLength) publishedPos[local] = p;
+        }
+        final curLocal = current - start;
+        final curPublished = curLocal >= 0 && curLocal < _nativeLength
+            ? publishedPos[curLocal]
+            : null;
         handler.setQueueWindow(
           reordered,
           0,
-          currentProviderIndex: shuffleOrder.indexOf(current - start),
+          currentProviderIndex: curPublished,
           providerIndices: [
             for (final local in shuffleOrder) start + local,
           ],
+          nativeToPublished: publishedPos,
         );
         return;
       }
@@ -615,6 +630,19 @@ class PlayerProvider extends ChangeNotifier {
         windowStartsAt: windowStartsAt,
         windowLength: windowLength,
       );
+
+  /// B31: обновляет только «желаемый» shuffle-порядок окна (без seek/play) —
+  /// используется сразу после пересборки окна в `playAt`, где порядок уже
+  /// передан при загрузке.
+  void _syncNativeShuffleDesiredOnly() {
+    if (_nativeLength <= 0) return;
+    final order = _nativeRoundOrder(
+      windowStartsAt: _nativeOffset,
+      windowLength: _nativeLength,
+    );
+    if (order == null) return;
+    _nativeShuffleOrder?.updateDesired(order);
+  }
 
   /// B27: обновляет shuffle-порядок текущего окна ПОСЛЕ точечных правок
   /// очереди (вставка/удаление/перенос), не перезапуская играющий трек.
@@ -1454,6 +1482,15 @@ class PlayerProvider extends ChangeNotifier {
     // переносим его в раунд shuffle, иначе «следующий» в Dart разойдётся с
     // тем, что играет, и очередной next() повторит уже сыгранный трек.
     if (indexChanged && _shuffleMode) _syncShuffleRoundToIndex(idx);
+    // B30: таймер «через N треков» тоже должен считать автопереходы, а не
+    // только конец нативного окна (`completed` приходит лишь тогда).
+    if (indexChanged && !_switchingSource) {
+      // Ручной переход (playAt) выставляет _switchingSource, поэтому сюда
+      // попадают только настоящие автопереходы.
+      _sleepTrackFinishedByAdvance();
+    } else if (indexChanged) {
+      _advanceTracked = false;
+    }
     if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
       final t = _playlist[_currentIndex];
       if (t.id != _lastHistoryTrackId) {
@@ -4066,6 +4103,31 @@ class PlayerProvider extends ChangeNotifier {
     _currentIndex = index;
     _lastEventIndex = index;
     _lastHistoryTrackId = _playlist[index].id;
+    _advanceTracked = false;
+    // B31: пользователь выбрал трек вручную (очередь/номер/поиск). В shuffle
+    // курсор раунда должен встать на этот трек, а shuffle-порядок окна —
+    // перестроиться от него. Иначе автопереход после ручного выбора играл
+    // «следующий по старому раунду» и мог вернуть уже сыгранное.
+    if (_shuffleMode) {
+      final at = _shuffleOrder.indexOf(index);
+      if (at >= 0) {
+        _shufflePos = at;
+      } else {
+        _rebuildShuffleOrder();
+        _shufflePos = shufflePosFor(_shuffleOrder, index);
+      }
+      if (windowChanged) {
+        // Окно пересобрано под новый центр — порядок уже передан при загрузке.
+        _syncNativeShuffleDesiredOnly();
+      } else {
+        // Окно не менялось: применяем порядок без seek — трек только стартует,
+        // лишний seek дал бы рывок в начале.
+        _syncNativeShuffleDesiredOnly();
+        try {
+          await _audioPlayer.shuffle();
+        } catch (_) {}
+      }
+    }
     _position = Duration.zero;
     positionTick.value = Duration.zero;
     final knownMs = _playlist[index].duration;
@@ -4290,9 +4352,31 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  /// B30: трек реально доигран (автопереход, а не ручное переключение).
+  ///
+  /// Отдельный хук нужен таймеру «через N треков»: `ProcessingState.completed`
+  /// приходит только когда нативное окно закончилось целиком, поэтому на
+  /// обычном автопереходе счётчик раньше почти не уменьшался. Вызывается из
+  /// `_handleIndexEvent` — там нельзя `await`, поэтому запуск в фоне.
+  void _sleepTrackFinishedByAdvance() {
+    if (_sleepTracksRemaining <= 0) return;
+    _advanceTracked = true;
+    _sleepTracksRemaining -= 1;
+    if (_sleepTracksRemaining == 0) {
+      unawaited(_stopForSleep());
+      return;
+    }
+    _notify('sleepTrackCountdown');
+  }
+
   Future<void> _onTrackComplete() async {
     // F4-часть 2: трек реально доигран — уменьшаем счётчик «через N треков».
-    if (_sleepTracksRemaining > 0) {
+    //
+    // B30: сюда попадаем только когда нативное окно закончилось целиком, и
+    // последний трек окна уже учтён хуком автоперехода
+    // (`_sleepTrackFinishedByAdvance`). Без гарда один трек списывался дважды.
+    // Учитываем здесь только если автоперехода не было (окно из одного трека).
+    if (_sleepTracksRemaining > 0 && !_advanceTracked) {
       _sleepTracksRemaining -= 1;
       if (_sleepTracksRemaining == 0) {
         await _stopForSleep();
@@ -4596,13 +4680,18 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
     final insertIndex = _currentIndex + 1;
+    // B29: признак «в конец» считаем ДО вставки. После insertAll условие
+    // `insertIndex >= _playlist.length` всегда истинно при вставке в самый
+    // конец, но и при любой вставке в хвост списка тоже — порядок раунда
+    // зависит от этого признака.
+    final atEnd = insertIndex >= _playlist.length;
     _playlist.insertAll(insertIndex, tracks);
     // Shuffle-раунд должен узнать о новых индексах, иначе «следующий»
     // после вставки может указывать на чужой трек (сдвиг индексов).
     _adjustShuffleOrderForInsert(
       insertIndex,
       tracks.length,
-      atEnd: insertIndex >= _playlist.length,
+      atEnd: atEnd,
     );
 
     // FIX: вставляем источники в нативный плеер без перезапуска текущего трека.
