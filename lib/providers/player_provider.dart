@@ -79,6 +79,41 @@ List<int> buildShuffleOrder(int n, int current, {math.Random? random}) {
   return order;
 }
 
+/// Позиция [current] внутри [round] (порядка воспроизведения) — с учётом
+/// «хвоста» раунда, который уже сыгран.
+///
+/// Раунд 1 начинается с текущего трека (так включает shuffle `toggleShuffle`),
+/// но если очередь пересобрана (новый альбом/плейлист) или раунд начался с
+/// первого трека, честной позицией будет реальный индекс в раунде, а не 0:
+/// иначе после рестарта приложения с включённым shuffle «следующим» окажется
+/// второй трек списка вместо случайного из оставшихся.
+int shufflePosFor(List<int> round, int current) {
+  if (current < 0) return round.isEmpty ? -1 : 0;
+  final at = round.indexOf(current);
+  return at >= 0 ? at : 0;
+}
+
+/// Следующий индекс в порядке shuffle. Семантика как у цикла «все»:
+/// раунд доигрывается до конца, затем строится новый. В отличие от прямой
+/// арифметики `pos + 1` не выходит за границы и не «перезапускает» раунд
+/// на текущем треке.
+({int index, int pos, bool newRound}) nextShuffleStep(
+  List<int> round,
+  int pos,
+) {
+  if (round.isEmpty) return (index: -1, pos: -1, newRound: false);
+  if (round.length == 1) {
+    return (index: round.first, pos: 0, newRound: false);
+  }
+  final next = pos + 1;
+  if (next < round.length) {
+    final idx = round[next];
+    return (index: idx, pos: next, newRound: false);
+  }
+  // Раунд проигран целиком — начинаем новый с его первого элемента.
+  return (index: round.first, pos: 0, newRound: true);
+}
+
 /// Calculates how many native-window items can be removed from the
 /// beginning/end while preserving the current local item.
 ({int removeStart, int removeEnd}) calculateNativeWindowTrim({
@@ -112,6 +147,199 @@ List<int> buildShuffleOrder(int n, int current, {math.Random? random}) {
   }
 
   return (removeStart: removeStart, removeEnd: removeEnd);
+}
+
+/// B27: вставка треков в раунд shuffle.
+///
+/// Без этого «играть следующими» при включённом shuffle не работало: новые
+/// треки сдвигали индексы, но не попадали в порядок воспроизведения, поэтому
+/// автопереход и next() их пропускали.
+({List<int> round, int pos}) insertIntoShuffleRound({
+  required List<int> round,
+  required int pos,
+  required int index,
+  required int count,
+  bool atEnd = false,
+}) {
+  if (count <= 0) return (round: round, pos: pos);
+  final shifted = [
+    for (final value in round) value >= index ? value + count : value,
+  ];
+  final inserted = [for (var i = 0; i < count; i++) index + i];
+  final insertPos = atEnd ? shifted.length : (pos + 1).clamp(0, shifted.length);
+  return (
+    round: [
+      ...shifted.take(insertPos),
+      ...inserted,
+      ...shifted.skip(insertPos),
+    ],
+    pos: pos,
+  );
+}
+
+/// B27: удаление трека из раунда shuffle (курсор не «перескакивает»).
+({List<int> round, int pos}) removeFromShuffleRound({
+  required List<int> round,
+  required int pos,
+  required int index,
+}) {
+  final at = round.indexOf(index);
+  final without = [
+    for (final value in round)
+      if (value != index) value > index ? value - 1 : value,
+  ];
+  if (at < 0) return (round: without, pos: pos);
+  var newPos = at < pos ? pos - 1 : pos;
+  if (without.isEmpty) {
+    newPos = -1;
+  } else {
+    newPos = newPos.clamp(0, without.length - 1);
+  }
+  return (round: without, pos: newPos);
+}
+
+/// B24: порядок воспроизведения нативного окна just_audio для shuffle.
+///
+/// Зачем: естественное окончание трека обрабатывает ExoPlayer внутри нативной
+/// очереди — Dart получает только новую позицию (`ProcessingState.completed`
+/// приходит лишь в конце окна). Без нативного shuffle-порядка ExoPlayer листает
+/// окно по порядку списка, поэтому включённый shuffle «работал» только для
+/// кнопки next (она идёт через Dart), а автопереход играл последовательный
+/// трек — ровно тот баг, который видел пользователь.
+///
+/// Возвращает перестановку локальных индексов окна
+/// `[windowStartsAt, windowStartsAt + windowLength)`:
+///   1) текущий трек — первым (с него продолжается раунд);
+///   2) несыгранный «хвост» раунда (после [pos]) — в порядке раунда;
+///   3) треки окна вне раунда (добавленные позже) — за несыгранными;
+///   4) уже сыгранные треки раунда — в конце, чтобы по исчерпании несыгранных
+///      начался новый раунд, а не повтор старого.
+///
+/// Возвращает `null`, если построить корректную перестановку нельзя (тогда
+/// остаётся обычный порядок и ручной путь в `next()`).
+List<int>? buildNativeShuffleOrder({
+  required List<int> round,
+  required int pos,
+  required int playlistLength,
+  required int current,
+  required int windowStartsAt,
+  required int windowLength,
+}) {
+  if (windowLength <= 0 || playlistLength <= 0) return null;
+  if (windowStartsAt < 0) return null;
+  if (windowStartsAt + windowLength > playlistLength) return null;
+
+  final known = <int>{};
+  final pending = <int>[];
+  final played = <int>[];
+  final hasRound = round.length == playlistLength && pos >= 0;
+  if (hasRound) {
+    for (var p = 0; p < round.length; p++) {
+      final provider = round[p];
+      if (provider == current) continue;
+      if (provider < 0 || provider >= playlistLength) continue;
+      final local = provider - windowStartsAt;
+      if (local < 0 || local >= windowLength) continue;
+      known.add(local);
+      if (p > pos) {
+        pending.add(local);
+      } else {
+        played.add(local);
+      }
+    }
+  }
+  // Треки окна вне раунда ещё не звучали — они раньше уже сыгранных.
+  final unknown = <int>[];
+  for (var local = 0; local < windowLength; local++) {
+    if (windowStartsAt + local == current) continue;
+    if (!known.contains(local)) unknown.add(local);
+  }
+  final curLocal = current - windowStartsAt;
+  final inWindow = curLocal >= 0 && curLocal < windowLength;
+  final order = <int>[
+    if (inWindow) curLocal,
+    ...pending,
+    ...unknown,
+    ...played,
+  ];
+  if (order.length != windowLength || order.toSet().length != windowLength) {
+    return null;
+  }
+  return order;
+}
+
+/// B24: shuffle-порядок just_audio, который повторяет уже готовый список
+/// индексов (раунд провайдера).
+///
+/// Важно: при загрузке just_audio вызывает `clear()` + `insert(0, count)` и
+/// затем `shuffle(initialIndex:)`, то есть пересоздаёт порядок с нуля. Поэтому
+/// желаемая перестановка хранится отдельно ([_desired]) и восстанавливается в
+/// `insert`/`shuffle`. Перемешивать заново нельзя: нативный «следующий» должен
+/// совпадать с раундом в Dart.
+class PlayerShuffleOrder extends ShuffleOrder {
+  PlayerShuffleOrder(List<int> order)
+      : indices = List<int>.from(order),
+        _desired = List<int>.from(order);
+
+  List<int> _desired;
+
+  @override
+  final List<int> indices;
+
+  /// Новый раунд/порядок окна: применяется при следующем `shuffle()`.
+  void updateDesired(List<int> order) {
+    _desired = List<int>.from(order);
+    _restore();
+  }
+
+  @override
+  void shuffle({int? initialIndex}) {
+    // Порядок задан раундом провайдера — перемешивать заново нельзя.
+    if (_desired.isEmpty) return;
+    _restore();
+  }
+
+  @override
+  void insert(int index, int count) {
+    // just_audio после `clear()` восстанавливает порядок через insert —
+    // возвращаем заранее подготовленную перестановку раунда.
+    if (indices.isEmpty && index == 0) {
+      if (_desired.length == count) {
+        _restore();
+        return;
+      }
+      indices.addAll(List<int>.generate(count, (i) => i));
+      _desired = List<int>.from(indices);
+      return;
+    }
+    for (var i = 0; i < indices.length; i++) {
+      if (indices[i] >= index) indices[i] += count;
+    }
+    for (var i = 0; i < count; i++) {
+      indices.add(index + i);
+    }
+    _desired = List<int>.from(indices);
+  }
+
+  @override
+  void removeRange(int start, int end) {
+    final count = end - start;
+    final removed = <int>{for (var i = start; i < end; i++) i};
+    indices.removeWhere(removed.contains);
+    for (var i = 0; i < indices.length; i++) {
+      if (indices[i] >= end) indices[i] -= count;
+    }
+    _desired = List<int>.from(indices);
+  }
+
+  @override
+  void clear() => indices.clear();
+
+  void _restore() {
+    indices
+      ..clear()
+      ..addAll(_desired);
+  }
 }
 
 enum PlayerRepeatMode { off, all, one }
@@ -213,6 +441,26 @@ class PlayerProvider extends ChangeNotifier {
   // целиком, затем новый — «не сыгранные» приоритезированы, повторов нет.
   List<int> _shuffleOrder = const [];
   int _shufflePos = -1;
+  // B24 (главный фикс автоперехода в shuffle): раунд ОТРАЖАЕТСЯ в нативном
+  // shuffle-порядке just_audio/ExoPlayer.
+  //
+  // Почему это обязательно: естественное окончание трека обрабатывает сам
+  // ExoPlayer (advance внутри нативного плейлиста), Dart получает лишь смену
+  // currentIndex, а `ProcessingState.completed` — только когда нативное окно
+  // закончилось целиком. Поэтому один лишь раунд в Dart не влиял на
+  // автопереход: играл следующий трек по порядку списка. «Кнопка next» шла
+  // через next() и выглядела перемешанной — отсюда и расхождение, которое
+  // видел пользователь.
+  //
+  // Раунд публикуется как нативный shuffle-порядок окна: первым — текущий
+  // трек, затем несыгранный «хвост» раунда, в конце — уже сыгранные, чтобы
+  // после исчерпания окна (`completed`) автопереход начал новый раунд.
+  /// Последний переданный в just_audio shuffle-порядок окна. Держим ссылку,
+  /// чтобы обновлять порядок после точечных правок очереди без перезагрузки.
+  PlayerShuffleOrder? _nativeShuffleOrder;
+  /// Поколение публикации порядка: устаревшая асинхронная операция не должна
+  /// перетереть более свежий раунд (аналог _sliceBuildSeq).
+  int _shuffleEpoch = 0;
 
   int toProviderIndex(int nativeIndex) => nativeIndex + _nativeOffset;
 
@@ -234,6 +482,30 @@ class PlayerProvider extends ChangeNotifier {
     if (start >= end) {
       handler.setQueueWindow(const [], start);
       return;
+    }
+    // B28: при включённом shuffle показываем окно в реальном порядке
+    // воспроизведения нативного плеера — иначе пульт/уведомление/Android Auto
+    // перечисляют треки по списку, а играет другой. `providerOffset = 0`,
+    // потому что перестановка задана в локальных индексах окна.
+    final shuffleOrder = _shuffleMode ? _nativeShuffleOrder?.indices : null;
+    if (shuffleOrder != null &&
+        shuffleOrder.length == _nativeLength &&
+        shuffleOrder.toSet().length == _nativeLength) {
+      final reordered = [
+        for (final local in shuffleOrder)
+          if (local >= 0 && local < _nativeLength) _playlist[start + local],
+      ];
+      if (reordered.length == _nativeLength) {
+        handler.setQueueWindow(
+          reordered,
+          0,
+          currentProviderIndex: shuffleOrder.indexOf(current - start),
+          providerIndices: [
+            for (final local in shuffleOrder) start + local,
+          ],
+        );
+        return;
+      }
     }
     handler.setQueueWindow(
       _playlist.sublist(start, end),
@@ -269,14 +541,141 @@ class PlayerProvider extends ChangeNotifier {
     final seq = ++_sliceBuildSeq;
     final slice = _playlist.sublist(start, end);
     // Окно маленькое — грузим целиком и упорядоченно (никаких гонок seek/play).
+    //
+    // B24: в shuffle порядок окна задаётся нативным shuffle-порядком. Иначе
+    // ExoPlayer листает окно по порядку списка, и автопереход (трек доиграл)
+    // играет следующий по списку — ровно тот баг, из-за которого «кнопка
+    // работает, а доигрывание нет». Порядок строится от «несыгранного хвоста»
+    // раунда, а уже сыгранные треки уходят в конец окна.
+    final nativeOrder = _shuffleMode
+        ? _nativeRoundOrder(windowStartsAt: start, windowLength: end - start)
+        : null;
+    final shuffleOrder =
+        nativeOrder == null ? null : PlayerShuffleOrder(nativeOrder);
     await _audioPlayer.setAudioSources(
       slice.map((t) => AudioSource.uri(Uri.parse(t.uri))).toList(),
       preload: true,
+      shuffleOrder: shuffleOrder,
     );
     if (seq != _sliceBuildSeq) return false; // устаревшее завершение
     _nativeOffset = start;
     _nativeLength = end - start;
+    _nativeShuffleOrder = shuffleOrder;
+    // Режим shuffle — состояние плеера, а не окна. Включаем его ПОСЛЕ загрузки
+    // (до первой загрузки нативная платформа ещё не создана), ExoPlayer начнёт
+    // использовать переданный порядок со следующего автоперехода.
+    await _applyNativeShuffleModeFlag();
     return true;
+  }
+
+  /// B24: приводит нативный режим shuffle в соответствие с [_shuffleMode].
+  /// Вызывать только после загрузки окна (нативная платформа уже создана).
+  Future<void> _applyNativeShuffleModeFlag() async {
+    try {
+      await _audioPlayer.setShuffleModeEnabled(_shuffleMode);
+    } catch (_) {
+      // Платформа не поддержала — остаётся ручной раунд в next().
+      DebugLog.log('shuffle: нативный режим не применён');
+    }
+  }
+
+  /// B24: переносит фактически играющий трек в курсор раунда shuffle.
+  ///
+  /// Вызывается на нативном автопереходе (трек доиграл, ExoPlayer сам сдвинул
+  /// окно по shuffle-порядку). Без этого `_shufflePos` отставал бы, и
+  /// следующий `next()` снова играл бы уже прозвучавший трек.
+  void _syncShuffleRoundToIndex(int providerIndex) {
+    if (!_shuffleMode) return;
+    if (providerIndex < 0 || providerIndex >= _playlist.length) return;
+    if (_shuffleOrder.length != _playlist.length) {
+      _shuffleOrder = buildShuffleOrder(_playlist.length, providerIndex);
+      _shufflePos = shufflePosFor(_shuffleOrder, providerIndex);
+      return;
+    }
+    final at = _shuffleOrder.indexOf(providerIndex);
+    if (at >= 0) {
+      _shufflePos = at;
+    } else {
+      _rebuildShuffleOrder();
+      _shufflePos = shufflePosFor(_shuffleOrder, providerIndex);
+    }
+  }
+
+  /// B24: порядок воспроизведения НАТИВНОГО окна для shuffle.
+  /// Тонкая обёртка над чистой [buildNativeShuffleOrder] (тестируется отдельно).
+  List<int>? _nativeRoundOrder({
+    required int windowStartsAt,
+    required int windowLength,
+  }) =>
+      buildNativeShuffleOrder(
+        round: _shuffleOrder,
+        pos: _shufflePos,
+        playlistLength: _playlist.length,
+        current: _currentIndex,
+        windowStartsAt: windowStartsAt,
+        windowLength: windowLength,
+      );
+
+  /// B27: обновляет shuffle-порядок текущего окна ПОСЛЕ точечных правок
+  /// очереди (вставка/удаление/перенос), не перезапуская играющий трек.
+  ///
+  /// just_audio не даёт задать порядок без перезагрузки окна, но `shuffle()`
+  /// пересобирает нативный порядок из уже существующих источников. Перед ним
+  /// подменяем порядок источника на актуальный раунд (`PlayerShuffleOrder`),
+  /// поэтому нативный «следующий» снова совпадает с раундом в Dart.
+  Future<void> _refreshNativeShuffleOrder() async {
+    if (_nativeLength <= 0) return;
+    final order = _nativeRoundOrder(
+      windowStartsAt: _nativeOffset,
+      windowLength: _nativeLength,
+    );
+    if (order == null) return;
+    final epoch = ++_shuffleEpoch;
+    _nativeShuffleOrder?.updateDesired(order);
+    try {
+      // Порядок источника уже актуален — просим just_audio применить его.
+      await _audioPlayer.shuffle();
+      if (epoch != _shuffleEpoch) return;
+      // Порядок изменился — возвращаем позицию играющего трека.
+      final local = _currentIndex - _nativeOffset;
+      if (local >= 0 && local < _nativeLength) {
+        await _audioPlayer.seek(_position, index: local);
+      }
+    } catch (_) {}
+  }
+
+  /// B24: пересобрать нативное окно, чтобы применить новый shuffle-порядок.
+  ///
+  /// just_audio позволяет задать порядок только при загрузке окна, поэтому
+  /// включение/выключение shuffle и смена раунда требуют перезагрузки. Позиция
+  /// текущего трека сохраняется, играющий трек не перезапускается.
+  Future<void> _applyShuffleToNative() async {
+    if (_playlist.isEmpty) return;
+    final wasPlaying = _isPlaying;
+    final pos = _position;
+    _switchingSource = true;
+    try {
+      await _buildNativeSlice(
+        _currentIndex >= 0 ? _currentIndex : 0,
+        force: true,
+      );
+      if (_currentIndex >= 0) {
+        final local = _currentIndex - _nativeOffset;
+        await _audioPlayer.seek(
+          pos,
+          index: (local >= 0 && local < _nativeLength) ? local : null,
+        );
+        if (wasPlaying) await _audioPlayer.play();
+      }
+    } catch (_) {
+      // Очередь провайдера консистентна — досинхронизируется следующим событием.
+    } finally {
+      _lastEventIndex = _currentIndex;
+      _switchingSource = false;
+    }
+    await _applyNativeShuffleModeFlag();
+    _syncAudioHandlerQueue();
+    _notify('shuffleNative');
   }
 
   /// Keeps the native queue bounded after point mutations such as
@@ -1051,6 +1450,10 @@ class PlayerProvider extends ChangeNotifier {
     final indexChanged = idx != _lastEventIndex;
     _lastEventIndex = idx;
     _currentIndex = idx;
+    // B24: нативный автопереход (трек доиграл) идёт по порядку окна —
+    // переносим его в раунд shuffle, иначе «следующий» в Dart разойдётся с
+    // тем, что играет, и очередной next() повторит уже сыгранный трек.
+    if (indexChanged && _shuffleMode) _syncShuffleRoundToIndex(idx);
     if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
       final t = _playlist[_currentIndex];
       if (t.id != _lastHistoryTrackId) {
@@ -3614,7 +4017,10 @@ class PlayerProvider extends ChangeNotifier {
     try {
       if (!sameList) {
         _playlist = List<AudioTrack>.from(tracks);
-        // B1: новый состав очереди — порядок shuffle пересобираем.
+        // B24: раунд строится от СТАРТОВОГО трека и до сборки окна — иначе
+        // нативный shuffle-порядок окна считался бы от прошлого индекса и
+        // первый автопереход уходил бы не туда.
+        _currentIndex = startIndex;
         if (_shuffleMode) _rebuildShuffleOrder();
         _persistQueueSnapshot();
         _prefs?.setInt('last_index', startIndex);
@@ -3719,8 +4125,12 @@ class PlayerProvider extends ChangeNotifier {
       _recordSkip(cur.id);
     }
 
+    // B24: в shuffle следующий трек всегда берётся из раунда. Автопереход
+    // (трек доиграл) делает ExoPlayer по нативному shuffle-порядку окна —
+    // см. `_buildNativeSlice`/`buildNativeShuffleOrder`. Здесь — путь кнопки
+    // и системных команд.
     if (_shuffleMode) {
-      await _playNextShuffled();
+      await nextShuffled();
       return;
     }
 
@@ -3745,6 +4155,41 @@ class PlayerProvider extends ChangeNotifier {
     } else {
       await playAt(nextIndex);
     }
+  }
+
+  /// Следующий трек в shuffle. Единая точка и для кнопки next, и для
+  /// автоперехода: раунд доигрывается целиком, затем строится новый.
+  Future<void> nextShuffled() async {
+    final n = _playlist.length;
+    if (n == 0) return;
+    if (n == 1) {
+      // Один трек — двигаться некуда: просто начинаем его заново.
+      await _audioPlayer.seek(Duration.zero);
+      await _audioPlayer.play();
+      return;
+    }
+    // Порядок мог устареть (очередь изменилась / раунд ещё не построен).
+    if (_shuffleOrder.length != n || _shufflePos < 0) {
+      _shuffleOrder = buildShuffleOrder(n, _currentIndex);
+      _shufflePos = shufflePosFor(_shuffleOrder, _currentIndex);
+    }
+    final step = nextShuffleStep(_shuffleOrder, _shufflePos);
+    if (step.newRound || step.index < 0 || step.index >= n) {
+      // Раунд проигран целиком — начинаем новый. `buildShuffleOrder` ставит
+      // текущий трек первым (он уже сыгран), поэтому стартуем со второго.
+      _shuffleOrder = buildShuffleOrder(n, _currentIndex);
+      final first = _shuffleOrder.length > 1
+          ? _shuffleOrder[1]
+          : _shuffleOrder.first;
+      _shufflePos = _shuffleOrder.indexOf(first);
+      await playAt(first);
+      // Новый раунд должен попасть и в нативное окно: иначе после первого же
+      // автоперехода ExoPlayer пойдёт по старому порядку и shuffle «залипнет».
+      await _applyShuffleToNative();
+      return;
+    }
+    _shufflePos = step.pos;
+    await playAt(step.index);
   }
 
   /// [restartCurrent] = false — всегда переходить к предыдущему треку
@@ -3791,11 +4236,29 @@ class PlayerProvider extends ChangeNotifier {
   /// Корректировка порядка shuffle при вставке `count` треков на позицию
   /// `index` (играть следующими / добавление в конец): индексы >= index
   /// сдвигаются вверх, позиция курсора [_shufflePos] остаётся на месте.
-  void _adjustShuffleOrderForInsert(int index, int count) {
-    if (!_shuffleMode || _shuffleOrder.isEmpty || count <= 0) return;
-    for (var p = 0; p < _shuffleOrder.length; p++) {
-      if (_shuffleOrder[p] >= index) _shuffleOrder[p] += count;
+  /// [atEnd] — вставка в конец списка: такие треки попадают в конец раунда,
+  /// остальные («играть следующими») — сразу после курсора, чтобы автопереход
+  /// и next() действительно сыграли их следующими.
+  void _adjustShuffleOrderForInsert(
+    int index,
+    int count, {
+    bool atEnd = false,
+  }) {
+    if (!_shuffleMode || count <= 0) return;
+    if (_shuffleOrder.length != _playlist.length - count) {
+      // Раунд не покрывал прежнюю очередь — дешевле пересобрать.
+      _rebuildShuffleOrder();
+      return;
     }
+    final result = insertIntoShuffleRound(
+      round: _shuffleOrder,
+      pos: _shufflePos,
+      index: index,
+      count: count,
+      atEnd: atEnd,
+    );
+    _shuffleOrder = result.round;
+    _shufflePos = result.pos;
   }
 
   /// Корректировка порядка shuffle при удалении трека с позиции `index`:
@@ -3804,45 +4267,13 @@ class PlayerProvider extends ChangeNotifier {
   /// позиции раунда (теперь указывает на последующий трек).
   void _adjustShuffleOrderForRemove(int index) {
     if (!_shuffleMode || _shuffleOrder.isEmpty) return;
-    var p = _shuffleOrder.indexOf(index);
-    if (p >= 0) {
-      _shuffleOrder.removeAt(p);
-      if (p < _shufflePos) _shufflePos -= 1;
-      if (_shufflePos >= _shuffleOrder.length) {
-        _shufflePos = _shuffleOrder.length - 1;
-      }
-    }
-    for (var i = 0; i < _shuffleOrder.length; i++) {
-      if (_shuffleOrder[i] > index) _shuffleOrder[i] -= 1;
-    }
-  }
-
-  /// Следующий трек в порядке shuffle: раунд проигрывается целиком,
-
-  /// Следующий трек в порядке shuffle: раунд проигрывается целиком,
-  /// затем строится новый (B1 — раньше был случайный индекс по модулю).
-  Future<void> _playNextShuffled() async {
-    final n = _playlist.length;
-    if (n == 0) return;
-    if (n == 1) {
-      await playAt(0);
-      return;
-    }
-    // Порядок мог устареть (очередь изменилась) — пересобираем.
-    if (_shufflePos < 0 || _shuffleOrder.length != n) _rebuildShuffleOrder();
-    if (_shufflePos + 1 >= _shuffleOrder.length) {
-      _rebuildShuffleOrder(); // раунд проигран — начинаем новый
-    }
-    final pos = _shufflePos + 1;
-    var idx = pos < _shuffleOrder.length ? _shuffleOrder[pos] : -1;
-    if (idx < 0 || idx >= n) {
-      _rebuildShuffleOrder();
-      idx = _shuffleOrder.length > 1 ? _shuffleOrder[1] : 0;
-      await playAt(idx);
-      return;
-    }
-    _shufflePos = pos;
-    await playAt(idx);
+    final result = removeFromShuffleRound(
+      round: _shuffleOrder,
+      pos: _shufflePos,
+      index: index,
+    );
+    _shuffleOrder = result.round;
+    _shufflePos = result.pos;
   }
 
   /// B2: синхронизирует нативный режим повтора с [_repeatMode].
@@ -3904,19 +4335,7 @@ class PlayerProvider extends ChangeNotifier {
   /// Установка состояния (не тогглинг) — для системных команд MediaSession.
   Future<void> applyShuffle(bool on) async {
     if (_shuffleMode == on) return;
-    _shuffleMode = on;
-    _shuffleTouched = true;
-    if (on) {
-      _rebuildShuffleOrder();
-    } else {
-      _shuffleOrder = const [];
-      _shufflePos = -1;
-    }
-    _prefs?.setBool('shuffle_mode', on);
-    _rescue?.set('shuffle_mode', on);
-    _audioHandler?.setShuffleState(on);
-    _notify('applyShuffle');
-    WidgetService.playerChanged(this);
+    await _setShuffleMode(on, source: 'applyShuffle');
   }
 
   /// 0 = выкл, 1 = все, 2 = один (индекс PlayerRepeatMode).
@@ -3933,19 +4352,36 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void toggleShuffle() {
-    _shuffleMode = !_shuffleMode;
+    // UI/виджеты ждут синхронного переключения флага, поэтому состояние
+    // обновляем сразу, а пересборку нативного окна делаем в фоне.
+    unawaited(_setShuffleMode(!_shuffleMode, source: 'toggleShuffle'));
+  }
+
+  /// Единая точка смены режима shuffle.
+  ///
+  /// B24: раунд нужно продублировать в нативное окно just_audio, иначе
+  /// автопереход (трек доиграл) играет следующий трек по списку. Порядок
+  /// передаётся только при загрузке окна, поэтому здесь — одна пересборка
+  /// `_applyShuffleToNative()` (позиция текущего трека сохраняется).
+  Future<void> _setShuffleMode(bool on, {required String source}) async {
+    final changed = _shuffleMode != on;
+    _shuffleMode = on;
     _shuffleTouched = true;
-    if (_shuffleMode) {
-      _rebuildShuffleOrder();
+    if (on) {
+      if (changed || _shuffleOrder.length != _playlist.length) {
+        _rebuildShuffleOrder();
+      }
     } else {
       _shuffleOrder = const [];
       _shufflePos = -1;
     }
-    _prefs?.setBool('shuffle_mode', _shuffleMode);
-    _rescue?.set('shuffle_mode', _shuffleMode);
-    _audioHandler?.setShuffleState(_shuffleMode);
-    _notify('toggleShuffle');
+    _prefs?.setBool('shuffle_mode', on);
+    _rescue?.set('shuffle_mode', on);
+    _audioHandler?.setShuffleState(on);
+    _notify(source);
     WidgetService.playerChanged(this);
+    if (!changed) return;
+    await _applyShuffleToNative();
   }
 
   Future<void> setSpeed(double speed) async {
@@ -4163,7 +4599,11 @@ class PlayerProvider extends ChangeNotifier {
     _playlist.insertAll(insertIndex, tracks);
     // Shuffle-раунд должен узнать о новых индексах, иначе «следующий»
     // после вставки может указывать на чужой трек (сдвиг индексов).
-    _adjustShuffleOrderForInsert(insertIndex, tracks.length);
+    _adjustShuffleOrderForInsert(
+      insertIndex,
+      tracks.length,
+      atEnd: insertIndex >= _playlist.length,
+    );
 
     // FIX: вставляем источники в нативный плеер без перезапуска текущего трека.
     // Раньше вызывался _rebuildPlaylist(), который делает setAudioSources(force:true)
@@ -4187,6 +4627,9 @@ class PlayerProvider extends ChangeNotifier {
       await _trimNativeWindowToBound();
       // Шторка/локскрин/виджет должны узнать о новом bounded окне очереди.
       _syncAudioHandlerQueue();
+      // B27: нативный порядок окна тоже изменился — иначе автопереход пойдёт
+      // по старому shuffle-порядку и «играть следующими» не сработает.
+      if (_shuffleMode) await _refreshNativeShuffleOrder();
     } catch (_) {
       // Фолбэк: очередь провайдера уже консистентна — пересобираем целиком.
       await _rebuildPlaylist();
@@ -4273,6 +4716,8 @@ class PlayerProvider extends ChangeNotifier {
       if (fromIn && toIn) {
         await _audioPlayer.moveAudioSource(fromLocal, toLocal);
         _lastEventIndex = _currentIndex;
+        // B27: перенос меняет и shuffle-порядок окна.
+        if (_shuffleMode) await _refreshNativeShuffleOrder();
       } else {
         // Перемещение через границу окна — дешевле пересобрать,
         // позиция играющего трека сохраняется через seek в _rebuildPlaylist.
@@ -4356,6 +4801,8 @@ class PlayerProvider extends ChangeNotifier {
       _nativeLength -= 1;
       _lastEventIndex = _currentIndex;
       _syncAudioHandlerQueue();
+      // B27: убираем удалённый трек и из нативного shuffle-порядка окна.
+      if (_shuffleMode) await _refreshNativeShuffleOrder();
     } catch (_) {
       await _rebuildPlaylist();
     } finally {

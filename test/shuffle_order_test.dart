@@ -41,4 +41,212 @@ void main() {
       expect(order, isNot(equals(identity)));
     });
   });
+
+  group('buildNativeShuffleOrder (B24: автопереход в shuffle)', () {
+    test('текущий трек идёт первым, перестановка покрывает всё окно', () {
+      final round = buildShuffleOrder(10, 4, random: math.Random(3));
+      final pos = shufflePosFor(round, 4);
+      final order = buildNativeShuffleOrder(
+        round: round,
+        pos: pos,
+        playlistLength: 10,
+        current: 4,
+        windowStartsAt: 0,
+        windowLength: 10,
+      );
+      expect(order, isNotNull);
+      expect(order!.first, 4, reason: 'раунд продолжается с текущего трека');
+      expect(order.length, 10);
+      expect(order.toSet().length, 10, reason: 'каждый трек окна — один раз');
+    });
+
+    test('после текущего идут НЕсыгранные, сыгранные — в конце', () {
+      // Раунд: 0,1,2,3,4,5,6,7,8,9; курсор на 4 → сыграны 0..4.
+      final round = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      final order = buildNativeShuffleOrder(
+        round: round,
+        pos: 4,
+        playlistLength: 10,
+        current: 4,
+        windowStartsAt: 0,
+        windowLength: 10,
+      )!;
+      expect(order.sublist(1, 6), [5, 6, 7, 8, 9], reason: 'несыгранные по порядку раунда');
+      expect(order.sublist(6), [0, 1, 2, 3], reason: 'сыгранные — в хвосте окна');
+    });
+
+    test('после исчерпания несыгранных автопереход попадает в сыгранные', () {
+      final round = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      final order = buildNativeShuffleOrder(
+        round: round,
+        pos: 4,
+        playlistLength: 10,
+        current: 4,
+        windowStartsAt: 0,
+        windowLength: 10,
+      )!;
+      // Пять «автопереходов» по нативному порядку после текущего.
+      final tail = order.sublist(1);
+      expect(tail.take(5), [5, 6, 7, 8, 9]);
+      expect(tail.skip(5), [0, 1, 2, 3]);
+    });
+
+    test('треки окна вне раунда идут за несыгранными', () {
+      // Раунд из 4 треков, окно из 6: индексы 4 и 5 в раунд не входят.
+      final round = [1, 0, 3, 2];
+      final order = buildNativeShuffleOrder(
+        round: round,
+        pos: 1,
+        playlistLength: 4,
+        current: 0,
+        windowStartsAt: 0,
+        windowLength: 6,
+      );
+      expect(order, isNull, reason: 'окно шире очереди — перестановка невозможна');
+    });
+
+    test('новые треки (без раунда) не ломают порядок', () {
+      final order = buildNativeShuffleOrder(
+        round: const [],
+        pos: -1,
+        playlistLength: 5,
+        current: 2,
+        windowStartsAt: 0,
+        windowLength: 5,
+      )!;
+      expect(order.first, 2);
+      expect(order.toSet().length, 5);
+    });
+
+    test('уже сыгранный раунд целиком: стартуем с хвоста, затем всё сначала', () {
+      final round = [0, 1, 2, 3];
+      final order = buildNativeShuffleOrder(
+        round: round,
+        pos: 3,
+        playlistLength: 4,
+        current: 3,
+        windowStartsAt: 0,
+        windowLength: 4,
+      )!;
+      expect(order.first, 3);
+      expect(order.sublist(1), [0, 1, 2], reason: 'новый круг начнётся с начала');
+    });
+
+    test('курсор вне окна — порядок всё равно валиден', () {
+      final round = [5, 6, 7, 8, 9, 0, 1, 2, 3, 4];
+      final order = buildNativeShuffleOrder(
+        round: round,
+        pos: 0,
+        playlistLength: 10,
+        current: 5,
+        windowStartsAt: 0,
+        windowLength: 5,
+      )!;
+      expect(order.length, 5);
+      expect(order.toSet().length, 5);
+    });
+  });
+
+  group('nextShuffleStep', () {
+    test('двигается по раунду и не выходит за границы', () {
+      final round = [3, 1, 4, 0, 2];
+      var pos = 0;
+      final visited = <int>[round[pos]];
+      for (var i = 0; i < round.length - 1; i++) {
+        final step = nextShuffleStep(round, pos);
+        expect(step.newRound, isFalse);
+        pos = step.pos;
+        visited.add(step.index);
+      }
+      expect(visited, round, reason: 'раунд проигрывается целиком без повторов');
+      final wrap = nextShuffleStep(round, pos);
+      expect(wrap.newRound, isTrue, reason: 'после последнего — новый раунд');
+    });
+
+    test('один трек — остаётся на нём', () {
+      final step = nextShuffleStep([7], 0);
+      expect(step.index, 7);
+      expect(step.newRound, isFalse);
+    });
+
+    test('пустой раунд — безопасный результат', () {
+      final step = nextShuffleStep(const [], -1);
+      expect(step.index, -1);
+      expect(step.newRound, isFalse);
+    });
+  });
+
+  group('shufflePosFor', () {
+    test('позиция курсора совпадает с индексом трека в раунде', () {
+      final round = [4, 2, 0, 3, 1];
+      expect(shufflePosFor(round, 0), 2);
+      expect(shufflePosFor(round, 4), 0);
+    });
+
+    test('трека нет в раунде — безопасный старт', () {
+      expect(shufflePosFor([1, 2], 9), 0);
+      expect(shufflePosFor(const [], 9), 0);
+    });
+  });
+
+  group('insertIntoShuffleRound (B27: «играть следующими» в shuffle)', () {
+    test('новые треки встают сразу после курсора раунда', () {
+      // Раунд [3,1,4,0,2], курсор на 1 (сыгран трек 3). Вставляем 2 трека
+      // на позицию 2 списка: индексы 2 и выше сдвигаются на 2.
+      final r = insertIntoShuffleRound(
+        round: [3, 1, 4, 0, 2],
+        pos: 1,
+        index: 2,
+        count: 2,
+      );
+      expect(r.pos, 1);
+      expect(r.round.length, 7);
+      expect(r.round.toSet().length, 7, reason: 'без дублей и потерь');
+      expect(r.round.sublist(2, 4), [2, 3], reason: 'вставленные — следующие');
+      expect(r.round.first, 3, reason: 'уже сыгранное остаётся на месте');
+    });
+
+    test('вставка в конец списка уходит в конец раунда', () {
+      final r = insertIntoShuffleRound(
+        round: [2, 0, 1],
+        pos: 0,
+        index: 3,
+        count: 1,
+        atEnd: true,
+      );
+      expect(r.round, [2, 0, 1, 3]);
+      expect(r.pos, 0);
+    });
+
+    test('сдвиг индексов не теряет и не дублирует треки', () {
+      final r = insertIntoShuffleRound(
+        round: [0, 1, 2, 3],
+        pos: 2,
+        index: 0,
+        count: 2,
+      );
+      expect(r.round.toSet(), {0, 1, 2, 3, 4, 5});
+      expect(r.round.length, 6);
+    });
+  });
+
+  group('removeFromShuffleRound (B27: удаление из раунда)', () {
+    test('курсор не перескакивает на уже сыгранное', () {
+      final r = removeFromShuffleRound(round: [3, 1, 4, 0, 2], pos: 1, index: 4);
+      expect(r.round, [3, 1, 0, 2], reason: 'удалён 4, индексы > 4 сдвинуты');
+      expect(r.pos, 1);
+    });
+
+    test('удаление до курсора сдвигает курсор влево', () {
+      final r = removeFromShuffleRound(round: [3, 1, 4, 0, 2], pos: 3, index: 1);
+      expect(r.round, [2, 3, 0, 1]);
+      expect(r.pos, 2);
+    });
+
+    test('удаление единственного элемента обнуляет раунд', () {
+      final r = removeFromShuffleRound(round: [9], pos: 0, index: 9);
+      expect(r.round, isEmpty);
+      expect(r.pos, -1);
+    });
+  });
 }

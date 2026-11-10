@@ -79,6 +79,10 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
   bool _favoriteOn = false;
   int _repeat = 0;
   int _queueProviderOffset = 0;
+  /// Соответствие «локальный индекс опубликованной очереди -> индекс трека в
+  /// полной очереди провайдера». Заполняется, когда опубликованная очередь
+  /// переставлена (shuffle): смещение offset в этом случае неприменимо.
+  List<int>? _queueProviderIndices;
   final OnAudioQuery _audioQuery = OnAudioQuery();
   final Map<int, String> _artPaths = {};
   final Map<String, BehaviorSubject<Map<String, dynamic>>> _browseSubjects = {};
@@ -340,11 +344,15 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToQueueItem(int index) {
-    final providerIndex = providerIndexFromMediaQueueIndex(
-      index,
-      _queueProviderOffset,
-      _queueTracks.length,
-    );
+    if (index < 0 || index >= _queueTracks.length) return Future.value();
+    final mapped = _queueProviderIndices;
+    final providerIndex = mapped != null && index < mapped.length
+        ? mapped[index]
+        : providerIndexFromMediaQueueIndex(
+            index,
+            _queueProviderOffset,
+            _queueTracks.length,
+          );
     if (providerIndex == null) return Future.value();
     return onPlayAt(providerIndex);
   }
@@ -497,9 +505,13 @@ class PlayerAudioHandler extends BaseAudioHandler with SeekHandler {
     List<AudioTrack> tracks,
     int providerOffset, {
     int? currentProviderIndex,
+    List<int>? providerIndices,
   }) {
     _queueTracks = List.of(tracks);
     _queueProviderOffset = providerOffset;
+    _queueProviderIndices = providerIndices == null
+        ? null
+        : List<int>.from(providerIndices);
     queue.add(_queueTracks.map(_toMediaItem).toList(growable: false));
     int? localIndex;
     if (currentProviderIndex != null) {
