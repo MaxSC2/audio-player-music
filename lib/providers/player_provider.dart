@@ -198,6 +198,32 @@ int shufflePosFor(List<int> round, int current) {
   return (round: without, pos: newPos);
 }
 
+/// B32: вставка треков в САМЫЙ КОНЕЦ очереди (радио, догрузка).
+///
+/// Отличие от [insertIntoShuffleRound]: треки не становятся «следующими» —
+/// они дописываются в конец ТЕКУЩЕГО раунда (ещё не звучали, значит их черёд
+/// после несыгранного хвоста), а курсор остаётся на играющем треке.
+///
+/// Без этого `_extendRadio` в shuffle оставлял раунд короче очереди, и
+/// `_syncShuffleRoundToIndex` на следующем же автопереходе пересобирал раунд
+/// заново — только что догруженные треки получали случайные позиции, в том
+/// числе ПЕРЕД курсором (помечались как сыгранные).
+({List<int> round, int pos}) appendToShuffleRound({
+  required List<int> round,
+  required int pos,
+  required int appendIndex,
+  required int count,
+}) {
+  if (count <= 0) return (round: round, pos: pos);
+  // Раунд не покрывает очередь целиком — безопаснее перестроить его снаружи.
+  if (round.length != appendIndex) return (round: round, pos: pos);
+  final next = <int>[
+    ...round,
+    for (var i = 0; i < count; i++) appendIndex + i,
+  ];
+  return (round: next, pos: pos);
+}
+
 /// B24: порядок воспроизведения нативного окна just_audio для shuffle.
 ///
 /// Зачем: естественное окончание трека обрабатывает ExoPlayer внутри нативной
@@ -3374,7 +3400,11 @@ class PlayerProvider extends ChangeNotifier {
       final more = buildSmartQueue(count: 30, exclude: _radioUsedIds);
       if (more.isEmpty) return;
       _radioUsedIds.addAll(more.map((t) => t.id));
+      final appendIndex = _playlist.length;
       _playlist = [..._playlist, ...more];
+      // B32: в shuffle новые треки должны попасть в раунд, иначе следующий
+      // автопереход пересоберёт раунд и «съест» часть догруженного.
+      _appendShuffleRound(appendIndex, more.length);
       // Через _rebuildPlaylist: он под гардом вернёт нативный плеер
       // на текущий трек/позицию. Без этого setAudioSources сбрасывает
       // нативный индекс в 0 — играет трек №1, а UI показывает старый.
@@ -4222,7 +4252,7 @@ class PlayerProvider extends ChangeNotifier {
   /// Следующий трек в shuffle. Единая точка и для кнопки next, и для
   /// автоперехода: раунд доигрывается целиком, затем строится новый.
   Future<void> nextShuffled() async {
-    final n = _playlist.length;
+    var n = _playlist.length;
     if (n == 0) return;
     if (n == 1) {
       // Один трек — двигаться некуда: просто начинаем его заново.
@@ -4235,7 +4265,21 @@ class PlayerProvider extends ChangeNotifier {
       _shuffleOrder = buildShuffleOrder(n, _currentIndex);
       _shufflePos = shufflePosFor(_shuffleOrder, _currentIndex);
     }
-    final step = nextShuffleStep(_shuffleOrder, _shufflePos);
+    var step = nextShuffleStep(_shuffleOrder, _shufflePos);
+    // B33: радио в shuffle тоже должно догружать очередь.
+    //
+    // В режиме списка конец очереди обрабатывает next() → `_extendRadio()`.
+    // В shuffle этот путь не вызывается вообще (next() сразу уходит сюда),
+    // поэтому «бесконечное» радио зацикливалось на первых 60 треках.
+    if (step.newRound && _radioMode && !_radioExtending) {
+      await _extendRadio();
+      n = _playlist.length;
+      if (_shuffleOrder.length != n || _shufflePos < 0) {
+        _shuffleOrder = buildShuffleOrder(n, _currentIndex);
+        _shufflePos = shufflePosFor(_shuffleOrder, _currentIndex);
+      }
+      step = nextShuffleStep(_shuffleOrder, _shufflePos);
+    }
     if (step.newRound || step.index < 0 || step.index >= n) {
       // Раунд проигран целиком — начинаем новый. `buildShuffleOrder` ставит
       // текущий трек первым (он уже сыгран), поэтому стартуем со второго.
@@ -4277,6 +4321,14 @@ class PlayerProvider extends ChangeNotifier {
           return;
         }
       }
+    }
+
+    // B34: в shuffle на НАЧАЛЕ раунда откатываться некуда — раньше управление
+    // проваливалось в порядок списка и «назад» прыгал на произвольный соседний
+    // по списку трек. Правильное поведение — начать текущий трек заново.
+    if (_shuffleMode) {
+      await _audioPlayer.seek(Duration.zero);
+      return;
     }
 
     final prevIndex = _currentIndex - 1;
@@ -4321,6 +4373,25 @@ class PlayerProvider extends ChangeNotifier {
     );
     _shuffleOrder = result.round;
     _shufflePos = result.pos;
+  }
+
+  /// B32: дописать треки в конец раунда shuffle (см. [appendToShuffleRound]).
+  /// Если раунд не покрывал очередь — строим новый от текущего трека.
+  void _appendShuffleRound(int appendIndex, int count) {
+    if (!_shuffleMode || count <= 0) return;
+    final result = appendToShuffleRound(
+      round: _shuffleOrder,
+      pos: _shufflePos,
+      appendIndex: appendIndex,
+      count: count,
+    );
+    if (result.round.length == _playlist.length) {
+      _shuffleOrder = result.round;
+      _shufflePos = result.pos;
+      return;
+    }
+    _shuffleOrder = buildShuffleOrder(_playlist.length, _currentIndex);
+    _shufflePos = shufflePosFor(_shuffleOrder, _currentIndex);
   }
 
   /// Корректировка порядка shuffle при удалении трека с позиции `index`:

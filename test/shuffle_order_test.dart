@@ -266,4 +266,85 @@ void main() {
       expect(pos, 0);
     });
   });
+
+  group('appendToShuffleRound (B32: радио в shuffle)', () {
+    test('новые треки дописываются в конец раунда, курсор на месте', () {
+      // Раунд покрывает очередь из 5 треков, играет позиция 2.
+      final r = appendToShuffleRound(
+        round: const [4, 0, 3, 1, 2],
+        pos: 2,
+        appendIndex: 5,
+        count: 3,
+      );
+      expect(r.round, [4, 0, 3, 1, 2, 5, 6, 7]);
+      expect(r.pos, 2, reason: 'играющий трек не должен сдвигаться');
+      // Новые треки ещё не звучали — они позже курсора.
+      for (var p = 3; p < r.round.length; p++) {
+        expect(r.round[p], greaterThanOrEqualTo(5));
+      }
+    });
+
+    test('раунд короче очереди — не трогаем (перестроит вызывающий)', () {
+      final r = appendToShuffleRound(
+        round: const [1, 0],
+        pos: 1,
+        appendIndex: 4,
+        count: 2,
+      );
+      expect(r.round, [1, 0]);
+      expect(r.pos, 1);
+    });
+
+    test('count <= 0 — без изменений', () {
+      final r = appendToShuffleRound(
+        round: const [1, 0],
+        pos: 0,
+        appendIndex: 2,
+        count: 0,
+      );
+      expect(r.round, [1, 0]);
+      expect(r.pos, 0);
+    });
+
+    test('после догрузки автопереход играет новый трек, а не начинает раунд', () {
+      final r = appendToShuffleRound(
+        round: const [2, 0, 1],
+        pos: 0,
+        appendIndex: 3,
+        count: 2,
+      );
+      final step = nextShuffleStep(r.round, r.pos);
+      expect(step.newRound, isFalse, reason: 'раунд не должен считаться исчерпанным');
+      expect(step.index, 0);
+    });
+  });
+
+  group('B33/B34: сценарии shuffle на краях раунда', () {
+    test('догрузка → полный обход всех треков без повторов', () {
+      var round = buildShuffleOrder(4, 0, random: math.Random(3));
+      var pos = 0;
+      final r = appendToShuffleRound(round: round, pos: pos, appendIndex: 4, count: 3);
+      round = r.round;
+      pos = r.pos;
+      final seen = <int>[round[pos]];
+      // Доигрываем раунд до конца.
+      while (true) {
+        final step = nextShuffleStep(round, pos);
+        if (step.newRound) break;
+        pos = step.pos;
+        seen.add(step.index);
+        if (seen.length > round.length + 2) break;
+      }
+      expect(seen.toSet().length, seen.length, reason: 'ни один трек не повторён');
+      expect(seen.length, 7, reason: 'все 7 треков раунда сыграны один раз');
+    });
+
+    test('начало раунда: nextShuffleStep остаётся в раунде (B34 — не список)', () {
+      const round = [5, 2, 9, 0];
+      final step = nextShuffleStep(round, 0);
+      expect(step.newRound, isFalse);
+      expect(step.index, 2, reason: 'идём по раунду, а не по списку');
+      expect(step.pos, 1);
+    });
+  });
 }
